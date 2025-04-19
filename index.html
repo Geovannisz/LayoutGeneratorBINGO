@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Layouts de Antenas BINGO</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Font Awesome para ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+</head>
+<body>
+    <header>
+        <h1>Gerador de Layouts de Antenas BINGO</h1>
+        <div class="theme-toggle">
+            <label for="dark-mode-toggle">Modo Escuro</label>
+            <input type="checkbox" id="dark-mode-toggle">
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Gerador de Layout -->
+        <section class="layout-generator">
+            <h2>Gerador de Layout</h2>
+            
+            <div class="layout-controls">
+                <div class="control-panel">
+                    <div class="form-group">
+                        <label for="layout-type">Tipo de Layout:</label>
+                        <select id="layout-type">
+                            <option value="grid">Grid</option>
+                            <option value="spiral">Espiral</option>
+                            <option value="ring">Anéis</option>
+                            <option value="rhombus">Losango</option>
+                            <option value="hex_grid">Grade Hexagonal</option>
+                            <option value="phyllotaxis">Phyllotaxis</option>
+                            <option value="manual_circular">Circular Manual</option>
+                            <option value="random">Aleatório</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Parâmetros dinâmicos baseados no tipo de layout -->
+                    <div id="dynamic-params"></div>
+                    
+                    <div class="form-group">
+                        <label for="show-collisions">Mostrar Colisões:</label>
+                        <input type="checkbox" id="show-collisions">
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="generate-btn" class="primary">Gerar Layout</button>
+                        <button id="random-btn" class="secondary">Gerar Aleatório</button>
+                    </div>
+                </div>
+                
+                <div class="visualization">
+                    <canvas id="layout-canvas"></canvas>
+                    <div class="stats">
+                        <div>Tiles: <span id="tile-count">0</span></div>
+                        <div>Antenas: <span id="antenna-count">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Mapa Interativo -->
+        <section class="map-container">
+            <h2>Mapa Interativo</h2>
+            
+            <div class="map-content">
+                <div id="map" class="map"></div>
+                
+                <div class="map-info">
+                    <p>Coordenadas selecionadas: <span id="selected-coords">Nenhuma</span></p>
+                    <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
+                    <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
+                    
+                    <p>Clique no mapa para adicionar uma localização ou escolha um arranjo existente:</p>
+                    
+                    <div class="form-group">
+                        <label for="arranjo-select">Arranjo:</label>
+                        <select id="arranjo-select">
+                            <option value="0">Selecione um arranjo</option>
+                        </select>
+                    </div>
+                    
+                    <div id="coordinates-list" class="coordinates-list"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Exportação -->
+        <section class="export-container">
+            <h2>Exportação (Estrutura OSKAR)</h2>
+
+            <div class="export-fields">
+                 <!-- ../layout_wgs84.txt -->
+                <div class="export-field">
+                    <label for="export-layout-wgs84">layout_wgs84.txt (Estações WGS84):</label>
+                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações selecionadas no mapa"></textarea>
+                </div>
+
+                 <!-- ../position.txt -->
+                <div class="export-field">
+                    <label for="export-position">position.txt (BINGO Central WGS84):</label>
+                    <textarea id="export-position" readonly title="Coordenadas WGS84 fixas do BINGO"></textarea>
+                </div>
+
+                 <!-- ../station/layout.txt -->
+                <div class="export-field">
+                    <label for="export-station-layout">station/layout.txt (Centros Tiles XY):</label>
+                    <textarea id="export-station-layout" readonly title="Coordenadas XY relativas dos centros dos tiles na estação"></textarea>
+                </div>
+
+                 <!-- ../station/tile/layout.txt -->
+                <div class="export-field">
+                    <label for="export-tile-layout">station/tile/layout.txt (Antenas Tile XY):</label>
+                    <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas dentro de um tile"></textarea>
+                </div>
+            </div>
+            <p><small>Nota: As coordenadas XY são relativas ao centro da estação ou do tile, respectivamente. Os valores para a altitude estão incorretos.</small></p>
+        </section>
+    </div>
+    
+    <footer>
+        <p>Gerador de Layouts de Antenas BINGO - Desenvolvido para visualização e exportação de layouts de antenas</p>
+    </footer>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    
+    <!-- Scripts da aplicação -->
+    <script src="js/bingo_layouts.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/map.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
