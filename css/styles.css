@@ -19,6 +19,8 @@
     --tooltip-text-color: white;
     --copy-btn-color: #3498db;
     --copy-feedback-color: #e8f7f0;
+    --slider-track-color: #ccc;
+    --slider-thumb-color: var(--primary-color);
 }
 
 /* Tema escuro (Dracula) */
@@ -41,6 +43,8 @@
     --tooltip-text-color: #f8f8f2;
     --copy-btn-color: #8be9fd;
     --copy-feedback-color: #50fa7b;
+    --slider-track-color: #6272a4;
+    --slider-thumb-color: var(--primary-color);
 }
 
 /* Estilos gerais */
@@ -93,6 +97,7 @@ header h1 {
     position: relative;
     cursor: pointer;
     outline: none;
+    transition: background-color 0.3s; /* Smooth transition for background */
 }
 
 .theme-toggle input[type="checkbox"]::before {
@@ -104,13 +109,18 @@ header h1 {
     top: 2px;
     left: 2px;
     background-color: var(--primary-color);
-    transition: transform 0.3s;
+    transition: transform 0.3s, background-color 0.3s; /* Smooth transition for slider and color */
 }
 
 .theme-toggle input[type="checkbox"]:checked::before {
     transform: translateX(20px);
-    background-color: var(--secondary-color);
+    background-color: var(--secondary-color); /* Use secondary color for thumb in dark mode */
 }
+/* Update toggle background when checked */
+.theme-toggle input[type="checkbox"]:checked {
+     background-color: var(--card-bg-color); /* Use a theme-appropriate background */
+}
+
 
 h1, h2, h3 {
     margin: 0;
@@ -151,8 +161,18 @@ h1, h2, h3 {
     border: 1px solid var(--border-color);
     border-radius: 4px;
     overflow: hidden;
-    background-color: var(--card-bg-color);
+    background-color: var(--card-bg-color); /* Ensure canvas background matches card */
+    display: flex; /* Use flexbox for layout */
+    flex-direction: column; /* Stack canvas and stats vertically */
 }
+/* Let canvas take available space */
+#layout-canvas {
+     flex-grow: 1; /* Allow canvas to grow */
+     display: block; /* Remove extra space below canvas */
+     width: 100%; /* Ensure canvas fills its container width */
+     height: auto; /* Height will be determined by flex container */
+}
+
 
 .form-group {
     margin-bottom: 15px;
@@ -173,11 +193,77 @@ h1, h2, h3 {
     font-size: 14px;
     background-color: var(--input-bg-color);
     color: var(--input-text-color);
+    box-sizing: border-box; /* Include padding and border in element's total width and height */
 }
 
 .form-group input[type="checkbox"] {
     width: auto;
 }
+
+/* === Slider Styles === */
+
+/* Container for slider + number input */
+.slider-group {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Space between slider and number */
+    width: 100%;
+}
+
+/* Style the slider */
+.slider-group input[type="range"] {
+    flex-grow: 1; /* Allow slider to take up most space */
+    height: 8px; /* Adjust height */
+    cursor: pointer;
+    appearance: none; /* Override default look */
+    background: var(--slider-track-color); /* Track color */
+    border-radius: 4px;
+    outline: none;
+    padding: 0; /* Remove default padding */
+    margin: 0; /* Remove default margin */
+    border: none; /* Remove default border */
+}
+
+/* Style the slider thumb (the draggable handle) */
+.slider-group input[type="range"]::-webkit-slider-thumb { /* Chrome/Safari */
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    background: var(--slider-thumb-color);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.slider-group input[type="range"]::-moz-range-thumb { /* Firefox */
+    width: 16px;
+    height: 16px;
+    background: var(--slider-thumb-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: none;
+}
+
+/* Style the number input next to the slider */
+.slider-group input[type="number"] {
+    width: 65px; /* Fixed width for the number display */
+    flex-shrink: 0; /* Prevent shrinking */
+    text-align: right;
+    /* Optional: Make it look slightly different if desired */
+    /* background-color: var(--bg-color); */
+}
+
+/* Hide the default spinner buttons on number inputs (optional) */
+.slider-group input[type=number]::-webkit-inner-spin-button,
+.slider-group input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.slider-group input[type=number] {
+  -moz-appearance: textfield; /* Firefox */
+}
+
+/* === End Slider Styles === */
+
 
 .button-group {
     display: flex;
@@ -198,11 +284,20 @@ button.primary {
     background-color: var(--primary-color);
     color: var(--card-bg-color);
 }
+/* Ensure text color contrasts with primary color */
+[data-theme="dark"] button.primary {
+     color: #282a36; /* Dark text on light blue */
+}
+
 
 button.secondary {
     background-color: var(--secondary-color);
     color: var(--card-bg-color);
 }
+[data-theme="dark"] button.secondary {
+     color: #282a36; /* Dark text on light pink */
+}
+
 
 button:hover {
     opacity: 0.9;
@@ -210,9 +305,15 @@ button:hover {
 
 .stats {
     display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
+    justify-content: space-around; /* Space out stats */
+    padding: 10px; /* Add some padding */
+    border-top: 1px solid var(--border-color); /* Separator line */
+    background-color: var(--highlight-color); /* Slight background difference */
     font-weight: 500;
+    flex-shrink: 0; /* Prevent stats from shrinking */
+}
+.stats div {
+     text-align: center;
 }
 
 /* Estilos para o mapa interativo */
@@ -272,7 +373,7 @@ button:hover {
 
 .export-field {
     margin-bottom: 15px;
-    position: relative;
+    position: relative; /* Needed for copy button positioning */
 }
 
 .export-field label {
@@ -285,6 +386,7 @@ button:hover {
     width: 100%;
     height: 150px;
     padding: 10px;
+    padding-right: 35px; /* Add space for the copy button */
     border: 1px solid var(--border-color);
     border-radius: 4px;
     font-family: monospace;
@@ -292,19 +394,27 @@ button:hover {
     resize: vertical;
     background-color: var(--input-bg-color);
     color: var(--input-text-color);
+    box-sizing: border-box; /* Include padding */
 }
 
 .copy-btn {
     position: absolute;
-    top: 5px;
-    right: 5px;
+    /* Adjusted positioning relative to label height */
+    top: 30px; /* Position below the label */
+    right: 8px; /* A bit more inset */
     background: transparent;
     border: none;
     cursor: pointer;
     font-size: 16px;
+    padding: 5px; /* Add padding for easier clicking */
     color: var(--copy-btn-color);
     z-index: 10;
+    transition: color 0.2s; /* Smooth transition for feedback */
 }
+.copy-btn:hover {
+     opacity: 0.8;
+}
+
 
 /* Estilos para o rodapé */
 footer {
@@ -312,21 +422,32 @@ footer {
     padding: 20px 0;
     background-color: var(--header-bg-color);
     color: var(--header-text-color);
+    margin-top: 30px; /* Add space above footer */
 }
 
 /* Estilos para dispositivos móveis */
 @media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        gap: 15px;
+    }
     .layout-controls,
     .map-content {
         flex-direction: column;
     }
-    
+
     .control-panel,
     .visualization,
     .map,
     .map-info {
         width: 100%;
         max-width: none;
+    }
+    .visualization {
+         min-height: 350px; /* Adjust height for mobile */
+    }
+    .map {
+         height: 400px; /* Adjust map height */
     }
 }
 
@@ -336,6 +457,8 @@ footer {
     border: 1px solid var(--border-color);
     border-radius: 4px;
     overflow: hidden;
+    background-color: var(--card-bg-color); /* Match card background */
+    flex-shrink: 0; /* Prevent shrinking in flex container */
 }
 
 .collision-header {
@@ -357,11 +480,13 @@ footer {
     padding: 15px;
     max-height: 200px;
     overflow-y: auto;
+    display: none; /* Initially hidden */
 }
 
 .collision-content ul {
     margin: 0;
     padding-left: 20px;
+    list-style: disc; /* Use standard bullets */
 }
 
 .collision-content li {
@@ -375,6 +500,7 @@ footer {
     overflow-y: auto;
     border: 1px solid var(--border-color);
     border-radius: 4px;
+    background-color: var(--bg-color); /* Slightly different background */
 }
 
 .coordinate-item {
@@ -383,6 +509,14 @@ footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    cursor: pointer; /* Indicate clickable */
+    transition: background-color 0.2s;
+}
+.coordinate-item.active {
+     background-color: var(--highlight-hover-color); /* Highlight active item */
+}
+.coordinate-item:hover:not(.active) {
+     background-color: var(--highlight-color); /* Hover effect */
 }
 
 .coordinate-item:last-child {
@@ -391,7 +525,19 @@ footer {
 
 .coordinate-info {
     flex: 1;
+    margin-right: 10px; /* Space before buttons */
+    /* Decrease line height slightly */
+    line-height: 1.3;
 }
+.coordinate-info strong {
+     font-size: 1.05em; /* Slightly larger name */
+}
+.coordinate-info br {
+     display: block; /* Ensure line breaks work */
+     margin-bottom: 2px; /* Small space after break */
+     content: "";
+}
+
 
 .coordinate-actions {
     display: flex;
@@ -407,11 +553,28 @@ footer {
     background-color: var(--secondary-color);
     color: var(--card-bg-color);
 }
+[data-theme="dark"] .coordinate-actions .remove-btn {
+     color: #282a36;
+}
+
 
 .coordinate-actions .center-btn {
     background-color: var(--primary-color);
     color: var(--card-bg-color);
 }
+[data-theme="dark"] .coordinate-actions .center-btn {
+     color: #282a36;
+}
+
+/* Message for empty list */
+.empty-list-message {
+     padding: 15px;
+     text-align: center;
+     font-style: italic;
+     color: var(--text-color);
+     opacity: 0.7;
+}
+
 
 /* Estilos para marcadores arrastáveis */
 .leaflet-marker-draggable {
@@ -423,7 +586,9 @@ footer {
     background-color: var(--tooltip-bg-color);
     color: var(--tooltip-text-color);
     padding: 5px 10px;
+    border: none; /* Remove default border */
     border-radius: 4px;
     font-size: 12px;
     white-space: nowrap;
+    box-shadow: 0 1px 3px var(--shadow-color); /* Add subtle shadow */
 }

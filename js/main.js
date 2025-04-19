@@ -43,7 +43,7 @@ function checkComponentsAndSetup() {
          // alert("Erro: Falha ao carregar o mapa interativo.");
     }
 
-    // *** CORREÇÃO: Verifica o nome correto do exportador ***
+    // Verifica o nome correto do exportador
     if (!window.oskarExporter) { // Verifica o nome correto da instância
         console.error('Exportador de layout OSKAR (export.js) não encontrado ou inicializado!');
          allComponentsReady = false;
@@ -56,6 +56,8 @@ function checkComponentsAndSetup() {
          setupComponentCommunication();
          // Inicializa o modo escuro
          setupDarkMode();
+         // Configura o listener para redesenhar o canvas no tema alterado
+         setupThemeChangeListener(); // <-- Nova chamada
      } else {
           console.error("Aplicação não pôde ser inicializada completamente devido a componentes ausentes.");
           // Informa o usuário que algo deu errado
@@ -77,27 +79,14 @@ function checkComponentsAndSetup() {
  * global `window.updateExportFields`, chamada pelo gerador e pelo mapa.
  */
 function setupComponentCommunication() {
-    // Exemplo: Adicionar listener para garantir que a exportação
-    // seja atualizada se o layout for gerado ANTES do mapa estar pronto
-    // (Embora o fluxo atual tente evitar isso)
-
-    // const generateBtn = document.getElementById('generate-btn');
-    // if (generateBtn && window.antennaGenerator && window.interactiveMap && window.updateExportFields) {
-    //     generateBtn.addEventListener('click', () => {
-    //         // Pequeno delay para garantir que o layout foi gerado
-    //         setTimeout(() => {
-    //             const layout = window.antennaGenerator.getLayout();
-    //             const stations = window.interactiveMap.getSelectedCoordinates();
-    //             window.updateExportFields(layout, stations);
-    //         }, 50);
-    //     });
-    // }
-     console.log('Comunicação entre componentes (via updateExportFields) está ativa.');
+    // A comunicação principal é feita via funções globais e agora, eventos ('themeChanged').
+    console.log('Comunicação entre componentes (via updateExportFields e eventos) está ativa.');
 }
 
 /**
  * Configura a funcionalidade de alternância do modo escuro.
  * Lê a preferência do localStorage e adiciona o event listener ao toggle.
+ * Dispara um evento 'themeChanged' quando o tema é alterado.
  */
 function setupDarkMode() {
     const darkModeToggle = document.getElementById('dark-mode-toggle');
@@ -122,16 +111,39 @@ function setupDarkMode() {
         if (this.checked) {
             document.documentElement.setAttribute('data-theme', 'dark');
             localStorage.setItem('theme', 'dark');
+            console.log('Tema alterado para Escuro');
         } else {
             document.documentElement.removeAttribute('data-theme');
             localStorage.setItem('theme', 'light'); // Salva explicitamente como light
+            console.log('Tema alterado para Claro');
         }
-        // Dispara um evento customizado para que outros componentes (mapa, canvas) possam reagir, se necessário
-        // window.dispatchEvent(new CustomEvent('themeChanged'));
+        // Dispara um evento customizado para que outros componentes (mapa, canvas) possam reagir
+        console.log('Disparando evento themeChanged');
+        window.dispatchEvent(new CustomEvent('themeChanged')); // <-- Dispara o evento
     });
 
     console.log('Modo escuro configurado!');
 }
+
+/**
+ * Configura o listener global que reage à mudança de tema.
+ * Este listener chamará a função de redesenho do gerador de layout.
+ */
+function setupThemeChangeListener() {
+    window.addEventListener('themeChanged', () => {
+        console.log('Evento themeChanged recebido em main.js');
+        // Verifica se o gerador de antenas existe e tem o método drawLayout
+        if (window.antennaGenerator && typeof window.antennaGenerator.drawLayout === 'function') {
+            console.log('Chamando antennaGenerator.drawLayout() para atualizar cores...');
+            // Chama o método para redesenhar o canvas com as novas cores do tema
+            window.antennaGenerator.drawLayout();
+        } else {
+            console.warn('Instância antennaGenerator ou método drawLayout não encontrado para redesenhar no tema.');
+        }
+    });
+    console.log('Listener para themeChanged configurado.');
+}
+
 
 // --- Inicialização ---
 // Garante que a inicialização só ocorra após o DOM estar completamente carregado

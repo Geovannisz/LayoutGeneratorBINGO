@@ -2,7 +2,8 @@
  * Módulo para geração e visualização de layouts de antenas BINGO.
  * Utiliza a biblioteca BingoLayouts (bingo_layouts.js) e desenha
  * os resultados em um canvas HTML. Permite ajustar parâmetros
- * dinamicamente e visualizar colisões.
+ * dinamicamente com sliders e visualizar colisões.
+ * Redesenha automaticamente ao mudar o tema.
  */
 
 // === Constantes Globais ===
@@ -57,17 +58,18 @@ const DEFAULT_PARAMS = {
 };
 
 // Mapeamento de Parâmetros para Controles da Interface (define como cada parâmetro será exibido)
+// Agora inclui 'number' para criar slider + input numérico
 const PARAM_CONTROLS = {
     // --- Grid ---
     grid: [
         { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, max: 20, step: 1 },
         { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, max: 20, step: 1 },
         { id: 'spacingMode', label: 'Modo de Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
-        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' }, // Usa this.params na condição
-        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' }, // Usa this.params na condição
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' }, // Usa this.params na condição
+        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
+        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Usa this.params na condição
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Espiral ---
     spiral: [
@@ -77,24 +79,24 @@ const PARAM_CONTROLS = {
         { id: 'centerScaleMode', label: 'Escala Central', type: 'select', options: [ { value: 'none', label: 'Nenhum' }, { value: 'center_exponential', label: 'Exponencial' } ]},
         { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.1 },
         { id: 'radiusStepFactor', label: 'Fator Passo Raio', type: 'number', min: 0.1, max: 2, step: 0.05 }, // Significado muda c/ armSpacingMode
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.centerScaleMode === "center_exponential"' }, // Condicional
-        { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.01 }, // Exibe PI aprox.
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.centerScaleMode === "center_exponential"' },
+        { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.01 },
         { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Condicional
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
      // --- Anéis ---
      ring: [
         { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, max: 10, step: 1 },
-        // Nota: 'tilesPerRing' é tratado separadamente na lógica, não como controle direto aqui.
+        // Nota: 'tilesPerRing' é tratado separadamente na lógica.
         { id: 'ringSpacingMode', label: 'Espaç. Anel', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'exponential', label: 'Exponencial' } ]},
         { id: 'centerScaleMode', label: 'Escala Central', type: 'select', options: [ { value: 'none', label: 'Nenhum' }, { value: 'center_exponential', label: 'Exponencial' } ]},
         { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.1 },
         { id: 'radiusStepFactor', label: 'Fator Passo Raio', type: 'number', min: 0.1, max: 2, step: 0.05 }, // Significado muda c/ ringSpacingMode
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.centerScaleMode === "center_exponential"' }, // Condicional
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.centerScaleMode === "center_exponential"' },
         { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Condicional
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Losango ---
     rhombus: [
@@ -103,19 +105,19 @@ const PARAM_CONTROLS = {
         { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.1, max: 5, step: 0.05 },
         { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.1, max: 5, step: 0.1 },
         { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.1, max: 5, step: 0.1 },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' }, // Condicional
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Condicional
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
      // --- Grade Hexagonal ---
      hex_grid: [
         { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 },
         { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
         { id: 'spacingFactor', label: 'Fator Espaçamento', type: 'number', min: 0.1, max: 5, step: 0.1 },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' }, // Condicional
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
         { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Condicional
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Phyllotaxis ---
     phyllotaxis: [
@@ -123,18 +125,18 @@ const PARAM_CONTROLS = {
         { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
         { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.1 },
         { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.01 },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' }, // Condicional
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Condicional
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Circular Manual ---
     manual_circular: [
         { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
-        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' }, // Condicional
-        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' }, // Condicional
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' }, // Condicional
+        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
+        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } // Condicional
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Aleatório ---
     random: [
@@ -167,45 +169,71 @@ class AntennaLayoutGenerator {
         this.collisions = []; // Armazena informações sobre colisões detectadas
 
         // Ajusta o tamanho do canvas e adiciona listener para redimensionamento
-        this.resizeCanvas();
+        this.resizeCanvas(); // Call initial resize
         window.addEventListener('resize', () => this.resizeCanvas());
 
         // Inicializa os controles da interface (dropdown, inputs dinâmicos, botões)
+        // e adiciona o listener para atualização de tema
         this.initControls();
 
         // Gera o layout inicial com os parâmetros padrão
-        // Adiciona um pequeno delay para garantir que a UI esteja pronta (opcional)
-        // setTimeout(() => this.generateLayout(), 50);
-         this.generateLayout(); // Tenta gerar imediatamente
+         this.generateLayout();
     }
 
     /**
      * Redimensiona o canvas para preencher seu contêiner pai
      * e redesenha o layout atual, se houver.
+     * A função preserva o aspect ratio do CONTEÚDO, não necessariamente do canvas em si,
+     * ajustando a escala para caber na menor dimensão disponível.
      */
     resizeCanvas() {
-        const container = this.canvas.parentElement;
+        const container = this.canvas.parentElement; // The '.visualization' div
         if (container) {
-            // Define um tamanho mínimo para evitar colapso
-            const minWidth = 200;
-            const minHeight = 200;
-            // Calcula altura disponível descontando a div de stats (aproximadamente)
-            const statsHeight = container.querySelector('.stats')?.offsetHeight || 30;
-            this.canvas.width = Math.max(container.clientWidth, minWidth);
-            this.canvas.height = Math.max(container.clientHeight - statsHeight, minHeight);
+            // Get container dimensions EXCLUDING padding/border if box-sizing is border-box (default for most frameworks)
+            const style = getComputedStyle(container);
+            const containerWidth = container.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+            const containerHeight = container.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+
+            // Consider the height of the stats div below the canvas
+            const statsDiv = container.querySelector('.stats');
+            const statsHeight = statsDiv ? statsDiv.offsetHeight : 0;
+            const collisionInfoDiv = container.querySelector('.collision-info'); // Also consider collision info height if visible
+            const collisionInfoHeight = collisionInfoDiv ? collisionInfoDiv.offsetHeight : 0;
+
+            // Calculate available height for the canvas itself
+            const availableHeight = containerHeight - statsHeight - collisionInfoHeight;
+
+             // Define um tamanho mínimo para evitar colapso
+             const minWidth = 200;
+             const minHeight = 150; // Reduced min height slightly
+
+            // Set canvas dimensions (actual pixels)
+            this.canvas.width = Math.max(containerWidth, minWidth);
+            // Adjust height calculation: use availableHeight
+            this.canvas.height = Math.max(availableHeight, minHeight);
+
+            // Log dimensions for debugging
+            // console.log(`Canvas resized to: ${this.canvas.width}x${this.canvas.height}`);
+            // console.log(`Container: ${container.clientWidth}x${container.clientHeight}, Stats: ${statsHeight}, Collision: ${collisionInfoHeight}, Available: ${availableHeight}`);
+
+
         } else {
              // Fallback se o container não for encontrado
              this.canvas.width = 400;
-             this.canvas.height = 400;
+             this.canvas.height = 350; // Adjusted fallback height
+             console.warn("'.visualization' container not found, using fallback canvas size.");
         }
 
         // Redesenha o layout após redimensionar
+        // Add a small delay to allow the browser to reflow, might help with zoom issues
+        // setTimeout(() => this.drawLayout(), 50);
         this.drawLayout();
     }
 
     /**
      * Inicializa os elementos de controle da interface e adiciona
      * os event listeners necessários (mudança de tipo, botões, etc.).
+     * Também adiciona o listener para o evento 'themeChanged'.
      */
     initControls() {
         const layoutTypeSelect = document.getElementById('layout-type');
@@ -239,6 +267,8 @@ class AntennaLayoutGenerator {
             });
         } else { console.warn("Elemento input#show-collisions não encontrado."); }
 
+        // Listener para redesenhar o canvas quando o tema mudar (evento disparado por main.js)
+        // MOVED TO main.js setupThemeChangeListener() for better control flow after initialization
 
         // Inicializa os controles dinâmicos para o tipo de layout padrão carregado
         this.updateDynamicControls();
@@ -247,7 +277,7 @@ class AntennaLayoutGenerator {
     /**
      * Atualiza a seção de parâmetros dinâmicos na interface com base
      * no tipo de layout atualmente selecionado (this.layoutType).
-     * Cria labels e inputs/selects/checkboxes correspondentes.
+     * Cria labels e inputs/selects/checkboxes/sliders correspondentes.
      */
     updateDynamicControls() {
         const dynamicParamsDiv = document.getElementById('dynamic-params');
@@ -257,7 +287,6 @@ class AntennaLayoutGenerator {
         }
         dynamicParamsDiv.innerHTML = ''; // Limpa controles antigos
 
-        // Obtém a definição de controles para o tipo de layout atual
         const controls = PARAM_CONTROLS[this.layoutType];
         if (!controls) {
              console.warn(`Nenhuma definição de controle encontrada para o tipo de layout: ${this.layoutType}`);
@@ -267,7 +296,7 @@ class AntennaLayoutGenerator {
         // Itera sobre cada definição de controle
         controls.forEach(control => {
             // Verifica se o controle tem uma condição para ser exibido
-            let shouldShowControl = true; // Assume que mostra por padrão
+            let shouldShowControl = true;
             if (control.condition) {
                  shouldShowControl = this.evaluateCondition(control.condition);
             }
@@ -275,11 +304,11 @@ class AntennaLayoutGenerator {
             if (shouldShowControl) {
                 // Cria os elementos HTML para o controle
                 const formGroup = document.createElement('div');
-                formGroup.className = 'form-group';
+                formGroup.className = 'form-group'; // Classe base
 
                 const label = document.createElement('label');
-                label.setAttribute('for', control.id);
-                label.textContent = control.label + ':'; // Adiciona ':' ao label
+                label.setAttribute('for', control.id); // Associa label ao primeiro input (slider ou outro)
+                label.textContent = control.label + ':';
                 formGroup.appendChild(label);
 
                 let inputElement; // O elemento <input>, <select> ou <textarea>
@@ -289,101 +318,133 @@ class AntennaLayoutGenerator {
                     case 'select':
                         inputElement = document.createElement('select');
                         inputElement.id = control.id;
-                        inputElement.name = control.id; // Adiciona name para formulários
+                        inputElement.name = control.id;
                         control.options.forEach(option => {
                             const optionElement = document.createElement('option');
                             optionElement.value = option.value;
                             optionElement.textContent = option.label;
-                            // Seleciona a opção que corresponde ao valor atual nos parâmetros
-                            // Compara como string para evitar problemas de tipo (ex: '1.0' vs 1)
                             if (String(this.params[control.id]) === String(option.value)) {
                                 optionElement.selected = true;
                             }
                             inputElement.appendChild(optionElement);
                         });
-                        // Event listener para atualizar params e layout ao mudar seleção
+                        // Listener para select
                         inputElement.addEventListener('change', () => {
                             this.params[control.id] = inputElement.value;
-                            // Recria controles dependentes (ex: fator exponencial só aparece se modo for exponencial)
-                            this.updateDynamicControls();
+                            this.updateDynamicControls(); // Recria controles dependentes
                             this.generateLayout();
                         });
+                        formGroup.appendChild(inputElement); // Adiciona diretamente ao formGroup
                         break;
 
                     case 'checkbox':
                         inputElement = document.createElement('input');
                         inputElement.type = 'checkbox';
                         inputElement.id = control.id;
-                         inputElement.name = control.id; // Adiciona name
-                        inputElement.checked = this.params[control.id] || false; // Garante que seja booleano
-                        // Event listener para atualizar params e layout ao marcar/desmarcar
-                        inputElement.addEventListener('change', () => {
+                        inputElement.name = control.id;
+                        inputElement.checked = this.params[control.id] || false;
+                         // Envolve checkbox em um container para melhor alinhamento se necessário
+                         const checkboxContainer = document.createElement('div');
+                         checkboxContainer.style.display = 'flex';
+                         checkboxContainer.style.alignItems = 'center';
+                         checkboxContainer.appendChild(inputElement);
+                         // Listener para checkbox
+                         inputElement.addEventListener('change', () => {
                             this.params[control.id] = inputElement.checked;
-                             // Recria controles dependentes se a condição mudar
-                             this.updateDynamicControls();
+                             this.updateDynamicControls(); // Recria controles dependentes
                             this.generateLayout();
                         });
+                         formGroup.appendChild(checkboxContainer); // Adiciona container ao formGroup
                         break;
 
                     case 'number':
-                    default: // Trata outros tipos (como 'text') como input padrão
-                        inputElement = document.createElement('input');
-                        inputElement.type = control.type;
-                        inputElement.id = control.id;
-                         inputElement.name = control.id; // Adiciona name
-                        inputElement.value = this.params[control.id]; // Define valor inicial
+                         // Cria um container para o slider e o input numérico
+                         const sliderGroup = document.createElement('div');
+                         sliderGroup.className = 'slider-group'; // Classe para estilização CSS
 
-                        // Define atributos min, max, step se existirem
-                        if (control.min !== undefined) inputElement.min = control.min;
-                        if (control.max !== undefined) inputElement.max = control.max;
-                        if (control.step !== undefined) inputElement.step = control.step;
+                         // Cria o Slider (range input)
+                         const sliderInput = document.createElement('input');
+                         sliderInput.type = 'range';
+                         sliderInput.id = control.id + '-slider'; // ID único para o slider
+                         sliderInput.name = control.id + '-slider';
+                         sliderInput.value = this.params[control.id];
+                         if (control.min !== undefined) sliderInput.min = control.min;
+                         if (control.max !== undefined) sliderInput.max = control.max;
+                         if (control.step !== undefined) sliderInput.step = control.step;
+                         sliderGroup.appendChild(sliderInput);
 
-                        // Event listener para 'input' (atualiza enquanto digita/arrasta slider)
-                        inputElement.addEventListener('input', () => {
-                             let value = inputElement.value;
-                             if (control.type === 'number') {
-                                 value = parseFloat(value);
-                                 // Não atualiza se for NaN durante a digitação
-                                 if (isNaN(value) && inputElement.value !== '' && inputElement.value !== '-') return;
+                         // Cria o Input Numérico (para display e entrada)
+                         const numberInput = document.createElement('input');
+                         numberInput.type = 'number';
+                         numberInput.id = control.id; // ID original para label e acesso
+                         numberInput.name = control.id;
+                         numberInput.value = this.params[control.id];
+                          if (control.min !== undefined) numberInput.min = control.min;
+                          if (control.max !== undefined) numberInput.max = control.max;
+                          if (control.step !== undefined) numberInput.step = control.step;
+                         sliderGroup.appendChild(numberInput);
+
+                         // Listener para o Slider ('input' para atualização em tempo real)
+                         sliderInput.addEventListener('input', () => {
+                             const value = parseFloat(sliderInput.value);
+                             numberInput.value = value; // Atualiza o display numérico
+                             this.params[control.id] = value; // Atualiza o parâmetro real
+                             this.generateLayout(); // Gera layout em tempo real
+                         });
+
+                          // Listener para o Input Numérico ('input' para tempo real, 'change' para validação final)
+                         numberInput.addEventListener('input', () => {
+                             let value = parseFloat(numberInput.value);
+                             if (!isNaN(value)) {
+                                  // Garante que o valor esteja dentro dos limites do slider/controle
+                                 if (control.min !== undefined) value = Math.max(control.min, value);
+                                 if (control.max !== undefined) value = Math.min(control.max, value);
+                                 sliderInput.value = value; // Atualiza a posição do slider
+                                 this.params[control.id] = value; // Atualiza o parâmetro real
+                                 this.generateLayout();
                              }
-                             this.params[control.id] = value;
-                             this.generateLayout(); // Atualiza o layout em tempo real
-                        });
-                         // Event listener para 'change' (atualiza quando perde o foco, útil para validação final ou condicionais)
-                        inputElement.addEventListener('change', () => {
-                             let value = inputElement.value;
-                             let paramValue;
-                             if (control.type === 'number') {
-                                 paramValue = parseFloat(value);
-                                 if (isNaN(paramValue)) {
-                                     // Reverte para o valor padrão se inválido
-                                     console.warn(`Valor inválido para ${control.id}: ${value}. Revertendo para padrão.`);
-                                     paramValue = DEFAULT_PARAMS[this.layoutType][control.id];
-                                     inputElement.value = paramValue; // Atualiza UI
-                                 }
-                                 // Aplica limites min/max
-                                 if (control.min !== undefined) paramValue = Math.max(control.min, paramValue);
-                                 if (control.max !== undefined) paramValue = Math.min(control.max, paramValue);
-                                 inputElement.value = paramValue; // Atualiza UI com valor validado
+                             // Se for inválido (e.g., vazio), não faz nada no 'input', espera 'change'
+                         });
 
-                             } else {
-                                  paramValue = value;
-                             }
+                         numberInput.addEventListener('change', () => {
+                              // Evento 'change' dispara ao perder foco ou pressionar Enter
+                             let value = parseFloat(numberInput.value);
+                              if (isNaN(value)) {
+                                   // Reverte para o valor padrão ou último válido se inválido
+                                   console.warn(`Valor inválido para ${control.id}: ${numberInput.value}. Revertendo.`);
+                                   value = parseFloat(sliderInput.value); // Usa o valor atual do slider como fallback
+                                   numberInput.value = value;
+                              }
+                              // Garante limites novamente no 'change'
+                              if (control.min !== undefined) value = Math.max(control.min, value);
+                              if (control.max !== undefined) value = Math.min(control.max, value);
 
-                             this.params[control.id] = paramValue;
-                             // Recria controles dependentes se a condição mudou
-                             this.updateDynamicControls();
-                             this.generateLayout(); // Garante atualização final
-                        });
+                              numberInput.value = value; // Atualiza UI com valor validado/corrigido
+                              sliderInput.value = value; // Sincroniza slider
+                              this.params[control.id] = value; // Atualiza parâmetro
+                              // Não precisa chamar generateLayout() aqui se já foi chamado no 'input'
+                              // Mas é bom para garantir que as condições sejam reavaliadas
+                              this.updateDynamicControls();
+                              // Certifica que o layout final está correto
+                              this.generateLayout();
+                         });
+
+
+                         formGroup.appendChild(sliderGroup); // Adiciona o grupo slider+número ao formGroup
+                        break;
+
+                    // Adicione outros tipos de controle aqui se necessário
+                    default:
+                        console.warn(`Tipo de controle não tratado: ${control.type} para ${control.id}`);
                         break;
                 }
 
-                // Adiciona o elemento de input ao grupo e o grupo à div principal
-                formGroup.appendChild(inputElement);
+                // Adiciona o formGroup (label + controles) à div principal
                 dynamicParamsDiv.appendChild(formGroup);
              } // Fim do if (shouldShowControl)
         }); // Fim do forEach(control)
     }
+
 
     /**
      * Avalia uma string de condição para determinar se um controle deve ser exibido.
@@ -394,14 +455,22 @@ class AntennaLayoutGenerator {
     evaluateCondition(condition) {
         // Adiciona "this.params." se não estiver presente para simplificar as definições em PARAM_CONTROLS
         const fullCondition = condition.replace(/(\b)([a-zA-Z_]\w*)(\b)/g, (match, p1, p2, p3) => {
+             // Verifica se p2 é uma chave direta em this.params
              if (this.params.hasOwnProperty(p2)) {
                  return `${p1}this.params.${p2}${p3}`;
              }
-             return match; // Mantém se não for um parâmetro conhecido
+             // Mantém identificadores como 'Math', 'true', 'false', números, etc.
+             if (['true', 'false', 'Math', 'null', 'undefined'].includes(p2) || !isNaN(p2)) {
+                return match;
+             }
+             // Assume que é uma propriedade de this.params se não for palavra reservada/número
+             return `${p1}this.params.${p2}${p3}`;
         });
+
 
         try {
             // Cria uma função anônima no escopo da classe (this é acessível)
+            // 'use strict'; // Ajuda a pegar erros
             const evaluator = new Function(`return (${fullCondition});`);
              // Chama a função ligada ao 'this' da instância atual
             return evaluator.call(this);
@@ -463,29 +532,39 @@ class AntennaLayoutGenerator {
         const currentParamsSanitized = {};
         const controlsForType = PARAM_CONTROLS[this.layoutType] || [];
         for (const key in this.params) {
+             // Apenas inclui parâmetros que são definidos para o tipo atual
             const controlDef = controlsForType.find(c => c.id === key);
-            if (controlDef && controlDef.type === 'number') {
-                 const parsedValue = parseFloat(this.params[key]);
-                 currentParamsSanitized[key] = isNaN(parsedValue) ? DEFAULT_PARAMS[this.layoutType][key] : parsedValue;
-            } else {
-                 // Trata booleanos de checkboxes corretamente
-                 if (controlDef && controlDef.type === 'checkbox') {
+             if (controlDef) { // Só processa se for um controle definido para este tipo
+                if (controlDef.type === 'number') {
+                    // Garante que números sejam realmente números
+                     const parsedValue = parseFloat(this.params[key]);
+                     // Usa o valor padrão do TIPO ATUAL se não for um número válido
+                     currentParamsSanitized[key] = isNaN(parsedValue) ? DEFAULT_PARAMS[this.layoutType][key] : parsedValue;
+                } else if (controlDef.type === 'checkbox') {
+                     // Garante que checkboxes sejam booleanos
                      currentParamsSanitized[key] = Boolean(this.params[key]);
                  } else {
+                     // Mantém outros tipos (select) como estão
                      currentParamsSanitized[key] = this.params[key];
                  }
-            }
+             }
         }
+
+        // Combina parâmetros sanitizados com os comuns
         const fullParams = { ...currentParamsSanitized, ...commonParams };
 
         // Tratamento especial para 'tilesPerRing' no layout de Anéis
         if (this.layoutType === 'ring' && typeof fullParams.numRings === 'number' && fullParams.numRings > 0) {
-            if (!Array.isArray(fullParams.tilesPerRing) || fullParams.tilesPerRing.length !== fullParams.numRings) {
-                 fullParams.tilesPerRing = Array.from({ length: fullParams.numRings }, (_, i) => 8 * (i + 1));
-                 console.log(`Gerador: 'tilesPerRing' recriado para ${fullParams.numRings} anéis:`, fullParams.tilesPerRing);
-                 // Não atualiza this.params aqui, pois não há controle direto para o array
+             // Tenta usar o valor de this.params se existir e for array, senão gera padrão
+             let tilesPerRingArray = this.params.tilesPerRing;
+            if (!Array.isArray(tilesPerRingArray) || tilesPerRingArray.length !== fullParams.numRings) {
+                 tilesPerRingArray = Array.from({ length: fullParams.numRings }, (_, i) => 8 * (i + 1));
+                 console.log(`Gerador: 'tilesPerRing' recriado para ${fullParams.numRings} anéis:`, tilesPerRingArray);
+                 // Atualiza this.params para refletir a mudança (útil se for randomizado)
+                 this.params.tilesPerRing = [...tilesPerRingArray];
             }
-            fullParams.tilesPerRing = fullParams.tilesPerRing.map(n => Math.max(1, parseInt(n) || 8));
+             // Garante que os valores no array sejam números inteiros positivos
+            fullParams.tilesPerRing = tilesPerRingArray.map(n => Math.max(1, parseInt(n) || 8));
         }
 
 
@@ -496,13 +575,15 @@ class AntennaLayoutGenerator {
             }
 
             // Usa um switch para chamar a função correta com os parâmetros corretos
+            // Passa os parâmetros explicitamente conforme a assinatura de cada função
             switch (this.layoutType) {
                  case 'grid':
                      this.currentLayout = window.BingoLayouts.createGridLayout(
                          fullParams.numCols, fullParams.numRows, fullParams.tileWidthM, fullParams.tileHeightM,
                          fullParams.spacingMode, fullParams.spacingXFactor, fullParams.spacingYFactor,
                          fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         fullParams.maxPlacementAttempts, fullParams.centerLayout
+                         undefined, // maxPlacementAttempts (usa default da lib)
+                         fullParams.centerLayout
                      );
                      break;
                  case 'spiral':
@@ -511,7 +592,7 @@ class AntennaLayoutGenerator {
                          fullParams.armSpacingMode, fullParams.centerScaleMode, fullParams.radiusStartFactor,
                          fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleStepRad,
                          fullParams.armOffsetRad, fullParams.rotationPerArmRad, fullParams.randomOffsetStddevM,
-                         fullParams.minSeparationFactor, fullParams.maxPlacementAttempts, fullParams.centerLayout,
+                         fullParams.minSeparationFactor, undefined, fullParams.centerLayout,
                          fullParams.includeCenterTile
                      );
                      break;
@@ -521,7 +602,7 @@ class AntennaLayoutGenerator {
                          fullParams.ringSpacingMode, fullParams.centerScaleMode, fullParams.radiusStartFactor,
                          fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleOffsetRad,
                          fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         fullParams.maxPlacementAttempts, fullParams.centerLayout, fullParams.addCenterTile
+                         undefined, fullParams.centerLayout, fullParams.addCenterTile
                      );
                      break;
                 case 'rhombus':
@@ -529,7 +610,7 @@ class AntennaLayoutGenerator {
                          fullParams.numRowsHalf, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode,
                          fullParams.sideLengthFactor, fullParams.hCompressFactor, fullParams.vCompressFactor,
                          fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         fullParams.maxPlacementAttempts, fullParams.centerLayout
+                         undefined, fullParams.centerLayout
                      );
                      break;
                 case 'hex_grid':
@@ -537,7 +618,7 @@ class AntennaLayoutGenerator {
                          fullParams.numRingsHex, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode,
                          fullParams.spacingFactor, fullParams.centerExpScaleFactor, fullParams.addCenterTile,
                          fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         fullParams.maxPlacementAttempts, fullParams.centerLayout
+                         undefined, fullParams.centerLayout
                      );
                       break;
                 case 'phyllotaxis':
@@ -545,26 +626,26 @@ class AntennaLayoutGenerator {
                          fullParams.numTiles, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode,
                          fullParams.scaleFactor, fullParams.centerOffsetFactor, fullParams.centerExpScaleFactor,
                          fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         fullParams.maxPlacementAttempts, fullParams.centerLayout
+                         undefined, fullParams.centerLayout
                      );
                      break;
                 case 'manual_circular':
                      this.currentLayout = window.BingoLayouts.createManualCircularLayout(
                          fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode, fullParams.spacingXFactor,
                          fullParams.spacingYFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM,
-                         fullParams.minSeparationFactor, fullParams.maxPlacementAttempts, fullParams.centerLayout
+                         fullParams.minSeparationFactor, undefined, fullParams.centerLayout
                      );
                      break;
                 case 'random':
                      this.currentLayout = window.BingoLayouts.createRandomLayout(
                          fullParams.numTiles, fullParams.maxRadiusM, fullParams.tileWidthM, fullParams.tileHeightM,
-                         fullParams.minSeparationFactor, fullParams.maxPlacementAttempts, fullParams.centerLayout
+                         fullParams.minSeparationFactor, undefined, fullParams.centerLayout
                      );
                      break;
                  default:
-                     throw new Error(`Tipo de layout desconhecido ou função não implementada: ${this.layoutType}`);
+                     console.warn(`Tipo de layout não reconhecido para geração: ${this.layoutType}`);
+                     this.currentLayout = []; // Define como vazio
              }
-
 
             // Após gerar os centros, gera as posições de todas as antenas individuais
             this.generateAllAntennas();
@@ -580,7 +661,7 @@ class AntennaLayoutGenerator {
             // Atualiza os campos de exportação OSKAR
             if (typeof window.updateExportFields === 'function') {
                 let stations = [];
-                if (window.interactiveMap) {
+                if (window.interactiveMap && typeof window.interactiveMap.getSelectedCoordinates === 'function') {
                     stations = window.interactiveMap.getSelectedCoordinates();
                 }
                 window.updateExportFields(this.currentLayout, stations);
@@ -588,7 +669,7 @@ class AntennaLayoutGenerator {
 
         } catch (error) {
             console.error(`Erro ao gerar layout '${this.layoutType}':`, error);
-            alert(`Erro ao gerar layout '${this.layoutType}'. Verifique os parâmetros e o console (F12).`);
+            alert(`Erro ao gerar layout '${this.layoutType}'. Verifique os parâmetros e o console (F12).\n${error.message}`);
             // Limpa os dados em caso de erro
             this.currentLayout = [];
             this.allAntennas = [];
@@ -652,6 +733,12 @@ class AntennaLayoutGenerator {
                 const tile1 = this.currentLayout[i];
                 const tile2 = this.currentLayout[j];
 
+                 // Verifica se as coordenadas são válidas antes de calcular
+                 if (!Array.isArray(tile1) || tile1.length < 2 || !Array.isArray(tile2) || tile2.length < 2) {
+                     console.warn(`Coordenadas inválidas encontradas ao checar colisão entre índices ${i} e ${j}`);
+                     continue; // Pula este par
+                 }
+
                 // Calcula a diferença absoluta nas coordenadas dos centros
                 const deltaX = Math.abs(tile1[0] - tile2[0]);
                 const deltaY = Math.abs(tile1[1] - tile2[1]);
@@ -677,7 +764,7 @@ class AntennaLayoutGenerator {
 
     /**
      * Gera um layout com parâmetros aleatórios para o tipo de layout atual.
-     * Atualiza a interface e gera/desenha o novo layout.
+     * Atualiza a interface (incluindo sliders) e gera/desenha o novo layout.
      */
     generateRandomLayout() {
         const controls = PARAM_CONTROLS[this.layoutType];
@@ -689,12 +776,18 @@ class AntennaLayoutGenerator {
             switch(control.type) {
                 case 'number':
                     if (control.min !== undefined && control.max !== undefined) {
+                        // Calcula valor aleatório dentro dos limites
                         let randomValue = Math.random() * (control.max - control.min) + control.min;
+                        // Ajusta para o step se definido
                         if (control.step) {
                             randomValue = Math.round(randomValue / control.step) * control.step;
+                            // Precisão decimal baseada no step
+                            const decimalPlaces = (String(control.step).split('.')[1] || '').length;
+                            randomValue = parseFloat(randomValue.toFixed(decimalPlaces));
                         }
-                        // Garante que o valor final esteja dentro dos limites
-                        this.params[control.id] = Math.max(control.min, Math.min(control.max, randomValue));
+                         // Garante que o valor final esteja dentro dos limites (pode ser necessário devido a arredondamento do step)
+                        randomValue = Math.max(control.min, Math.min(control.max, randomValue));
+                        this.params[control.id] = randomValue;
                     }
                     break;
                 case 'select':
@@ -709,8 +802,9 @@ class AntennaLayoutGenerator {
             }
         });
 
-        // Atualiza os elementos da interface para refletir os novos valores aleatórios
-        this.updateDynamicControls();
+        // --- Atualiza a Interface ---
+        // É necessário recriar ou atualizar os valores dos inputs/sliders na UI
+        this.updateDynamicControls(); // Recria os controles com os novos valores em this.params
 
         // Gera e desenha o layout com os novos parâmetros aleatórios
         this.generateLayout();
@@ -720,6 +814,8 @@ class AntennaLayoutGenerator {
     /**
      * Desenha o layout atual (centros dos tiles e antenas individuais) no canvas.
      * Inclui desenho da escala e indicação de colisões (se habilitado).
+     * Utiliza cores definidas por variáveis CSS para se adaptar ao tema.
+     * A escala preserva o aspect ratio do conteúdo.
      */
     drawLayout() {
         const ctx = this.ctx;
@@ -728,8 +824,14 @@ class AntennaLayoutGenerator {
         // Limpa completamente o canvas antes de desenhar
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+         // Define a cor de fundo do canvas explicitamente para garantir que corresponda ao tema
+         // Usa a cor de fundo do card como fundo do canvas para contraste adequado
+         ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--card-bg-color') || 'white';
+         ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+
         // Verifica se há dados para desenhar
-        if (!this.currentLayout || this.allAntennas.length === 0) {
+        if (!this.currentLayout || this.currentLayout.length === 0 || this.allAntennas.length === 0) {
             // Desenha mensagem indicando que não há layout
             ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text-color') || '#333';
             ctx.font = '16px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
@@ -742,78 +844,135 @@ class AntennaLayoutGenerator {
         // --- Cálculo de Escala e Offset ---
         let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
         // Usa TODAS as antenas para calcular os limites reais do desenho
+        // Garante que só coordenadas válidas sejam consideradas
         for (const antenna of this.allAntennas) {
-            minX = Math.min(minX, antenna[0]); maxX = Math.max(maxX, antenna[0]);
-            minY = Math.min(minY, antenna[1]); maxY = Math.max(maxY, antenna[1]);
+             if (Array.isArray(antenna) && antenna.length >= 2 && !isNaN(antenna[0]) && !isNaN(antenna[1])) {
+                 minX = Math.min(minX, antenna[0]); maxX = Math.max(maxX, antenna[0]);
+                 minY = Math.min(minY, antenna[1]); maxY = Math.max(maxY, antenna[1]);
+             }
         }
+         // Se por algum motivo não houver antenas válidas, usa os centros dos tiles
+         if (minX === Infinity && this.currentLayout.length > 0) {
+              minX = Infinity; maxX = -Infinity; minY = Infinity; maxY = -Infinity; // Reset
+              for (const center of this.currentLayout) {
+                 if (Array.isArray(center) && center.length >= 2 && !isNaN(center[0]) && !isNaN(center[1])) {
+                    minX = Math.min(minX, center[0]); maxX = Math.max(maxX, center[0]);
+                    minY = Math.min(minY, center[1]); maxY = Math.max(maxY, center[1]);
+                 }
+              }
+               // Adiciona as dimensões do tile aos limites se apenas centros foram usados
+               if (minX !== Infinity) {
+                    minX -= TILE_WIDTH / 2; maxX += TILE_WIDTH / 2;
+                    minY -= TILE_HEIGHT / 2; maxY += TILE_HEIGHT / 2;
+               }
+         }
+
+
+        // Se ainda não há limites válidos, não desenha nada.
+         if (minX === Infinity) {
+             console.warn("Não foi possível determinar os limites do layout para desenho.");
+             return;
+         }
+
 
         // Adiciona uma margem para não colar nas bordas e para a escala
-        const margin = 50;
+        const margin = 50; // Pixels de margem em todos os lados
         const contentWidth = (maxX - minX);
         const contentHeight = (maxY - minY);
-        const effectiveWidth = Math.max(contentWidth, 1); // Evita divisão por zero
-        const effectiveHeight = Math.max(contentHeight, 1);
+        // Adiciona um pequeno valor se a dimensão for zero para evitar divisão por zero
+        const effectiveWidth = Math.max(contentWidth, 0.1);
+        const effectiveHeight = Math.max(contentHeight, 0.1);
 
+        // Calcula área disponível no canvas descontando as margens
         const availableWidth = canvas.width - 2 * margin;
         const availableHeight = canvas.height - 2 * margin;
 
+        // Se não há espaço útil, não desenha
         if (availableWidth <= 0 || availableHeight <= 0) {
             console.warn("Área do canvas (descontando margens) é muito pequena para desenhar.");
+            // Opcional: Desenhar mensagem de erro
+            ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--secondary-color') || 'red';
+            ctx.font = '12px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText("Espaço insuficiente no canvas.", canvas.width / 2, canvas.height / 2);
             return;
         }
 
-        // Calcula a escala (mantém proporção)
+        // Calcula a escala (mantém proporção) - pixels por metro
+        // Usa Math.min para garantir que o conteúdo caiba tanto na largura quanto na altura
         const scale = Math.min(availableWidth / effectiveWidth, availableHeight / effectiveHeight);
+        // console.log(`Calculated scale: ${scale.toFixed(2)} px/m (Available: ${availableWidth.toFixed(0)}x${availableHeight.toFixed(0)}, Effective: ${effectiveWidth.toFixed(1)}x${effectiveHeight.toFixed(1)})`);
 
-        // Calcula o offset para centralizar o CONTEÚDO (baseado em minX/maxX/...)
-        const offsetX = margin + (availableWidth - contentWidth * scale) / 2;
-        const offsetY = margin + (availableHeight - contentHeight * scale) / 2;
+        // Calcula o offset para centralizar o CONTEÚDO (baseado em minX/maxX/...) na área disponível
+        // O offset é a posição do canto superior esquerdo da área de conteúdo no canvas
+        const offsetX = margin + (availableWidth - effectiveWidth * scale) / 2;
+        const offsetY = margin + (availableHeight - effectiveHeight * scale) / 2;
 
         // --- Função de Transformação de Coordenadas ---
-        // Converte coordenadas do layout (X,Y - origem no centro, Y para cima)
-        // para coordenadas do canvas (x,y - origem no topo-esquerdo, y para baixo)
+        // Converte coordenadas do layout (X,Y - origem no centro do layout, Y para cima)
+        // para coordenadas do canvas (x,y - origem no topo-esquerdo do canvas, y para baixo)
         const transformCoord = (coordX, coordY) => {
-            const canvasX = (coordX - minX) * scale + offsetX;
-            // Inverte o Y: (maxY - coordY) dá a posição relativa ao topo do conteúdo
-            const canvasY = (maxY - coordY) * scale + offsetY;
+            // Calcula a posição relativa ao canto inferior esquerdo (minX, minY)
+            const relativeX = coordX - minX;
+            const relativeY = coordY - minY; // Y ainda está "para cima"
+
+            // Aplica a escala e o offset
+            const canvasX = relativeX * scale + offsetX;
+             // Inverte o Y: (effectiveHeight - relativeY) dá a posição relativa ao *topo* do conteúdo em coordenadas de layout
+            const canvasY = (effectiveHeight - relativeY) * scale + offsetY;
+
             return { x: canvasX, y: canvasY };
         };
+
 
         // --- Desenho ---
 
         // 1. Desenha a escala e eixos (passa a função de transformação)
-        this.drawScale(ctx, canvas, scale, minX, minY, maxX, maxY, transformCoord);
+        // Assegura que drawScale use a mesma escala e transformação
+        this.drawScale(ctx, canvas, scale, minX, minY, maxX, maxY, transformCoord, margin); // Passa a margem
+
+        // Obtém cores do tema atual
+        const centerColor = getComputedStyle(document.body).getPropertyValue('--secondary-color') || 'red';
+        const antennaColor = getComputedStyle(document.body).getPropertyValue('--primary-color') || '#3498db';
+        const collisionColor = getComputedStyle(document.body).getPropertyValue('--secondary-color') || 'red'; // Reutiliza secondary para colisões
+
 
         // 2. Desenha os centros dos tiles
-        const centerColor = getComputedStyle(document.body).getPropertyValue('--secondary-color') || 'red';
         ctx.fillStyle = centerColor;
         for (const center of this.currentLayout) {
-            const { x, y } = transformCoord(center[0], center[1]);
-            ctx.beginPath();
-            ctx.arc(x, y, 3, 0, Math.PI * 2); // Raio 3 pixels
-            ctx.fill();
+             if (Array.isArray(center) && center.length >= 2) {
+                const { x, y } = transformCoord(center[0], center[1]);
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2); // Raio 3 pixels
+                ctx.fill();
+             }
         }
 
         // 3. Desenha todas as antenas individuais
-        const antennaColor = getComputedStyle(document.body).getPropertyValue('--primary-color') || '#3498db';
         ctx.fillStyle = antennaColor;
         for (const antenna of this.allAntennas) {
-            const { x, y } = transformCoord(antenna[0], antenna[1]);
-            ctx.beginPath();
-            ctx.arc(x, y, 1.5, 0, Math.PI * 2); // Raio 1.5 pixels
-            ctx.fill();
+             if (Array.isArray(antenna) && antenna.length >= 2) {
+                const { x, y } = transformCoord(antenna[0], antenna[1]);
+                ctx.beginPath();
+                ctx.arc(x, y, 1.5, 0, Math.PI * 2); // Raio 1.5 pixels
+                ctx.fill();
+             }
         }
 
         // 4. Desenha as colisões (se habilitado e houver colisões)
         if (this.showCollisions && this.collisions.length > 0) {
-            const collisionColor = getComputedStyle(document.body).getPropertyValue('--secondary-color') || 'red';
             ctx.strokeStyle = collisionColor;
-            ctx.lineWidth = 1.5; // Linha um pouco mais fina
+            ctx.lineWidth = 1.5;
             ctx.globalAlpha = 0.6; // Leve transparência
 
             for (const collision of this.collisions) {
                 const tile1 = this.currentLayout[collision.tile1Index];
                 const tile2 = this.currentLayout[collision.tile2Index];
+
+                 // Verifica se os tiles envolvidos na colisão são válidos
+                 if (!Array.isArray(tile1) || tile1.length < 2 || !Array.isArray(tile2) || tile2.length < 2) {
+                     continue; // Pula se dados inválidos
+                 }
 
                 const { x: x1, y: y1 } = transformCoord(tile1[0], tile1[1]);
                 const { x: x2, y: y2 } = transformCoord(tile2[0], tile2[1]);
@@ -840,128 +999,163 @@ class AntennaLayoutGenerator {
     }
 
 
-    /**
-     * Desenha a escala em metros e os eixos X=0, Y=0 no canvas.
-     * @param {CanvasRenderingContext2D} ctx Contexto do canvas.
-     * @param {HTMLCanvasElement} canvas Elemento canvas.
-     * @param {number} scale Fator de escala (pixels por metro).
-     * @param {number} minX Valor mínimo de X no layout (metros).
-     * @param {number} minY Valor mínimo de Y no layout (metros).
-     * @param {number} maxX Valor máximo de X no layout (metros).
-     * @param {number} maxY Valor máximo de Y no layout (metros).
-     * @param {function} transformCoord Função que converte (layoutX, layoutY) para {x: canvasX, y: canvasY}.
-     */
-    drawScale(ctx, canvas, scale, minX, minY, maxX, maxY, transformCoord) {
-        const layoutWidth = maxX - minX;
-        const layoutHeight = maxY - minY;
+     /**
+      * Desenha a escala em metros e os eixos X=0, Y=0 no canvas.
+      * Usa a função de transformação para posicionar corretamente.
+      * @param {CanvasRenderingContext2D} ctx Contexto do canvas.
+      * @param {HTMLCanvasElement} canvas Elemento canvas.
+      * @param {number} scale Fator de escala (pixels por metro).
+      * @param {number} minX Valor mínimo de X no layout (metros).
+      * @param {number} minY Valor mínimo de Y no layout (metros).
+      * @param {number} maxX Valor máximo de X no layout (metros).
+      * @param {number} maxY Valor máximo de Y no layout (metros).
+      * @param {function} transformCoord Função que converte (layoutX, layoutY) para {x: canvasX, y: canvasY}.
+      * @param {number} margin Margem usada no canvas (em pixels).
+      */
+     drawScale(ctx, canvas, scale, minX, minY, maxX, maxY, transformCoord, margin) {
+         const layoutWidth = maxX - minX;
+         const layoutHeight = maxY - minY;
 
-        // --- Determinar Intervalo da Escala ---
-        const maxDimension = Math.max(layoutWidth, layoutHeight);
-        let scaleInterval = 1;
-        if (maxDimension > 1e-6) {
-            const targetTicks = 8; // Número aproximado de marcas desejadas
-            const roughInterval = maxDimension / targetTicks;
-            const orderOfMagnitude = Math.pow(10, Math.floor(Math.log10(roughInterval)));
-            if (roughInterval / orderOfMagnitude < 1.5) scaleInterval = 1 * orderOfMagnitude;
-            else if (roughInterval / orderOfMagnitude < 3.5) scaleInterval = 2 * orderOfMagnitude;
-            else if (roughInterval / orderOfMagnitude < 7.5) scaleInterval = 5 * orderOfMagnitude;
-            else scaleInterval = 10 * orderOfMagnitude;
-            scaleInterval = Math.max(scaleInterval, 1e-3); // Garante intervalo mínimo
-        } else if (maxDimension === 0) {
-            scaleInterval = 1; // Caso onde todos os pontos estão no mesmo lugar
-        }
-        const scalePrecision = scaleInterval < 0.1 ? 2 : (scaleInterval < 1 ? 1 : 0);
+         // --- Determinar Intervalo da Escala ---
+         // Objetivo: ter um número razoável de marcas (e.g., 4-10)
+         const maxDimension = Math.max(layoutWidth, layoutHeight);
+         let scaleInterval = 1; // Intervalo em metros
+         if (maxDimension > 1e-6) { // Evita cálculo se dimensão for zero
+             const targetTicks = 6; // Número aproximado de marcas desejadas
+             const roughInterval = maxDimension / targetTicks;
+             const orderOfMagnitude = Math.pow(10, Math.floor(Math.log10(roughInterval)));
+             // Escolhe intervalos "bonitos" (1, 2, 5) * 10^n
+             if (roughInterval / orderOfMagnitude < 1.5) scaleInterval = 1 * orderOfMagnitude;
+             else if (roughInterval / orderOfMagnitude < 3.5) scaleInterval = 2 * orderOfMagnitude;
+             else if (roughInterval / orderOfMagnitude < 7.5) scaleInterval = 5 * orderOfMagnitude;
+             else scaleInterval = 10 * orderOfMagnitude;
+             // Garante intervalo mínimo para evitar excesso de marcas em layouts pequenos
+             scaleInterval = Math.max(scaleInterval, 0.1); // Ex: Mínimo 0.1m
+         }
+         // Determina precisão decimal com base no intervalo
+         const scalePrecision = scaleInterval < 0.5 ? 2 : (scaleInterval < 1 ? 1 : 0);
 
-        // Calcula limites da escala arredondados
-        const xStart = Math.floor(minX / scaleInterval) * scaleInterval;
-        const xEnd = Math.ceil(maxX / scaleInterval) * scaleInterval;
-        const yStart = Math.floor(minY / scaleInterval) * scaleInterval;
-        const yEnd = Math.ceil(maxY / scaleInterval) * scaleInterval;
+         // Calcula limites da escala arredondados para múltiplos do intervalo
+         // Usa um pequeno epsilon para incluir bordas se forem exatamente no intervalo
+         const epsilon = scaleInterval * 1e-6;
+         const xStart = Math.ceil((minX - epsilon) / scaleInterval) * scaleInterval;
+         const xEnd = Math.floor((maxX + epsilon) / scaleInterval) * scaleInterval;
+         const yStart = Math.ceil((minY - epsilon) / scaleInterval) * scaleInterval;
+         const yEnd = Math.floor((maxY + epsilon) / scaleInterval) * scaleInterval;
 
-        // --- Configuração de Estilo ---
-        const scaleColor = getComputedStyle(document.body).getPropertyValue('--text-color') || '#888';
-        ctx.strokeStyle = scaleColor;
-        ctx.fillStyle = scaleColor;
-        ctx.lineWidth = 0.5;
-        ctx.font = '10px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-        const tickSize = 5;
-        const textMargin = 3;
+         // --- Configuração de Estilo ---
+         const scaleColor = getComputedStyle(document.body).getPropertyValue('--text-color') || '#888';
+         const axisColor = getComputedStyle(document.body).getPropertyValue('--border-color') || '#aaa';
+         ctx.strokeStyle = scaleColor;
+         ctx.fillStyle = scaleColor;
+         ctx.lineWidth = 0.5;
+         ctx.font = '10px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+         const tickSize = 5;      // Tamanho da marca em pixels
+         const textMargin = 8;    // Espaço entre marca e texto
+         const axisTextMargin = 15; // Espaço extra para os rótulos dos eixos
 
-        // --- CORREÇÃO: Definir epsilon aqui ---
-        const epsilon = 1e-9; // Pequena tolerância para comparações com zero
+         // --- Desenha Marcas e Textos ---
 
-        // --- Desenha Marcas e Textos ---
-        // Eixo X (na parte inferior do canvas)
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        for (let x = xStart; x <= xEnd; x += scaleInterval) {
-            // Evita desenhar 0.0 se o eixo Y já estiver lá (comparação com epsilon)
-            if (Math.abs(x) < epsilon && minX <= 0 && maxX >= 0) continue;
-            const { x: xPos } = transformCoord(x, minY);
-            const yPos = canvas.height - tickSize - textMargin;
-            ctx.beginPath();
-            ctx.moveTo(xPos, canvas.height - textMargin);
-            ctx.lineTo(xPos, yPos);
-            ctx.stroke();
-            ctx.fillText(`${x.toFixed(scalePrecision)}`, xPos, yPos - 10);
-        }
+         // Eixo X (na parte inferior, dentro da margem)
+         ctx.textAlign = 'center';
+         ctx.textBaseline = 'top'; // Texto acima da linha base
+         const xAxisYPos = canvas.height - margin + textMargin; // Posição Y para as marcas/texto do eixo X
+         for (let x = xStart; x <= xEnd; x += scaleInterval) {
+             // Transforma a coordenada X do layout para a coordenada X do canvas
+             // Usa minY para a posição Y (base do layout), mas desenha na margem inferior
+             const { x: canvasX } = transformCoord(x, minY);
 
-        // Eixo Y (na parte esquerda do canvas)
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'middle';
-        for (let y = yStart; y <= yEnd; y += scaleInterval) {
-            // Evita desenhar 0.0 se o eixo X já estiver lá (comparação com epsilon)
-             if (Math.abs(y) < epsilon && minY <= 0 && maxY >= 0) continue;
-            const { y: yPos } = transformCoord(minX, y);
-            const xPos = tickSize + textMargin;
-            ctx.beginPath();
-            ctx.moveTo(textMargin, yPos);
-            ctx.lineTo(xPos, yPos);
-            ctx.stroke();
-            ctx.fillText(`${y.toFixed(scalePrecision)}`, xPos + 10, yPos); // Ajustado para margem
-        }
+             // Evita desenhar 0.0 se o eixo Y (x=0) for desenhado separadamente
+              const isZero = Math.abs(x) < epsilon;
+              if (isZero && minX <= epsilon && maxX >= -epsilon) continue; // Pula se eixo Y será desenhado
 
-        // --- Desenha Eixos X=0 e Y=0 (se visíveis) ---
-        const axisColor = getComputedStyle(document.body).getPropertyValue('--border-color') || '#aaa';
-        ctx.strokeStyle = axisColor;
-        ctx.lineWidth = 1;
-        // Eixo Y (linha vertical em X=0)
-        if (minX <= epsilon && maxX >= -epsilon) {
-            const { x: zeroX } = transformCoord(0, minY);
-            const { y: topY } = transformCoord(0, maxY);
-            const { y: bottomY } = transformCoord(0, minY);
-            ctx.beginPath();
-            ctx.moveTo(zeroX, topY);
-            ctx.lineTo(zeroX, bottomY);
-            ctx.stroke();
-        }
-        // Eixo X (linha horizontal em Y=0)
-        if (minY <= epsilon && maxY >= -epsilon) {
-            const { y: zeroY } = transformCoord(minX, 0);
-            const { x: leftX } = transformCoord(minX, 0);
-            const { x: rightX } = transformCoord(maxX, 0);
-            ctx.beginPath();
-            ctx.moveTo(leftX, zeroY);
-            ctx.lineTo(rightX, zeroY);
-            ctx.stroke();
-        }
+             // Desenha a marca
+             ctx.beginPath();
+             ctx.moveTo(canvasX, xAxisYPos);
+             ctx.lineTo(canvasX, xAxisYPos - tickSize); // Marca para cima
+             ctx.stroke();
+             // Desenha o texto
+             ctx.fillText(`${x.toFixed(scalePrecision)}`, canvasX, xAxisYPos + 2); // Texto abaixo da marca
+         }
 
-        // --- Desenha Rótulos dos Eixos ---
-        ctx.fillStyle = scaleColor;
-        ctx.font = '12px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
-        // Rótulo X
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('X (metros)', canvas.width / 2, canvas.height - 2);
-        // Rótulo Y (Rotacionado)
-        ctx.save();
-        ctx.translate(15, canvas.height / 2);
-        ctx.rotate(-Math.PI / 2);
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'bottom';
-        ctx.fillText('Y (metros)', 0, 0);
-        ctx.restore();
-    } // FIM DO MÉTODO drawScale
+         // Eixo Y (na parte esquerda, dentro da margem)
+         ctx.textAlign = 'right'; // Texto à esquerda da marca
+         ctx.textBaseline = 'middle'; // Texto centralizado verticalmente na marca
+         const yAxisXPos = margin - textMargin; // Posição X para as marcas/texto do eixo Y
+         for (let y = yStart; y <= yEnd; y += scaleInterval) {
+             // Transforma a coordenada Y do layout para a coordenada Y do canvas
+             // Usa minX para a posição X (borda esquerda do layout), mas desenha na margem esquerda
+             const { y: canvasY } = transformCoord(minX, y);
+
+              // Evita desenhar 0.0 se o eixo X (y=0) for desenhado separadamente
+              const isZero = Math.abs(y) < epsilon;
+              if (isZero && minY <= epsilon && maxY >= -epsilon) continue; // Pula se eixo X será desenhado
+
+             // Desenha a marca
+             ctx.beginPath();
+             ctx.moveTo(yAxisXPos, canvasY);
+             ctx.lineTo(yAxisXPos + tickSize, canvasY); // Marca para direita
+             ctx.stroke();
+             // Desenha o texto
+             ctx.fillText(`${y.toFixed(scalePrecision)}`, yAxisXPos - 2, canvasY); // Texto à esquerda da marca
+         }
+
+         // --- Desenha Eixos X=0 e Y=0 (se visíveis na área do layout) ---
+         ctx.strokeStyle = axisColor;
+         ctx.lineWidth = 1;
+         const axisEpsilon = 1e-9; // Tolerância para verificar se 0 está dentro dos limites
+
+         // Eixo Y (linha vertical em X=0)
+         if (minX <= axisEpsilon && maxX >= -axisEpsilon) {
+             const { x: zeroX } = transformCoord(0, minY); // X do eixo Y
+             // Ys correspondentes ao topo e base do *conteúdo*
+             const { y: topY } = transformCoord(0, maxY);
+             const { y: bottomY } = transformCoord(0, minY);
+             ctx.beginPath();
+             ctx.moveTo(zeroX, topY);
+             ctx.lineTo(zeroX, bottomY);
+             ctx.stroke();
+             // Texto "0" para o eixo Y (se não foi desenhado pelas marcas)
+              if (!(yStart <= axisEpsilon && yEnd >= -axisEpsilon)) { // Se 0 não estava no range das marcas Y
+                 ctx.fillStyle = scaleColor; ctx.font = '10px Segoe UI'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+                 ctx.fillText('0', yAxisXPos - 2, transformCoord(0, 0).y);
+             }
+         }
+         // Eixo X (linha horizontal em Y=0)
+         if (minY <= axisEpsilon && maxY >= -axisEpsilon) {
+             const { y: zeroY } = transformCoord(minX, 0); // Y do eixo X
+             // Xs correspondentes à esquerda e direita do *conteúdo*
+             const { x: leftX } = transformCoord(minX, 0);
+             const { x: rightX } = transformCoord(maxX, 0);
+             ctx.beginPath();
+             ctx.moveTo(leftX, zeroY);
+             ctx.lineTo(rightX, zeroY);
+             ctx.stroke();
+             // Texto "0" para o eixo X (se não foi desenhado pelas marcas)
+              if (!(xStart <= axisEpsilon && xEnd >= -axisEpsilon)) { // Se 0 não estava no range das marcas X
+                 ctx.fillStyle = scaleColor; ctx.font = '10px Segoe UI'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                 ctx.fillText('0', transformCoord(0, 0).x, xAxisYPos + 2);
+             }
+         }
+
+         // --- Desenha Rótulos dos Eixos ---
+         ctx.fillStyle = scaleColor;
+         ctx.font = '12px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
+         // Rótulo X (Abaixo das marcas)
+         ctx.textAlign = 'center';
+         ctx.textBaseline = 'bottom'; // Alinha pela base do texto
+         ctx.fillText('X (metros)', canvas.width / 2, canvas.height - axisTextMargin / 3); // Posição mais baixa
+
+         // Rótulo Y (Rotacionado, à esquerda das marcas)
+         ctx.save(); // Salva o estado atual do contexto (transformações, etc.)
+         ctx.translate(axisTextMargin / 2, canvas.height / 2); // Move a origem para a posição do texto Y
+         ctx.rotate(-Math.PI / 2); // Rotaciona -90 graus
+         ctx.textAlign = 'center';
+         ctx.textBaseline = 'bottom'; // Alinha pela base do texto (que agora está na "direita" devido à rotação)
+         ctx.fillText('Y (metros)', 0, 0);
+         ctx.restore(); // Restaura o estado anterior do contexto
+     } // === FIM DO MÉTODO drawScale ===
+
 
 
     /**
@@ -985,11 +1179,15 @@ class AntennaLayoutGenerator {
      * Cria a seção se ela não existir.
      */
     updateCollisionInfo() {
-        let collisionInfoDiv = document.getElementById('collision-info');
-        const statsDiv = document.querySelector('.stats'); // Onde adicionar a div
+        const visualizationDiv = document.querySelector('.visualization'); // Container pai
+        if (!visualizationDiv) {
+             console.warn("Div '.visualization' não encontrada, não foi possível criar/atualizar a seção de colisões.");
+             return;
+        }
+         let collisionInfoDiv = document.getElementById('collision-info');
 
         // Cria a estrutura HTML se não existir
-        if (!collisionInfoDiv && statsDiv && statsDiv.parentNode) {
+        if (!collisionInfoDiv) {
             collisionInfoDiv = document.createElement('div');
             collisionInfoDiv.id = 'collision-info';
             collisionInfoDiv.className = 'collision-info'; // Para estilização CSS
@@ -1008,14 +1206,19 @@ class AntennaLayoutGenerator {
                 content.style.display = isHidden ? 'block' : 'none';
                 const arrow = header.querySelector('.toggle-arrow');
                 if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+                 // Chama resizeCanvas após alterar visibilidade, pois afeta altura disponível
+                 this.resizeCanvas();
             });
 
             collisionInfoDiv.appendChild(header);
             collisionInfoDiv.appendChild(content);
-            statsDiv.parentNode.insertBefore(collisionInfoDiv, statsDiv.nextSibling);
-        } else if (!collisionInfoDiv) {
-             console.warn("Div '.stats' não encontrada, não foi possível criar/atualizar a seção de colisões.");
-             return;
+            // Adiciona a div de colisão APÓS a div de stats dentro de .visualization
+            const statsDiv = visualizationDiv.querySelector('.stats');
+            if (statsDiv) {
+                statsDiv.parentNode.insertBefore(collisionInfoDiv, statsDiv.nextSibling);
+            } else {
+                 visualizationDiv.appendChild(collisionInfoDiv); // Fallback: adiciona no final
+            }
         }
 
         // Atualiza o conteúdo (contador e lista)
@@ -1030,16 +1233,18 @@ class AntennaLayoutGenerator {
         const numCollisions = this.collisions ? this.collisions.length : 0;
         collisionCountSpan.textContent = numCollisions;
 
-        collisionContentDiv.innerHTML = '';
+        collisionContentDiv.innerHTML = ''; // Limpa conteúdo antigo
         if (numCollisions > 0) {
             const list = document.createElement('ul');
-            const maxCollisionsToShow = 50;
+            const maxCollisionsToShow = 50; // Limita o número de itens exibidos
             for (let i = 0; i < Math.min(numCollisions, maxCollisionsToShow); i++) {
                 const collision = this.collisions[i];
                 const item = document.createElement('li');
+                // Adiciona 1 aos índices para exibição (usuário vê Tile 1, não Tile 0)
                 item.textContent = `Tile ${collision.tile1Index + 1} e Tile ${collision.tile2Index + 1} (Dist. Centros: ${collision.distance.toFixed(3)}m)`;
                 list.appendChild(item);
             }
+            // Adiciona mensagem se houver mais colisões não exibidas
             if (numCollisions > maxCollisionsToShow) {
                 const item = document.createElement('li');
                 item.style.fontStyle = 'italic';
@@ -1075,10 +1280,28 @@ class AntennaLayoutGenerator {
 
 
 // === Instanciação e Exportação Global ===
+// A instância é criada no escopo global (window) para ser acessível por outros scripts (main.js)
+// A criação é feita aqui para garantir que a classe esteja definida.
 if (typeof window !== 'undefined') {
     // Cria a instância global do gerador APÓS a definição da classe
-    window.antennaGenerator = new AntennaLayoutGenerator();
-    console.log("Instância de AntennaLayoutGenerator criada.");
+    // O script main.js chamará a inicialização completa após o DOM carregar.
+    // window.antennaGenerator = new AntennaLayoutGenerator(); // MOVIDO para ser chamado por main.js após DOM ready
+    console.log("Classe AntennaLayoutGenerator definida. Instância será criada por main.js.");
+     // Cria a instância aqui mesmo para garantir que ela exista quando main.js for executado
+     // É seguro chamar o construtor aqui, pois ele busca elementos do DOM que já devem existir
+     // se este script for carregado no final do body ou com defer.
+     document.addEventListener('DOMContentLoaded', () => {
+        try {
+            if (!window.antennaGenerator) { // Evita recriar se já existir
+                window.antennaGenerator = new AntennaLayoutGenerator();
+                console.log("Instância de AntennaLayoutGenerator criada em generator.js (DOMContentLoaded).");
+            }
+        } catch (error) {
+            console.error("Erro ao instanciar AntennaLayoutGenerator:", error);
+             alert("Erro crítico ao inicializar o gerador de layout. Verifique o console.");
+        }
+    });
+
 } else {
     console.warn("Ambiente não-navegador detectado. 'window.antennaGenerator' não foi criado.");
 }
