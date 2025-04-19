@@ -1,59 +1,60 @@
 /**
  * Biblioteca JavaScript para gerar layouts de centros de tiles para estações BINGO.
- * Adaptada da versão Python (bingo_layouts.py)
+ * Foco na geração das coordenadas relativas (X, Y) dos centros dos tiles.
+ * A escolha entre espaçamento linear/exponencial foi removida; o fator
+ * 'centerExpScaleFactor' controla isso (1.0 = linear).
  */
 
-// Constantes
-const COORD_PRECISION = 6;
-const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5));
-const DEFAULT_MAX_PLACEMENT_ATTEMPTS = 10000;
+// Constantes Globais
+const COORD_PRECISION = 6; // Número de casas decimais para as coordenadas
+const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5)); // Ângulo dourado em radianos para Phyllotaxis
+const DEFAULT_MAX_PLACEMENT_ATTEMPTS = 10000; // Tentativas padrão para posicionamento com offset
 
-// Funções auxiliares
+// === Funções Auxiliares ===
+
+/**
+ * Centraliza um conjunto de coordenadas [x, y] em torno da origem (0, 0).
+ * @param {Array<Array<number>>} coords Array de coordenadas [[x1, y1], [x2, y2], ...].
+ * @returns {Array<Array<number>>} Array de coordenadas centralizadas.
+ */
 function centerCoords(coords) {
     if (!coords || coords.length === 0) return [];
-    
-    // Calcula o centro
     let sumX = 0, sumY = 0;
     for (const coord of coords) {
         sumX += coord[0];
         sumY += coord[1];
     }
-    
     const centerX = sumX / coords.length;
     const centerY = sumY / coords.length;
-    
-    // Centraliza as coordenadas
     return coords.map(coord => [
         parseFloat((coord[0] - centerX).toFixed(COORD_PRECISION)),
         parseFloat((coord[1] - centerY).toFixed(COORD_PRECISION))
     ]);
 }
 
+/**
+ * Aplica um escalonamento exponencial radial a partir do centro (0,0).
+ * Pontos mais distantes do centro são escalonados mais intensamente.
+ * Um fator de 1.0 não aplica escalonamento.
+ * @param {Array<Array<number>>} coords Coordenadas a serem escalonadas (já devem estar centradas se desejado).
+ * @param {number} expScaleFactor Fator de escalonamento base. >1 expande, <1 contrai.
+ * @returns {Array<Array<number>>} Coordenadas com escalonamento aplicado.
+ */
 function applyCenterExponentialScaling(coords, expScaleFactor) {
     if (!coords || coords.length === 0 || !(expScaleFactor > 0) || expScaleFactor === 1) {
-        return coords;
+        return coords; // Retorna original se não houver scaling a aplicar
     }
-    
-    // Calcula distâncias da origem (0,0) para cada ponto
     const distances = coords.map(coord => Math.sqrt(coord[0]**2 + coord[1]**2));
-    
-    // Ignora ponto(s) na origem para calcular distância de referência
     const nonZeroDistances = distances.filter(d => d > 1e-9);
-    if (nonZeroDistances.length === 0) return coords; // Todos os pontos na origem
-    
-    // Usa a distância média não nula como referência para normalizar o expoente
+    if (nonZeroDistances.length === 0) return coords;
     const refDistance = nonZeroDistances.reduce((a, b) => a + b, 0) / nonZeroDistances.length;
-    if (refDistance < 1e-9) return coords; // Caso raro
-    
-    // Aplica scaling exponencial
+    if (refDistance < 1e-9) return coords;
+
     return coords.map((coord, i) => {
         const dist = distances[i];
-        if (dist < 1e-9) return coord; // Não escala o ponto central
-        
-        // Expoente é proporcional à distância relativa à referência
+        if (dist < 1e-9) return coord;
         const exponent = dist / refDistance;
         const scaleFactorPow = Math.pow(expScaleFactor, exponent);
-        
         return [
             coord[0] * scaleFactorPow,
             coord[1] * scaleFactorPow
@@ -61,68 +62,73 @@ function applyCenterExponentialScaling(coords, expScaleFactor) {
     });
 }
 
-function placeWithRandomOffsetAndCollisionCheck(baseX, baseY, offsetStddevM, placedCoords, minDistSq, maxAttempts) {
+/**
+ * Tenta posicionar um tile com um offset aleatório, verificando colisões retangulares.
+ * @param {number} baseX Coordenada X base.
+ * @param {number} baseY Coordenada Y base.
+ * @param {number} offsetStddevM Desvio padrão do offset aleatório.
+ * @param {Array<Array<number>>} placedCoords Coordenadas dos tiles já posicionados.
+ * @param {number} tileWidthM Largura do tile.
+ * @param {number} tileHeightM Altura do tile.
+ * @param {number} minSeparationFactor Fator de separação.
+ * @param {number} maxAttempts Máximo de tentativas.
+ * @returns {Array<number>|null} Coordenadas [x, y] válidas ou null.
+ */
+function placeWithRandomOffsetAndCollisionCheck(
+    baseX, baseY, offsetStddevM, placedCoords,
+    tileWidthM, tileHeightM, minSeparationFactor,
+    maxAttempts
+) {
     if (offsetStddevM <= 0) return [baseX, baseY];
-    
+    const minRequiredDistX = tileWidthM * minSeparationFactor;
+    const minRequiredDistY = tileHeightM * minSeparationFactor;
+
     for (let i = 0; i < maxAttempts; i++) {
-        // Gera offset aleatório com distribuição normal (aproximação)
         let offsetX = 0, offsetY = 0;
-        for (let j = 0; j < 6; j++) { // Aproximação da distribuição normal
+        for (let j = 0; j < 6; j++) {
             offsetX += (Math.random() * 2 - 1);
             offsetY += (Math.random() * 2 - 1);
         }
-        offsetX = (offsetX / 6) * offsetStddevM;
-        offsetY = (offsetY / 6) * offsetStddevM;
-        
+        offsetX = (offsetX / 6) * offsetStddevM * 2.45;
+        offsetY = (offsetY / 6) * offsetStddevM * 2.45;
         const candX = baseX + offsetX;
         const candY = baseY + offsetY;
-        
-        // Verifica colisão com todos os pontos já colocados
         let collision = false;
         for (const placed of placedCoords) {
-            const distSq = (candX - placed[0])**2 + (candY - placed[1])**2;
-            if (distSq < minDistSq) {
+            const deltaX = Math.abs(candX - placed[0]);
+            const deltaY = Math.abs(candY - placed[1]);
+            if (deltaX < minRequiredDistX && deltaY < minRequiredDistY) {
                 collision = true;
                 break;
             }
         }
-        
         if (!collision) {
             return [candX, candY];
         }
     }
-    
-    // Falhou em encontrar posição válida
-    return null;
+    return null; // Falhou em encontrar posição
 }
 
-// Funções geradoras de layout
+
+// === Funções Geradoras de Layout ===
+
+/**
+ * Cria um layout de grade retangular.
+ * O espaçamento é definido por spacingXFactor/spacingYFactor e modificado por centerExpScaleFactor.
+ */
 function createGridLayout(
-    numCols, 
-    numRows, 
-    tileWidthM, 
-    tileHeightM, 
-    spacingMode = 'linear',
-    spacingXFactor = 1.0,
-    spacingYFactor = 1.0,
-    centerExpScaleFactor = 1.1,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true
+    numCols, numRows, tileWidthM, tileHeightM,
+    // spacingMode removido
+    spacingXFactor = 1.0, spacingYFactor = 1.0, centerExpScaleFactor = 1.0, // Padrão 1.0 para expFactor
+    randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true
 ) {
-    if (numCols <= 0 || numRows <= 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createGridLayout): Dimensões e tamanhos devem ser positivos.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    
+    if (numCols <= 0 || numRows <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
     const spacingX = tileWidthM * spacingXFactor;
     const spacingY = tileHeightM * spacingYFactor;
-    
-    // Gera coordenadas base
+
+    // Gera coordenadas base da grade
     const baseCoords = [];
     for (let i = 0; i < numCols; i++) {
         const xIndex = i - (numCols - 1) / 2.0;
@@ -131,378 +137,257 @@ function createGridLayout(
             baseCoords.push([xIndex * spacingX, yIndex * spacingY]);
         }
     }
-    
-    // Aplica scaling exponencial
-    let scaledCoords = baseCoords;
-    if (spacingMode === 'center_exponential') {
-        scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE
+    // Se centerExpScaleFactor for 1.0, não haverá mudança (comportamento linear)
+    const scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
+        console.log(`Layout Grid: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
         for (const [xBase, yBase] of scaledCoords) {
             const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Não foi possível posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${scaledCoords.length} tiles foram pulados devido a colisões persistentes.`);
-        }
+        if (skippedCount > 0) console.log(`Layout Grid: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        // Sem offset, usa as coordenadas escaladas/base
-        for (const coord of scaledCoords) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
-    // Arredonda antes de centralizar
+
+    // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
-    // Centraliza o resultado final
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
-    console.log(`Layout Grid (${numCols}x${numRows}, modo=${spacingMode}): Gerou ${placedCount} centros.`);
+    console.log(`Layout Grid (${numCols}x${numRows}, FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros.`);
     return centeredCoords;
 }
 
+/**
+ * Cria um layout em espiral.
+ * O espaçamento radial é definido por radiusStepFactor (interpretado linearmente) e modificado por centerExpScaleFactor.
+ */
 function createSpiralLayout(
-    numArms,
-    tilesPerArm,
-    tileWidthM,
-    tileHeightM,
-    armSpacingMode = 'linear',
-    centerScaleMode = 'none',
-    radiusStartFactor = 0.5,
-    radiusStepFactor = 0.2,
-    centerExpScaleFactor = 1.1,
-    angleStepRad = Math.PI / 6,
-    armOffsetRad = 0.0,
-    rotationPerArmRad = 0.0,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true,
-    includeCenterTile = false
+    numArms, tilesPerArm, tileWidthM, tileHeightM,
+    // armSpacingMode removido, centerScaleMode removido
+    radiusStartFactor = 0.5, radiusStepFactor = 0.2, centerExpScaleFactor = 1.0, // Padrão 1.0
+    angleStepRad = Math.PI / 6, armOffsetRad = 0.0, rotationPerArmRad = 0.0,
+    randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true, includeCenterTile = false
 ) {
-    if (numArms <= 0 || tilesPerArm <= 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createSpiralLayout): Dimensões e contagens devem ser positivas.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    const baseRadius = radiusStartFactor * tileDiagonalM;
-    const linearRadiusIncrement = (armSpacingMode === 'linear') ? radiusStepFactor * tileDiagonalM : 0;
-    
+    if (numArms <= 0 || tilesPerArm <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const tileDiag = Math.sqrt(tileWidthM**2 + tileHeightM**2);
+    const baseRadius = radiusStartFactor * tileDiag;
+    // radiusStepFactor agora sempre representa o incremento linear antes do scaling exponencial
+    const linearRadiusIncrement = radiusStepFactor * tileDiag;
+
     // Gera coordenadas base da espiral
     const baseCoords = [];
     const seenCoordsTuples = new Set();
-    
     if (includeCenterTile) {
-        const centerCoordTuple = `${(0.0).toFixed(COORD_PRECISION)},${(0.0).toFixed(COORD_PRECISION)}`;
         baseCoords.push([0.0, 0.0]);
-        seenCoordsTuples.add(centerCoordTuple);
+        seenCoordsTuples.add(`0.000000,0.000000`);
     }
-    
     for (let p = 0; p < numArms; p++) {
         const currentArmAngle = p * (2 * Math.PI / numArms) + p * rotationPerArmRad + armOffsetRad;
-        let currentRadius = baseRadius;
-        
+        let currentRadius = baseRadius; // Raio começa do base para cada braço
         for (let i = 0; i < tilesPerArm; i++) {
             const currentAngle = currentArmAngle + i * angleStepRad;
             const xBase = currentRadius * Math.cos(currentAngle);
             const yBase = currentRadius * Math.sin(currentAngle);
-            
             const coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
             if (!seenCoordsTuples.has(coordTuple)) {
                 baseCoords.push([xBase, yBase]);
                 seenCoordsTuples.add(coordTuple);
             }
-            
-            if (armSpacingMode === 'linear') {
-                currentRadius += linearRadiusIncrement;
-            } else if (armSpacingMode === 'exponential') {
-                currentRadius *= radiusStepFactor;
-            }
+            // Incrementa o raio linearmente para o próximo ponto
+            currentRadius += linearRadiusIncrement;
         }
     }
-    
-    // Aplica scaling exponencial central (opcional)
-    let scaledCoords = baseCoords;
-    if (centerScaleMode === 'center_exponential') {
-        const coordsToScale = includeCenterTile && baseCoords.length > 0 ? baseCoords.slice(1) : baseCoords;
-        const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
-        scaledCoords = includeCenterTile && baseCoords.length > 0 ? [baseCoords[0], ...scaledPart] : scaledPart;
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE
+    // Escala apenas os pontos que não são o centro (se incluído)
+    const coordsToScale = includeCenterTile && baseCoords.length > 0 ? baseCoords.slice(1) : baseCoords;
+    const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
+    const scaledCoords = includeCenterTile && baseCoords.length > 0 ? [baseCoords[0], ...scaledPart] : scaledPart;
+
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
-    // Adiciona o ponto central primeiro se existir
-    if (includeCenterTile && scaledCoords.length > 0 && randomOffsetStddevM > 0) {
-        const placedCenter = placeWithRandomOffsetAndCollisionCheck(
-            scaledCoords[0][0], scaledCoords[0][1], randomOffsetStddevM, [], minDistSq, maxPlacementAttempts
-        );
-        
-        if (placedCenter !== null) {
-            finalCoords.push(placedCenter);
-        } else {
-            finalCoords.push(scaledCoords[0]);
-            console.warn("Aviso: Offset aleatório falhou para tile central.");
-        }
-        
-        placedCount = finalCoords.length;
-    } else if (includeCenterTile && scaledCoords.length > 0) {
-        finalCoords.push(scaledCoords[0]);
-        placedCount = 1;
-    }
-    
-    const coordsToProcess = includeCenterTile && scaledCoords.length > 0 ? scaledCoords.slice(1) : scaledCoords;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
-        
-        for (const [xBase, yBase] of coordsToProcess) {
-            const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+        console.log(`Layout Espiral: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
+        let startIndex = 0;
+        if (includeCenterTile && scaledCoords.length > 0) {
+            const placedCenter = placeWithRandomOffsetAndCollisionCheck(
+                scaledCoords[0][0], scaledCoords[0][1], randomOffsetStddevM, [],
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Falha ao posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCenter !== null) finalCoords.push(placedCenter); else skippedCount++;
+            startIndex = 1;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${coordsToProcess.length} tiles pulados.`);
+        for (let i = startIndex; i < scaledCoords.length; i++) {
+            const [xBase, yBase] = scaledCoords[i];
+            const placedCoord = placeWithRandomOffsetAndCollisionCheck(
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
+            );
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
+        if (skippedCount > 0) console.log(`Layout Espiral: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        for (const coord of coordsToProcess) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
+
     // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
-    console.log(`Layout Espiral (${numArms} braços, ${tilesPerArm} tiles/braço): Gerou ${placedCount} centros.`);
+    console.log(`Layout Espiral (${numArms} braços, ${tilesPerArm} tiles/braço, FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros.`);
     return centeredCoords;
 }
 
+
+/**
+ * Cria um layout em anéis concêntricos.
+ * O espaçamento radial é definido por radiusStepFactor (interpretado linearmente) e modificado por centerExpScaleFactor.
+ */
 function createRingLayout(
-    numRings,
-    tilesPerRing,
-    tileWidthM,
-    tileHeightM,
-    ringSpacingMode = 'linear',
-    centerScaleMode = 'none',
-    radiusStartFactor = 0.5,
-    radiusStepFactor = 0.5,
-    centerExpScaleFactor = 1.1,
-    angleOffsetRad = 0.0,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true,
-    addCenterTile = true
+    numRings, tilesPerRing, tileWidthM, tileHeightM,
+    // ringSpacingMode removido, centerScaleMode removido
+    radiusStartFactor = 0.5, radiusStepFactor = 0.5, centerExpScaleFactor = 1.0, // Padrão 1.0
+    angleOffsetRad = 0.0, randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true, addCenterTile = true
 ) {
-    if (numRings <= 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createRingLayout): Dimensões e contagens devem ser positivas.");
-        return [];
-    }
-    
+    if (numRings <= 0 || tileWidthM <= 0 || tileHeightM <= 0 || !Array.isArray(tilesPerRing)) return [];
     if (tilesPerRing.length !== numRings) {
-        console.warn(`Aviso (createRingLayout): tilesPerRing deve ter ${numRings} elementos.`);
-        // Ajusta para um valor padrão se não for fornecido corretamente
-        tilesPerRing = Array(numRings).fill(8);
+        tilesPerRing = Array.from({ length: numRings }, (_, i) => Math.max(1, 8 * (i + 1)));
+        console.log(`createRingLayout: Ajustando 'tilesPerRing' para ${numRings} anéis:`, tilesPerRing);
+    } else {
+         tilesPerRing = tilesPerRing.map(n => Math.max(1, parseInt(n) || 8));
     }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    const baseRadius = radiusStartFactor * tileDiagonalM;
-    const linearRadiusIncrement = (ringSpacingMode === 'linear') ? radiusStepFactor * tileDiagonalM : 0;
-    
+
+    const tileDiag = Math.sqrt(tileWidthM**2 + tileHeightM**2);
+    const baseRadius = radiusStartFactor * tileDiag;
+    // radiusStepFactor agora sempre representa o incremento linear antes do scaling exponencial
+    const linearRadiusIncrement = radiusStepFactor * tileDiag;
+
     // Gera coordenadas base dos anéis
     const baseCoords = [];
     const seenCoordsTuples = new Set();
-    
     if (addCenterTile) {
-        const centerCoordTuple = `${(0.0).toFixed(COORD_PRECISION)},${(0.0).toFixed(COORD_PRECISION)}`;
         baseCoords.push([0.0, 0.0]);
-        seenCoordsTuples.add(centerCoordTuple);
+        seenCoordsTuples.add(`0.000000,0.000000`);
     }
-    
     let currentRadius = baseRadius;
-    
     for (let r = 0; r < numRings; r++) {
         const numTilesInRing = tilesPerRing[r];
         const angleStep = 2 * Math.PI / numTilesInRing;
-        
         for (let t = 0; t < numTilesInRing; t++) {
             const angle = t * angleStep + angleOffsetRad;
             const xBase = currentRadius * Math.cos(angle);
             const yBase = currentRadius * Math.sin(angle);
-            
             const coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
             if (!seenCoordsTuples.has(coordTuple)) {
                 baseCoords.push([xBase, yBase]);
                 seenCoordsTuples.add(coordTuple);
             }
         }
-        
-        if (ringSpacingMode === 'linear') {
-            currentRadius += linearRadiusIncrement;
-        } else if (ringSpacingMode === 'exponential') {
-            currentRadius *= radiusStepFactor;
-        }
+        // Incrementa o raio linearmente para o próximo anel
+        currentRadius += linearRadiusIncrement;
     }
-    
-    // Aplica scaling exponencial central (opcional)
-    let scaledCoords = baseCoords;
-    if (centerScaleMode === 'center_exponential') {
-        const coordsToScale = addCenterTile && baseCoords.length > 0 ? baseCoords.slice(1) : baseCoords;
-        const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
-        scaledCoords = addCenterTile && baseCoords.length > 0 ? [baseCoords[0], ...scaledPart] : scaledPart;
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE
+    const coordsToScale = addCenterTile && baseCoords.length > 0 ? baseCoords.slice(1) : baseCoords;
+    const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
+    const scaledCoords = addCenterTile && baseCoords.length > 0 ? [baseCoords[0], ...scaledPart] : scaledPart;
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
-    // Adiciona o ponto central primeiro se existir
-    if (addCenterTile && scaledCoords.length > 0 && randomOffsetStddevM > 0) {
-        const placedCenter = placeWithRandomOffsetAndCollisionCheck(
-            scaledCoords[0][0], scaledCoords[0][1], randomOffsetStddevM, [], minDistSq, maxPlacementAttempts
-        );
-        
-        if (placedCenter !== null) {
-            finalCoords.push(placedCenter);
-        } else {
-            finalCoords.push(scaledCoords[0]);
-            console.warn("Aviso: Offset aleatório falhou para tile central.");
-        }
-        
-        placedCount = finalCoords.length;
-    } else if (addCenterTile && scaledCoords.length > 0) {
-        finalCoords.push(scaledCoords[0]);
-        placedCount = 1;
-    }
-    
-    const coordsToProcess = addCenterTile && scaledCoords.length > 0 ? scaledCoords.slice(1) : scaledCoords;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
-        
-        for (const [xBase, yBase] of coordsToProcess) {
-            const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+        console.log(`Layout Anéis: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
+        let startIndex = 0;
+        if (addCenterTile && scaledCoords.length > 0) {
+            const placedCenter = placeWithRandomOffsetAndCollisionCheck(
+                scaledCoords[0][0], scaledCoords[0][1], randomOffsetStddevM, [],
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Falha ao posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCenter !== null) finalCoords.push(placedCenter); else skippedCount++;
+            startIndex = 1;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${coordsToProcess.length} tiles pulados.`);
+        for (let i = startIndex; i < scaledCoords.length; i++) {
+            const [xBase, yBase] = scaledCoords[i];
+            const placedCoord = placeWithRandomOffsetAndCollisionCheck(
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
+            );
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
+         if (skippedCount > 0) console.log(`Layout Anéis: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        for (const coord of coordsToProcess) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
+
     // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
     const totalTilesExpected = tilesPerRing.reduce((a, b) => a + b, 0) + (addCenterTile ? 1 : 0);
-    console.log(`Layout Anéis (${numRings} anéis): Gerou ${placedCount} centros (esperado ${totalTilesExpected}).`);
+    console.log(`Layout Anéis (${numRings} anéis, FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros (esperado ${totalTilesExpected}).`);
     return centeredCoords;
 }
 
+/**
+ * Cria um layout losangular (forma de diamante).
+ * O espaçamento é definido pelos fatores de compressão/lado e modificado por centerExpScaleFactor.
+ */
 function createRhombusLayout(
-    numRowsHalf,
-    tileWidthM,
-    tileHeightM,
-    spacingMode = 'linear',
-    sideLengthFactor = 0.65,
-    hCompressFactor = 1.0,
-    vCompressFactor = 1.0,
-    centerExpScaleFactor = 1.1,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true
+    numRowsHalf, tileWidthM, tileHeightM,
+    // spacingMode removido
+    sideLengthFactor = 0.65, hCompressFactor = 1.0, vCompressFactor = 1.0,
+    centerExpScaleFactor = 1.0, // Padrão 1.0
+    randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true
 ) {
-    if (numRowsHalf <= 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createRhombusLayout): Dimensões e contagens devem ser positivas.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    const sideLength = sideLengthFactor * tileDiagonalM;
-    
+    if (numRowsHalf <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const sideLength = sideLengthFactor * Math.sqrt(tileWidthM**2 + tileHeightM**2);
+
     // Gera coordenadas base
     const baseCoords = [];
     const seenCoordsTuples = new Set();
-    
     for (let i = 0; i < numRowsHalf; i++) {
         const yBase = i * sideLength * Math.sqrt(3) / 2.0 * vCompressFactor;
         const numTilesInRow = numRowsHalf - i;
         const startXBase = -(numTilesInRow - 1) * sideLength * hCompressFactor / 2.0;
-        
         for (let j = 0; j < numTilesInRow; j++) {
             const xBase = startXBase + j * sideLength * hCompressFactor;
-            
-            // Parte superior
             const coordUpperTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
             if (!seenCoordsTuples.has(coordUpperTuple)) {
                 baseCoords.push([xBase, yBase]);
                 seenCoordsTuples.add(coordUpperTuple);
             }
-            
-            // Parte inferior (exceto linha central)
             if (i !== 0) {
                 const coordLowerTuple = `${xBase.toFixed(COORD_PRECISION)},${(-yBase).toFixed(COORD_PRECISION)}`;
                 if (!seenCoordsTuples.has(coordLowerTuple)) {
@@ -512,99 +397,71 @@ function createRhombusLayout(
             }
         }
     }
-    
-    // Aplica scaling exponencial
-    let scaledCoords = baseCoords;
-    if (spacingMode === 'center_exponential') {
-        scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE
+    const scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
-        
+        console.log(`Layout Losango: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
         for (const [xBase, yBase] of scaledCoords) {
             const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Falha ao posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${scaledCoords.length} tiles pulados.`);
-        }
+         if (skippedCount > 0) console.log(`Layout Losango: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        for (const coord of scaledCoords) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
+
     // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
-    console.log(`Layout Losangular (num_rows_half=${numRowsHalf}, modo=${spacingMode}): Gerou ${placedCount} centros.`);
+    console.log(`Layout Losangular (num_rows_half=${numRowsHalf}, FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros.`);
     return centeredCoords;
 }
 
+
+/**
+ * Cria um layout em grade hexagonal.
+ * O espaçamento é definido por spacingFactor e modificado por centerExpScaleFactor.
+ */
 function createHexGridLayout(
-    numRingsHex,
-    tileWidthM,
-    tileHeightM,
-    spacingMode = 'linear',
-    spacingFactor = 1.5,
-    centerExpScaleFactor = 1.1,
-    addCenterTile = true,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true
+    numRingsHex, tileWidthM, tileHeightM,
+    // spacingMode removido
+    spacingFactor = 1.5, centerExpScaleFactor = 1.0, // Padrão 1.0
+    addCenterTile = true, randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true
 ) {
-    if (numRingsHex < 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createHexGridLayout): numRingsHex >= 0 e dimensões > 0.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    const baseSpacing = spacingFactor * tileDiagonalM;
-    
+    if (numRingsHex < 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const baseSpacing = spacingFactor * Math.sqrt(tileWidthM**2 + tileHeightM**2);
+
     // Gera coordenadas base
     const baseCoords = [];
     const seenCoordsTuples = new Set();
-    
     if (addCenterTile) {
-        const centerCoord = [0.0, 0.0];
-        baseCoords.push(centerCoord);
-        seenCoordsTuples.add(`0,0`);
+        baseCoords.push([0.0, 0.0]);
+        seenCoordsTuples.add(`0.000000,0.000000`);
     }
-    
     for (let ring = 1; ring <= numRingsHex; ring++) {
         let xBase = ring * baseSpacing;
         let yBase = 0.0;
-        
-        const coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
+        let coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
         if (!seenCoordsTuples.has(coordTuple)) {
             baseCoords.push([xBase, yBase]);
             seenCoordsTuples.add(coordTuple);
         }
-        
         for (let side = 0; side < 6; side++) {
             const angle = Math.PI / 3.0;
             for (let i = 0; i < ring; i++) {
@@ -612,8 +469,7 @@ function createHexGridLayout(
                 const dy = baseSpacing * Math.sin((side + 2) * angle);
                 xBase += dx;
                 yBase += dy;
-                
-                const coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
+                coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
                 if (!seenCoordsTuples.has(coordTuple)) {
                     baseCoords.push([xBase, yBase]);
                     seenCoordsTuples.add(coordTuple);
@@ -621,371 +477,246 @@ function createHexGridLayout(
             }
         }
     }
-    
-    // Aplica scaling exponencial
-    let scaledCoords = baseCoords;
-    if (spacingMode === 'center_exponential') {
-        const coordsToScale = addCenterTile && baseCoords.length > 0 ? baseCoords.slice(1) : baseCoords;
-        const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
-        scaledCoords = addCenterTile && baseCoords.length > 0 ? [baseCoords[0], ...scaledPart] : scaledPart;
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE
+    const coordsToScale = addCenterTile && baseCoords.length > 0 ? baseCoords.slice(1) : baseCoords;
+    const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
+    const scaledCoords = addCenterTile && baseCoords.length > 0 ? [baseCoords[0], ...scaledPart] : scaledPart;
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
-    // Adiciona o ponto central primeiro se existir
-    if (addCenterTile && scaledCoords.length > 0 && randomOffsetStddevM > 0) {
-        const placedCenter = placeWithRandomOffsetAndCollisionCheck(
-            scaledCoords[0][0], scaledCoords[0][1], randomOffsetStddevM, [], minDistSq, maxPlacementAttempts
-        );
-        
-        if (placedCenter !== null) {
-            finalCoords.push(placedCenter);
-        } else {
-            finalCoords.push(scaledCoords[0]);
-            console.warn("Aviso: Offset aleatório falhou para tile central.");
-        }
-        
-        placedCount = finalCoords.length;
-    } else if (addCenterTile && scaledCoords.length > 0) {
-        finalCoords.push(scaledCoords[0]);
-        placedCount = 1;
-    }
-    
-    const coordsToProcess = addCenterTile && scaledCoords.length > 0 ? scaledCoords.slice(1) : scaledCoords;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
-        
-        for (const [xBase, yBase] of coordsToProcess) {
-            const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+        console.log(`Layout HexGrid: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
+        let startIndex = 0;
+        if (addCenterTile && scaledCoords.length > 0) {
+            const placedCenter = placeWithRandomOffsetAndCollisionCheck(
+                scaledCoords[0][0], scaledCoords[0][1], randomOffsetStddevM, [],
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Falha ao posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCenter !== null) finalCoords.push(placedCenter); else skippedCount++;
+            startIndex = 1;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${coordsToProcess.length} tiles pulados.`);
+        for (let i = startIndex; i < scaledCoords.length; i++) {
+            const [xBase, yBase] = scaledCoords[i];
+            const placedCoord = placeWithRandomOffsetAndCollisionCheck(
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
+            );
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
+         if (skippedCount > 0) console.log(`Layout HexGrid: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        for (const coord of coordsToProcess) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
+
     // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
-    const expectedTiles = addCenterTile ? 
-        (1 + Array.from({length: numRingsHex}, (_, i) => 6 * (i + 1)).reduce((a, b) => a + b, 0)) : 
+    const expectedTiles = addCenterTile ?
+        (1 + Array.from({length: numRingsHex}, (_, i) => 6 * (i + 1)).reduce((a, b) => a + b, 0)) :
         Array.from({length: numRingsHex}, (_, i) => 6 * (i + 1)).reduce((a, b) => a + b, 0);
-    
-    console.log(`Layout Grade Hexagonal (numRingsHex=${numRingsHex}, modo=${spacingMode}): Gerou ${placedCount} centros (esperado ~${expectedTiles}).`);
+    console.log(`Layout Grade Hexagonal (numRingsHex=${numRingsHex}, FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros (esperado ${expectedTiles}).`);
     return centeredCoords;
 }
 
+/**
+ * Cria um layout baseado no padrão Phyllotaxis.
+ * A escala é definida por scaleFactor e modificada por centerExpScaleFactor.
+ */
 function createPhyllotaxisLayout(
-    numTiles,
-    tileWidthM,
-    tileHeightM,
-    spacingMode = 'linear',
-    scaleFactor = 0.5,
-    centerOffsetFactor = 0.1,
-    centerExpScaleFactor = 1.1,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true
+    numTiles, tileWidthM, tileHeightM,
+    // spacingMode removido
+    scaleFactor = 0.5, centerOffsetFactor = 0.1, centerExpScaleFactor = 1.0, // Padrão 1.0
+    randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true
 ) {
-    if (numTiles <= 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createPhyllotaxisLayout): Contagem e dimensões devem ser positivas.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    const scale = scaleFactor * tileDiagonalM;
-    const centerOffset = centerOffsetFactor * tileDiagonalM;
-    
+    if (numTiles <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const baseScale = scaleFactor * Math.sqrt(tileWidthM**2 + tileHeightM**2);
+    const centerOffset = centerOffsetFactor * Math.sqrt(tileWidthM**2 + tileHeightM**2);
+
     // Gera coordenadas base
     const baseCoords = [];
     for (let i = 0; i < numTiles; i++) {
-        const r = scale * Math.sqrt(i + centerOffset);
+        const r = baseScale * Math.sqrt(i + centerOffset);
         const theta = i * GOLDEN_ANGLE_RAD;
         const xBase = r * Math.cos(theta);
         const yBase = r * Math.sin(theta);
         baseCoords.push([xBase, yBase]);
     }
-    
-    // Aplica scaling exponencial
-    let scaledCoords = baseCoords;
-    if (spacingMode === 'center_exponential') {
-        scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE
+    const scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
-        
+        console.log(`Layout Phyllotaxis: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
         for (const [xBase, yBase] of scaledCoords) {
             const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Falha ao posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${scaledCoords.length} tiles pulados.`);
-        }
+        if (skippedCount > 0) console.log(`Layout Phyllotaxis: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        for (const coord of scaledCoords) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
+
     // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
-    console.log(`Layout Phyllotaxis (${numTiles} tiles): Gerou ${placedCount} centros.`);
+    console.log(`Layout Phyllotaxis (${numTiles} tiles, FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros.`);
     return centeredCoords;
 }
 
+/**
+ * Cria um layout pré-definido "Circular Manual".
+ * O espaçamento é definido por spacingX/YFactor e modificado por centerExpScaleFactor.
+ */
 function createManualCircularLayout(
-    tileWidthM,
-    tileHeightM,
-    spacingMode = 'linear',
-    spacingXFactor = 1.0,
-    spacingYFactor = 1.0,
-    centerExpScaleFactor = 1.1,
-    randomOffsetStddevM = 0.0,
-    minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS,
-    centerLayout = true
+    tileWidthM, tileHeightM,
+    // spacingMode removido
+    spacingXFactor = 1.0, spacingYFactor = 1.0, centerExpScaleFactor = 1.0, // Padrão 1.0
+    randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
+    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true
 ) {
-    if (tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createManualCircularLayout): Dimensões devem ser positivas.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (randomOffsetStddevM > 0) ? (minSeparationFactor * tileDiagonalM)**2 : 0;
-    
-    // Gera coordenadas base usando fatores X/Y
+    if (tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    // Define as coordenadas base USANDO os fatores X/Y
     const lenx = tileWidthM * spacingXFactor;
     const leny = tileHeightM * spacingYFactor;
-    
-    // Coordenadas pré-definidas para o layout circular manual
     const baseCoords = [
-        [-5.5*lenx, 0], [-4.5*lenx, -0.5*leny], [-4.5*lenx, 0.5*leny], 
+        [-5.5*lenx, 0], [-4.5*lenx, -0.5*leny], [-4.5*lenx, 0.5*leny],
         [-3.5*lenx, -1*leny], [-3.5*lenx, 0], [-3.5*lenx, 1*leny],
-        
-        [0.5*lenx, 0.5*leny], [0.5*lenx, 1.5*leny], [1.5*lenx, 0.5*leny], 
+        [0.5*lenx, 0.5*leny], [0.5*lenx, 1.5*leny], [1.5*lenx, 0.5*leny],
         [1.5*lenx, 1.5*leny], [2.5*lenx, 0.5*leny], [2.5*lenx, 1.5*leny],
-        
-        [-0.5*lenx, 0.5*leny], [-0.5*lenx, 1.5*leny], [-1.5*lenx, 0.5*leny], 
+        [-0.5*lenx, 0.5*leny], [-0.5*lenx, 1.5*leny], [-1.5*lenx, 0.5*leny],
         [-1.5*lenx, 1.5*leny], [-2.5*lenx, 0.5*leny], [-2.5*lenx, 1.5*leny],
-        
-        [0.5*lenx, -0.5*leny], [0.5*lenx, -1.5*leny], [1.5*lenx, -0.5*leny], 
+        [0.5*lenx, -0.5*leny], [0.5*lenx, -1.5*leny], [1.5*lenx, -0.5*leny],
         [1.5*lenx, -1.5*leny], [2.5*lenx, -0.5*leny], [2.5*lenx, -1.5*leny],
-        
-        [-0.5*lenx, -0.5*leny], [-0.5*lenx, -1.5*leny], [-1.5*lenx, -0.5*leny], 
+        [-0.5*lenx, -0.5*leny], [-0.5*lenx, -1.5*leny], [-1.5*lenx, -0.5*leny],
         [-1.5*lenx, -1.5*leny], [-2.5*lenx, -0.5*leny], [-2.5*lenx, -1.5*leny],
-        
-        [5.5*lenx, 0], [4.5*lenx, -0.5*leny], [4.5*lenx, 0.5*leny], 
+        [5.5*lenx, 0], [4.5*lenx, -0.5*leny], [4.5*lenx, 0.5*leny],
         [3.5*lenx, -1*leny], [3.5*lenx, 0], [3.5*lenx, 1*leny]
     ];
-    
-    // Aplica scaling exponencial
-    let scaledCoords = baseCoords;
-    if (spacingMode === 'center_exponential') {
-        // No modo exponencial, ignora fatores x/y e escala a versão base (fator=1)
-        const lenxBase = tileWidthM * 1.0;
-        const lenyBase = tileHeightM * 1.0;
-        
-        // Recalcula coords com fator 1 para scaling exponencial
-        const expBaseCoords = [
-            [-5.5*lenxBase, 0], [-4.5*lenxBase, -0.5*lenyBase], [-4.5*lenxBase, 0.5*lenyBase], 
-            [-3.5*lenxBase, -1*lenyBase], [-3.5*lenxBase, 0], [-3.5*lenxBase, 1*lenyBase],
-            
-            [0.5*lenxBase, 0.5*lenyBase], [0.5*lenxBase, 1.5*lenyBase], [1.5*lenxBase, 0.5*lenyBase], 
-            [1.5*lenxBase, 1.5*lenyBase], [2.5*lenxBase, 0.5*lenyBase], [2.5*lenxBase, 1.5*lenyBase],
-            
-            [-0.5*lenxBase, 0.5*lenyBase], [-0.5*lenxBase, 1.5*lenyBase], [-1.5*lenxBase, 0.5*lenyBase], 
-            [-1.5*lenxBase, 1.5*lenyBase], [-2.5*lenxBase, 0.5*lenyBase], [-2.5*lenxBase, 1.5*lenyBase],
-            
-            [0.5*lenxBase, -0.5*lenyBase], [0.5*lenxBase, -1.5*lenyBase], [1.5*lenxBase, -0.5*lenyBase], 
-            [1.5*lenxBase, -1.5*lenyBase], [2.5*lenxBase, -0.5*lenyBase], [2.5*lenxBase, -1.5*lenyBase],
-            
-            [-0.5*lenxBase, -0.5*lenyBase], [-0.5*lenxBase, -1.5*lenyBase], [-1.5*lenxBase, -0.5*lenyBase], 
-            [-1.5*lenxBase, -1.5*lenyBase], [-2.5*lenxBase, -0.5*lenyBase], [-2.5*lenxBase, -1.5*lenyBase],
-            
-            [5.5*lenxBase, 0], [4.5*lenxBase, -0.5*lenyBase], [4.5*lenxBase, 0.5*lenyBase], 
-            [3.5*lenxBase, -1*lenyBase], [3.5*lenxBase, 0], [3.5*lenxBase, 1*lenyBase]
-        ];
-        
-        scaledCoords = applyCenterExponentialScaling(expBaseCoords, centerExpScaleFactor);
-    }
-    
+
+    // Aplica scaling exponencial INCONDICIONALMENTE às coordenadas base já espaçadas
+    const scaledCoords = applyCenterExponentialScaling(baseCoords, centerExpScaleFactor);
+
     // Posiciona com offset e checagem de colisão
     const finalCoords = [];
     let placedCount = 0;
     let skippedCount = 0;
-    
     if (randomOffsetStddevM > 0) {
-        console.log(`Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem de colisão...`);
-        
+        console.log(`Layout ManualCirc: Aplicando offset aleatório (stddev=${randomOffsetStddevM.toFixed(3)}m) com checagem RETANGULAR...`);
         for (const [xBase, yBase] of scaledCoords) {
             const placedCoord = placeWithRandomOffsetAndCollisionCheck(
-                xBase, yBase, randomOffsetStddevM, finalCoords, minDistSq, maxPlacementAttempts
+                xBase, yBase, randomOffsetStddevM, finalCoords,
+                tileWidthM, tileHeightM, minSeparationFactor, maxPlacementAttempts
             );
-            
-            if (placedCoord !== null) {
-                finalCoords.push(placedCoord);
-                placedCount++;
-            } else {
-                console.warn(`Aviso: Falha ao posicionar tile perto de (${xBase.toFixed(2)}, ${yBase.toFixed(2)}) após ${maxPlacementAttempts} tentativas.`);
-                skippedCount++;
-            }
+            if (placedCoord !== null) finalCoords.push(placedCoord); else skippedCount++;
         }
-        
-        if (skippedCount > 0) {
-            console.log(`${skippedCount}/${scaledCoords.length} tiles pulados.`);
-        }
+        if (skippedCount > 0) console.log(`Layout ManualCirc: ${skippedCount}/${scaledCoords.length} tiles pulados.`);
+        placedCount = finalCoords.length;
     } else {
-        for (const coord of scaledCoords) {
-            finalCoords.push(coord);
-        }
+        finalCoords.push(...scaledCoords);
         placedCount = finalCoords.length;
     }
-    
+
     // Arredonda e centraliza
     const roundedCoords = finalCoords.map(coord => [
         parseFloat(coord[0].toFixed(COORD_PRECISION)),
         parseFloat(coord[1].toFixed(COORD_PRECISION))
     ]);
-    
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
-    console.log(`Layout Manual Circular (modo=${spacingMode}): Gerou ${placedCount} centros.`);
+    console.log(`Layout Manual Circular (FatorExp=${centerExpScaleFactor.toFixed(2)}): Gerou ${placedCount} centros.`);
     return centeredCoords;
 }
 
+/**
+ * Cria um layout aleatório dentro de um raio máximo, com separação mínima retangular.
+ */
 function createRandomLayout(
-    numTiles,
-    maxRadiusM,
-    tileWidthM,
-    tileHeightM,
+    numTiles, maxRadiusM, tileWidthM, tileHeightM,
     minSeparationFactor = 1.05,
     maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS * 10,
     centerLayout = true
 ) {
-    if (numTiles <= 0) return [];
-    if (maxRadiusM <= 0 || tileWidthM <= 0 || tileHeightM <= 0) {
-        console.warn("Aviso (createRandomLayout): Raio e dimensões devem ser positivos.");
-        return [];
-    }
-    
-    const tileDiagonalM = Math.sqrt(tileWidthM**2 + tileHeightM**2);
-    const minDistSq = (minSeparationFactor * tileDiagonalM)**2;
-    
+    if (numTiles <= 0 || maxRadiusM <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const minRequiredDistX = tileWidthM * minSeparationFactor;
+    const minRequiredDistY = tileHeightM * minSeparationFactor;
     const coords = [];
     let attemptsTotal = 0;
     let placedCount = 0;
     let skippedCount = 0;
-    
-    console.log(`Tentando posicionar ${numTiles} tiles aleatoriamente (max_radius=${maxRadiusM.toFixed(2)}m)...`);
-    
+    console.log(`Layout Aleatório: Tentando posicionar ${numTiles} tiles (R=${maxRadiusM.toFixed(2)}m) com checagem RETANGULAR...`);
+
     for (let i = 0; i < numTiles; i++) {
         let placed = false;
-        
         for (let attempt = 0; attempt < maxPlacementAttempts; attempt++) {
             attemptsTotal++;
-            
-            // Gera ponto aleatório dentro do círculo
-            const r = Math.random() * maxRadiusM; // Distribuição uniforme de raio
+            const r = Math.sqrt(Math.random()) * maxRadiusM;
             const theta = Math.random() * 2 * Math.PI;
             const x = r * Math.cos(theta);
             const y = r * Math.sin(theta);
-            
-            // Verifica colisão com pontos já colocados
             let valid = true;
             for (const [existingX, existingY] of coords) {
-                const distSq = (x - existingX)**2 + (y - existingY)**2;
-                if (distSq < minDistSq) {
+                const deltaX = Math.abs(x - existingX);
+                const deltaY = Math.abs(y - existingY);
+                if (deltaX < minRequiredDistX && deltaY < minRequiredDistY) {
                     valid = false;
                     break;
                 }
             }
-            
             if (valid) {
-                coords.push([x, y]);
+                coords.push([
+                    parseFloat(x.toFixed(COORD_PRECISION)),
+                    parseFloat(y.toFixed(COORD_PRECISION))
+                ]);
                 placed = true;
                 placedCount++;
                 break;
             }
         }
-        
-        if (!placed) {
-            console.warn(`Aviso: Não foi possível posicionar o tile ${coords.length+1} após ${maxPlacementAttempts} tentativas.`);
-            skippedCount++;
-        }
+        if (!placed) skippedCount++;
     }
-    
-    // Arredonda e centraliza
-    const roundedCoords = coords.map(coord => [
-        parseFloat(coord[0].toFixed(COORD_PRECISION)),
-        parseFloat(coord[1].toFixed(COORD_PRECISION))
-    ]);
-    
-    const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    
+
+    const finalCoords = centerLayout ? centerCoords(coords) : coords;
     console.log(`Layout Aleatório Puro (R=${maxRadiusM}m): Gerou ${placedCount} centros (${skippedCount} pulados). Tentativas: ${attemptsTotal}.`);
-    return centeredCoords;
+    return finalCoords;
 }
 
 // Exporta as funções para uso global
-window.BingoLayouts = {
-    createGridLayout,
-    createSpiralLayout,
-    createRingLayout,
-    createRhombusLayout,
-    createHexGridLayout,
-    createPhyllotaxisLayout,
-    createManualCircularLayout,
-    createRandomLayout,
-    // Funções auxiliares que podem ser úteis
-    centerCoords,
-    applyCenterExponentialScaling
-};
+if (typeof window !== 'undefined') {
+    window.BingoLayouts = {
+        createGridLayout,
+        createSpiralLayout,
+        createRingLayout,
+        createRhombusLayout,
+        createHexGridLayout,
+        createPhyllotaxisLayout,
+        createManualCircularLayout,
+        createRandomLayout,
+        centerCoords,
+        applyCenterExponentialScaling
+    };
+} else {
+    console.log("BingoLayouts: Ambiente não-navegador detectado.");
+}

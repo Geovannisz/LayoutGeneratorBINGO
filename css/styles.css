@@ -592,3 +592,34 @@ footer {
     white-space: nowrap;
     box-shadow: 0 1px 3px var(--shadow-color); /* Add subtle shadow */
 }
+
+/* Estilos para botões de ícone na lista de coordenadas */
+.coordinate-actions .icon-btn {
+    background-color: transparent; /* Fundo transparente */
+    border: none; /* Sem borda */
+    color: var(--text-color); /* Cor do ícone igual ao texto por padrão */
+    font-size: 14px; /* Tamanho do ícone */
+    padding: 5px; /* Pequeno padding */
+    cursor: pointer;
+    transition: color 0.2s, opacity 0.2s;
+    line-height: 1; /* Evita altura extra */
+    opacity: 0.7; /* Levemente apagado por padrão */
+}
+
+.coordinate-actions .icon-btn:hover {
+    opacity: 1; /* Opacidade total no hover */
+}
+
+/* Cores específicas para hover (opcional) */
+.coordinate-actions .center-btn:hover {
+    color: var(--primary-color);
+}
+
+.coordinate-actions .remove-btn:hover {
+    color: var(--secondary-color);
+}
+
+/* Ajuste de alinhamento se necessário */
+.coordinate-actions {
+    align-items: center; /* Centraliza verticalmente os botões */
+}

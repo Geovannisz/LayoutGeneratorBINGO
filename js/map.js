@@ -206,37 +206,66 @@ class InteractiveMap {
         this.selectedCoordinates.push({ lat: lat, lon: lng, alt: alt, name: markerName });
 
         // --- Eventos ---
+        // Função auxiliar para obter o índice atual de forma segura
+        const getCurrentIndex = (targetMarker) => this.stationMarkers.indexOf(targetMarker);
+
         marker.on('drag', (e) => {
-            const newLatLng = e.target.getLatLng();
-            const currentCoords = this.selectedCoordinates[markerIndex];
+            const currentMarker = e.target;
+            const currentIndex = getCurrentIndex(currentMarker); // Obtém o índice atual dinamicamente
+            if (currentIndex === -1) return; // Marcador não encontrado (segurança)
+
+            const newLatLng = currentMarker.getLatLng();
+            const currentCoords = this.selectedCoordinates[currentIndex]; // Usa o índice correto
+            if (!currentCoords) return; // Segurança
+
             currentCoords.lat = newLatLng.lat;
             currentCoords.lon = newLatLng.lng;
-            this.updateDistanceLine(markerIndex, currentCoords.lat, currentCoords.lon);
-            this.updateCoordinatesList();
-            this.updateSelectedCoordinatesDisplay();
-            this.updateOskarExportFields();
+            this.updateDistanceLine(currentIndex, currentCoords.lat, currentCoords.lon); // Usa o índice correto
+            this.updateCoordinatesList(); // Atualiza a lista (que refletirá o estado atual)
+            this.updateSelectedCoordinatesDisplay(); // Atualiza display se for o ativo
+            this.updateOskarExportFields(); // Atualiza exportação
         });
 
         marker.on('dragend', (e) => {
-            const finalLatLng = e.target.getLatLng();
-            const currentCoords = this.selectedCoordinates[markerIndex]; // Pega os dados armazenados
+            const currentMarker = e.target;
+            const currentIndex = getCurrentIndex(currentMarker); // Obtém o índice atual dinamicamente
+            if (currentIndex === -1) return; // Marcador não encontrado (segurança)
+
+            const finalLatLng = currentMarker.getLatLng();
+            const currentCoords = this.selectedCoordinates[currentIndex]; // Usa o índice correto
+            if (!currentCoords) return; // Segurança
+
             const finalDistance = this.calculateDistance(finalLatLng.lat, finalLatLng.lng, BINGO_LATITUDE, BINGO_LONGITUDE);
             // Usa altitude armazenada (currentCoords.alt) para o popup
             const finalPopupContent = this._createPopupContent(currentCoords.name, finalLatLng.lat, finalLatLng.lng, currentCoords.alt, finalDistance);
-            marker.setPopupContent(finalPopupContent);
-            const currentTooltip = line.getTooltip();
-            if (currentTooltip) currentTooltip.setContent(`${finalDistance.toFixed(2)} km`);
+            currentMarker.setPopupContent(finalPopupContent); // Atualiza o popup do marcador correto
+
+            // Atualiza o tooltip da linha correspondente
+            if (this.distanceLines[currentIndex]) {
+                const line = this.distanceLines[currentIndex];
+                const currentTooltip = line.getTooltip();
+                if (currentTooltip) {
+                    // Recalcula o ponto médio para o tooltip
+                    const midPoint = this.calculateMidpoint(finalLatLng.lat, finalLatLng.lng, BINGO_LATITUDE, BINGO_LONGITUDE);
+                    currentTooltip.setLatLng(midPoint); // Atualiza posição do tooltip
+                    currentTooltip.setContent(`${finalDistance.toFixed(2)} km`); // Atualiza conteúdo
+                }
+            }
         });
 
-        marker.on('click', () => {
-            if (this.activeMarkerIndex !== markerIndex) {
-                this.activeMarkerIndex = markerIndex;
+        marker.on('click', (e) => {
+            const currentMarker = e.target;
+            const currentIndex = getCurrentIndex(currentMarker); // Obtém o índice atual dinamicamente
+            if (currentIndex === -1) return; // Marcador não encontrado (segurança)
+
+            if (this.activeMarkerIndex !== currentIndex) {
+                this.activeMarkerIndex = currentIndex; // Define o índice correto como ativo
                 this.updateSelectedCoordinatesDisplay();
-                this.updateCoordinatesList();
+                this.updateCoordinatesList(); // Atualiza a lista para destacar o item correto
                 this.updateOskarExportFields();
-            } else { // Se já estava ativo, apenas abre o popup
-                 marker.openPopup();
             }
+            // Sempre abre o popup ao clicar, mesmo se já estiver ativo
+            currentMarker.openPopup();
         });
 
         // --- Atualização Final ---
@@ -335,14 +364,19 @@ class InteractiveMap {
             actions.className = 'coordinate-actions';
 
             const centerBtn = document.createElement('button');
-            centerBtn.className = 'center-btn'; centerBtn.textContent = 'Ver'; centerBtn.title = 'Centralizar mapa';
+            centerBtn.className = 'icon-btn center-btn'; // Adiciona classe base 'icon-btn'
+            centerBtn.innerHTML = '<i class="fas fa-eye"></i>'; // Ícone de olho
+            centerBtn.title = 'Centralizar mapa';
+            centerBtn.setAttribute('aria-label', 'Centralizar mapa'); // Acessibilidade
             centerBtn.addEventListener('click', (e) => { e.stopPropagation(); this.centerOnMarker(index); });
-
+    
             const removeBtn = document.createElement('button');
-            removeBtn.className = 'remove-btn'; removeBtn.innerHTML = '×'; removeBtn.title = 'Remover estação';
+            removeBtn.className = 'icon-btn remove-btn'; // Adiciona classe base 'icon-btn'
+            removeBtn.innerHTML = '<i class="fas fa-trash-alt"></i>'; // Ícone de lixeira
+            removeBtn.title = 'Remover estação';
+            removeBtn.setAttribute('aria-label', 'Remover estação'); // Acessibilidade
             removeBtn.addEventListener('click', (e) => {
                  e.stopPropagation();
-                 // *** REMOVIDO O confirm() ***
                  this.removeMarker(index); // Remove diretamente
             });
 

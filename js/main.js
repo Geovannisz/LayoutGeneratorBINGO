@@ -58,6 +58,16 @@ function checkComponentsAndSetup() {
          setupDarkMode();
          // Configura o listener para redesenhar o canvas no tema alterado
          setupThemeChangeListener(); // <-- Nova chamada
+
+         // Gera o layout inicial após um pequeno atraso para estabilização do DOM/CSS
+        if (window.antennaGenerator) {
+            setTimeout(() => {
+                console.log("Chamando generateLayout inicial a partir de main.js");
+                // Garante que o canvas tenha as dimensões corretas ANTES do primeiro desenho
+                window.antennaGenerator.resizeCanvas();
+                window.antennaGenerator.generateLayout();
+            }, 100); // Atraso de 100ms (pode ajustar se necessário)
+        }
      } else {
           console.error("Aplicação não pôde ser inicializada completamente devido a componentes ausentes.");
           // Informa o usuário que algo deu errado

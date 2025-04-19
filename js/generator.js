@@ -23,51 +23,87 @@ const DIAMOND_OFFSET = 0.05; // "Raio" do losango/diamante interno em METROS
 // Parâmetros Padrão para cada tipo de layout (usados como fallback e estado inicial)
 const DEFAULT_PARAMS = {
     grid: {
-        numCols: 6, numRows: 6, spacingMode: 'linear', spacingXFactor: 1.0, spacingYFactor: 1.0,
-        centerExpScaleFactor: 1.1, randomOffsetStddevM: 0.0, minSeparationFactor: 1.05
+        numCols: 12, 
+        numRows: 3, 
+        spacingXFactor: 1.0, 
+        spacingYFactor: 1.0,
+        centerExpScaleFactor: 1.0, 
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0
     },
     spiral: {
-        numArms: 3, tilesPerArm: 12, armSpacingMode: 'linear', centerScaleMode: 'none', radiusStartFactor: 0.7,
-        radiusStepFactor: 0.3, centerExpScaleFactor: 1.1, angleStepRad: Math.PI / 9, armOffsetRad: 0.0,
-        rotationPerArmRad: 0.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.05, includeCenterTile: false
+        numArms: 3, 
+        tilesPerArm: 12, 
+        radiusStartFactor: 0.7, 
+        radiusStepFactor: 0.3, 
+        centerExpScaleFactor: 1.0, 
+        angleStepRad: Math.PI / 9, 
+        armOffsetRad: 0.0, 
+        rotationPerArmRad: 0.0, 
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0, 
+        includeCenterTile: false
     },
     ring: {
-        numRings: 3, tilesPerRing: [8, 16, 24], ringSpacingMode: 'linear', centerScaleMode: 'none',
-        radiusStartFactor: 0.5, radiusStepFactor: 0.5, centerExpScaleFactor: 1.1, angleOffsetRad: 0.0,
-        randomOffsetStddevM: 0.0, minSeparationFactor: 1.05, addCenterTile: true
+        numRings: 3, 
+        tilesPerRing: [8, 16, 24], 
+        radiusStartFactor: 1.0, 
+        radiusStepFactor: 1.0, 
+        centerExpScaleFactor: 1.0, 
+        angleOffsetRad: 0.0,
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0, 
+        addCenterTile: false
     },
     rhombus: {
-        numRowsHalf: 6, spacingMode: 'linear', sideLengthFactor: 0.65, hCompressFactor: 1.0,
-        vCompressFactor: 1.0, centerExpScaleFactor: 1.1, randomOffsetStddevM: 0.0, minSeparationFactor: 1.05
+        numRowsHalf: 6, 
+        sideLengthFactor: 0.65, 
+        hCompressFactor: 0.778,
+        vCompressFactor: 0.86, 
+        centerExpScaleFactor: 1.0, 
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0
     },
     hex_grid: {
-        numRingsHex: 3, spacingMode: 'linear', spacingFactor: 1.5, centerExpScaleFactor: 1.1,
-        addCenterTile: true, randomOffsetStddevM: 0.0, minSeparationFactor: 1.05
+        numRingsHex: 3, 
+        spacingFactor: 0.8, 
+        centerExpScaleFactor: 1.0, 
+        addCenterTile: true, 
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0
     },
     phyllotaxis: {
-        numTiles: 36, spacingMode: 'linear', scaleFactor: 0.6, centerOffsetFactor: 0.05,
-        centerExpScaleFactor: 1.1, randomOffsetStddevM: 0.0, minSeparationFactor: 1.05
+        numTiles: 50, 
+        scaleFactor: 0.6, 
+        centerOffsetFactor: 0.25, 
+        centerExpScaleFactor: 1.0, 
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0
     },
     manual_circular: {
-        spacingMode: 'linear', spacingXFactor: 1.0, spacingYFactor: 1.0, centerExpScaleFactor: 1.1,
-        randomOffsetStddevM: 0.0, minSeparationFactor: 1.05
+        spacingXFactor: 1.0, 
+        spacingYFactor: 1.0, 
+        centerExpScaleFactor: 1.0, 
+        randomOffsetStddevM: 0.0, 
+        minSeparationFactor: 1.0
     },
     random: {
-        numTiles: 36, maxRadiusM: 10.0, minSeparationFactor: 1.05
+        numTiles: 36, 
+        maxRadiusM: 4.0, 
+        minSeparationFactor: 1.0
     }
 };
 
-// Mapeamento de Parâmetros para Controles da Interface (define como cada parâmetro será exibido)
-// Agora inclui 'number' para criar slider + input numérico
+// Mapeamento de Parâmetros para Controles da Interface
 const PARAM_CONTROLS = {
     // --- Grid ---
     grid: [
         { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, max: 20, step: 1 },
         { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, max: 20, step: 1 },
-        { id: 'spacingMode', label: 'Modo de Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
-        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
-        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
+        // { id: 'spacingMode', ... removido }
+        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1 /* condition removida */ },
+        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1 /* condition removida */ },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
@@ -75,11 +111,11 @@ const PARAM_CONTROLS = {
     spiral: [
         { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, max: 12, step: 1 },
         { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, max: 30, step: 1 },
-        { id: 'armSpacingMode', label: 'Espaç. Braço', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'exponential', label: 'Exponencial' } ]},
-        { id: 'centerScaleMode', label: 'Escala Central', type: 'select', options: [ { value: 'none', label: 'Nenhum' }, { value: 'center_exponential', label: 'Exponencial' } ]},
+        // { id: 'armSpacingMode', ... removido }
+        // { id: 'centerScaleMode', ... removido }
         { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.1 },
-        { id: 'radiusStepFactor', label: 'Fator Passo Raio', type: 'number', min: 0.1, max: 2, step: 0.05 }, // Significado muda c/ armSpacingMode
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.centerScaleMode === "center_exponential"' },
+        { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.05 }, // Label indica que é linear antes do exp
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.01 },
         { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
@@ -88,12 +124,11 @@ const PARAM_CONTROLS = {
      // --- Anéis ---
      ring: [
         { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, max: 10, step: 1 },
-        // Nota: 'tilesPerRing' é tratado separadamente na lógica.
-        { id: 'ringSpacingMode', label: 'Espaç. Anel', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'exponential', label: 'Exponencial' } ]},
-        { id: 'centerScaleMode', label: 'Escala Central', type: 'select', options: [ { value: 'none', label: 'Nenhum' }, { value: 'center_exponential', label: 'Exponencial' } ]},
+        // { id: 'ringSpacingMode', ... removido }
+        // { id: 'centerScaleMode', ... removido }
         { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.1 },
-        { id: 'radiusStepFactor', label: 'Fator Passo Raio', type: 'number', min: 0.1, max: 2, step: 0.05 }, // Significado muda c/ ringSpacingMode
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.centerScaleMode === "center_exponential"' },
+        { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.05 }, // Label indica que é linear antes do exp
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
@@ -101,20 +136,20 @@ const PARAM_CONTROLS = {
     // --- Losango ---
     rhombus: [
         { id: 'numRowsHalf', label: 'Metade Linhas', type: 'number', min: 1, max: 15, step: 1 },
-        { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
+        // { id: 'spacingMode', ... removido }
         { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.1, max: 5, step: 0.05 },
         { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.1, max: 5, step: 0.1 },
         { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.1, max: 5, step: 0.1 },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
      // --- Grade Hexagonal ---
      hex_grid: [
         { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 },
-        { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
+        // { id: 'spacingMode', ... removido }
         { id: 'spacingFactor', label: 'Fator Espaçamento', type: 'number', min: 0.1, max: 5, step: 0.1 },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
@@ -122,30 +157,29 @@ const PARAM_CONTROLS = {
     // --- Phyllotaxis ---
     phyllotaxis: [
         { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 },
-        { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
+        // { id: 'spacingMode', ... removido }
         { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.1 },
         { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.01 },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Circular Manual ---
     manual_circular: [
-        { id: 'spacingMode', label: 'Modo Espaçamento', type: 'select', options: [ { value: 'linear', label: 'Linear' }, { value: 'center_exponential', label: 'Exponencial Central' } ]},
-        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
-        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1, condition: 'this.params.spacingMode === "linear"' },
-        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05, condition: 'this.params.spacingMode === "center_exponential"' },
+        // { id: 'spacingMode', ... removido }
+        { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1 /* condition removida */ },
+        { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1 /* condition removida */ },
+        { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 /* condition removida */ },
         { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' }
     ],
     // --- Aleatório ---
-    random: [
+    random: [ // Sem alterações aqui
         { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 },
         { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 },
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05 }
     ]
 };
-
 
 // === Classe Principal do Gerador ===
 class AntennaLayoutGenerator {
@@ -165,7 +199,16 @@ class AntennaLayoutGenerator {
         this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType])); // Cópia profunda dos params padrão
         this.currentLayout = []; // Armazena os centros [x,y] dos tiles
         this.allAntennas = []; // Armazena as coordenadas [x,y] de todas as antenas individuais
-        this.showCollisions = document.getElementById('show-collisions')?.checked || false; // Lê estado inicial
+        // Define o estado interno padrão como true
+        this.showCollisions = true;
+        // Encontra o elemento checkbox no DOM
+        const showCollisionsCheckbox = document.getElementById('show-collisions');
+        // Se o elemento existir, define seu estado 'checked' para corresponder ao padrão
+        if (showCollisionsCheckbox) {
+            showCollisionsCheckbox.checked = this.showCollisions;
+        } else {
+            console.warn("Elemento input#show-collisions não encontrado durante inicialização.");
+        }
         this.collisions = []; // Armazena informações sobre colisões detectadas
 
         // Ajusta o tamanho do canvas e adiciona listener para redimensionamento
@@ -176,8 +219,7 @@ class AntennaLayoutGenerator {
         // e adiciona o listener para atualização de tema
         this.initControls();
 
-        // Gera o layout inicial com os parâmetros padrão
-         this.generateLayout();
+        // O layout inicial será gerado por main.js após a inicialização completa
     }
 
     /**
@@ -577,75 +619,74 @@ class AntennaLayoutGenerator {
             // Usa um switch para chamar a função correta com os parâmetros corretos
             // Passa os parâmetros explicitamente conforme a assinatura de cada função
             switch (this.layoutType) {
-                 case 'grid':
-                     this.currentLayout = window.BingoLayouts.createGridLayout(
-                         fullParams.numCols, fullParams.numRows, fullParams.tileWidthM, fullParams.tileHeightM,
-                         fullParams.spacingMode, fullParams.spacingXFactor, fullParams.spacingYFactor,
-                         fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         undefined, // maxPlacementAttempts (usa default da lib)
-                         fullParams.centerLayout
-                     );
-                     break;
-                 case 'spiral':
-                     this.currentLayout = window.BingoLayouts.createSpiralLayout(
-                         fullParams.numArms, fullParams.tilesPerArm, fullParams.tileWidthM, fullParams.tileHeightM,
-                         fullParams.armSpacingMode, fullParams.centerScaleMode, fullParams.radiusStartFactor,
-                         fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleStepRad,
-                         fullParams.armOffsetRad, fullParams.rotationPerArmRad, fullParams.randomOffsetStddevM,
-                         fullParams.minSeparationFactor, undefined, fullParams.centerLayout,
-                         fullParams.includeCenterTile
-                     );
-                     break;
-                 case 'ring':
-                     this.currentLayout = window.BingoLayouts.createRingLayout(
-                         fullParams.numRings, fullParams.tilesPerRing, fullParams.tileWidthM, fullParams.tileHeightM,
-                         fullParams.ringSpacingMode, fullParams.centerScaleMode, fullParams.radiusStartFactor,
-                         fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleOffsetRad,
-                         fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         undefined, fullParams.centerLayout, fullParams.addCenterTile
-                     );
-                     break;
+                case 'grid':
+                    this.currentLayout = window.BingoLayouts.createGridLayout(
+                        fullParams.numCols, fullParams.numRows, fullParams.tileWidthM, fullParams.tileHeightM,
+                        /* spacingMode removido */ fullParams.spacingXFactor, fullParams.spacingYFactor,
+                        fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
+                        undefined, fullParams.centerLayout
+                    );
+                    break;
+                case 'spiral':
+                    this.currentLayout = window.BingoLayouts.createSpiralLayout(
+                        fullParams.numArms, fullParams.tilesPerArm, fullParams.tileWidthM, fullParams.tileHeightM,
+                        /* armSpacingMode, centerScaleMode removidos */ fullParams.radiusStartFactor,
+                        fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleStepRad,
+                        fullParams.armOffsetRad, fullParams.rotationPerArmRad, fullParams.randomOffsetStddevM,
+                        fullParams.minSeparationFactor, undefined, fullParams.centerLayout,
+                        fullParams.includeCenterTile
+                    );
+                    break;
+                case 'ring':
+                    this.currentLayout = window.BingoLayouts.createRingLayout(
+                        fullParams.numRings, fullParams.tilesPerRing, fullParams.tileWidthM, fullParams.tileHeightM,
+                        /* ringSpacingMode, centerScaleMode removidos */ fullParams.radiusStartFactor,
+                        fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleOffsetRad,
+                        fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
+                        undefined, fullParams.centerLayout, fullParams.addCenterTile
+                    );
+                    break;
                 case 'rhombus':
-                     this.currentLayout = window.BingoLayouts.createRhombusLayout(
-                         fullParams.numRowsHalf, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode,
-                         fullParams.sideLengthFactor, fullParams.hCompressFactor, fullParams.vCompressFactor,
-                         fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         undefined, fullParams.centerLayout
-                     );
-                     break;
+                    this.currentLayout = window.BingoLayouts.createRhombusLayout(
+                        fullParams.numRowsHalf, fullParams.tileWidthM, fullParams.tileHeightM, /* spacingMode removido */
+                        fullParams.sideLengthFactor, fullParams.hCompressFactor, fullParams.vCompressFactor,
+                        fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
+                        undefined, fullParams.centerLayout
+                    );
+                    break;
                 case 'hex_grid':
-                     this.currentLayout = window.BingoLayouts.createHexGridLayout(
-                         fullParams.numRingsHex, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode,
-                         fullParams.spacingFactor, fullParams.centerExpScaleFactor, fullParams.addCenterTile,
-                         fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         undefined, fullParams.centerLayout
-                     );
-                      break;
+                    this.currentLayout = window.BingoLayouts.createHexGridLayout(
+                        fullParams.numRingsHex, fullParams.tileWidthM, fullParams.tileHeightM, /* spacingMode removido */
+                        fullParams.spacingFactor, fullParams.centerExpScaleFactor, fullParams.addCenterTile,
+                        fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
+                        undefined, fullParams.centerLayout
+                    );
+                     break;
                 case 'phyllotaxis':
-                      this.currentLayout = window.BingoLayouts.createPhyllotaxisLayout(
-                         fullParams.numTiles, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode,
-                         fullParams.scaleFactor, fullParams.centerOffsetFactor, fullParams.centerExpScaleFactor,
-                         fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
-                         undefined, fullParams.centerLayout
-                     );
-                     break;
+                     this.currentLayout = window.BingoLayouts.createPhyllotaxisLayout(
+                        fullParams.numTiles, fullParams.tileWidthM, fullParams.tileHeightM, /* spacingMode removido */
+                        fullParams.scaleFactor, fullParams.centerOffsetFactor, fullParams.centerExpScaleFactor,
+                        fullParams.randomOffsetStddevM, fullParams.minSeparationFactor,
+                        undefined, fullParams.centerLayout
+                    );
+                    break;
                 case 'manual_circular':
-                     this.currentLayout = window.BingoLayouts.createManualCircularLayout(
-                         fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingMode, fullParams.spacingXFactor,
-                         fullParams.spacingYFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM,
-                         fullParams.minSeparationFactor, undefined, fullParams.centerLayout
-                     );
-                     break;
-                case 'random':
-                     this.currentLayout = window.BingoLayouts.createRandomLayout(
-                         fullParams.numTiles, fullParams.maxRadiusM, fullParams.tileWidthM, fullParams.tileHeightM,
-                         fullParams.minSeparationFactor, undefined, fullParams.centerLayout
-                     );
-                     break;
-                 default:
-                     console.warn(`Tipo de layout não reconhecido para geração: ${this.layoutType}`);
-                     this.currentLayout = []; // Define como vazio
-             }
+                    this.currentLayout = window.BingoLayouts.createManualCircularLayout(
+                        fullParams.tileWidthM, fullParams.tileHeightM, /* spacingMode removido */ fullParams.spacingXFactor,
+                        fullParams.spacingYFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM,
+                        fullParams.minSeparationFactor, undefined, fullParams.centerLayout
+                    );
+                    break;
+                case 'random': // Não tinha modo, chamada permanece igual
+                    this.currentLayout = window.BingoLayouts.createRandomLayout(
+                        fullParams.numTiles, fullParams.maxRadiusM, fullParams.tileWidthM, fullParams.tileHeightM,
+                        fullParams.minSeparationFactor, undefined, fullParams.centerLayout
+                    );
+                    break;
+                default:
+                    console.warn(`Tipo de layout não reconhecido para geração: ${this.layoutType}`);
+                    this.currentLayout = []; // Define como vazio
+            }
 
             // Após gerar os centros, gera as posições de todas as antenas individuais
             this.generateAllAntennas();
