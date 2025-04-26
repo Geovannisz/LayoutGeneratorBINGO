@@ -9,6 +9,28 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <style>
+        /* Estilo adicional para alinhar input e botão */
+        .download-zip-group {
+            display: flex;
+            align-items: center; /* Alinha verticalmente */
+            gap: 10px; /* Espaço entre input e botão */
+            margin-top: 20px;
+            justify-content: center; /* Centraliza o grupo */
+            flex-wrap: wrap; /* Permite quebrar linha em telas menores */
+        }
+        .download-zip-group input[type="text"] {
+            padding: 9px; /* Ajuste para altura similar ao botão */
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: var(--input-bg-color);
+            color: var(--input-text-color);
+            flex-grow: 1; /* Permite que o input cresça */
+            min-width: 200px; /* Largura mínima */
+            max-width: 400px; /* Largura máxima */
+        }
+    </style>
 </head>
 <body>
     <header>
@@ -23,7 +45,6 @@
         <!-- Gerador de Layout -->
         <section class="layout-generator">
             <h2>Gerador de Layout</h2>
-
             <div class="layout-controls">
                 <div class="control-panel">
                     <div class="form-group">
@@ -39,29 +60,23 @@
                             <option value="random">Aleatório</option>
                         </select>
                     </div>
-
-                    <!-- Parâmetros dinâmicos baseados no tipo de layout -->
-                    <!-- Added class 'dynamic-params-container' for easier CSS targeting -->
                     <div id="dynamic-params" class="dynamic-params-container"></div>
-
                     <div class="form-group">
                         <label for="show-collisions">Mostrar Colisões:</label>
                         <input type="checkbox" id="show-collisions">
                     </div>
-
                     <div class="button-group">
                         <button id="generate-btn" class="primary">Gerar Layout</button>
                         <button id="random-btn" class="secondary">Gerar Aleatório</button>
                     </div>
                 </div>
-
                 <div class="visualization">
                     <canvas id="layout-canvas"></canvas>
                     <div class="stats">
                         <div>Tiles: <span id="tile-count">0</span></div>
                         <div>Antenas: <span id="antenna-count">0</span></div>
                     </div>
-                     <!-- Div para informações de colisão será criada/atualizada via JS -->
+                    <!-- Div para informações de colisão será criada/atualizada via JS -->
                 </div>
             </div>
         </section>
@@ -69,25 +84,19 @@
         <!-- Mapa Interativo -->
         <section class="map-container">
             <h2>Mapa Interativo</h2>
-
             <div class="map-content">
                 <div id="map" class="map"></div>
-
                 <div class="map-info">
-                    <p>Coordenadas selecionadas:</p>
-                    <p><span id="selected-coords">Nenhuma</span></p>
+                    <p>Coordenadas selecionadas: <span id="selected-coords">Nenhuma</span></p>
                     <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
                     <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
-
                     <p>Clique no mapa para adicionar uma localização ou escolha um arranjo existente:</p>
-
                     <div class="form-group">
                         <label for="arranjo-select">Arranjo:</label>
                         <select id="arranjo-select">
                             <option value="0">Selecione um arranjo</option>
                         </select>
                     </div>
-
                     <div id="coordinates-list" class="coordinates-list"></div>
                 </div>
             </div>
@@ -96,32 +105,36 @@
         <!-- Exportação -->
         <section class="export-container">
             <h2>Exportação (Estrutura OSKAR)</h2>
-
             <div class="export-fields">
                  <!-- ../layout_wgs84.txt -->
                 <div class="export-field">
                     <label for="export-layout-wgs84">layout_wgs84.txt (Estações WGS84):</label>
                     <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações selecionadas no mapa"></textarea>
                 </div>
-
                  <!-- ../position.txt -->
                 <div class="export-field">
                     <label for="export-position">position.txt (BINGO Central WGS84):</label>
                     <textarea id="export-position" readonly title="Coordenadas WGS84 fixas do BINGO"></textarea>
                 </div>
-
                  <!-- ../station/layout.txt -->
                 <div class="export-field">
                     <label for="export-station-layout">station/layout.txt (Centros Tiles XY):</label>
                     <textarea id="export-station-layout" readonly title="Coordenadas XY relativas dos centros dos tiles na estação"></textarea>
                 </div>
-
                  <!-- ../station/tile/layout.txt -->
                 <div class="export-field">
                     <label for="export-tile-layout">station/tile/layout.txt (Antenas Tile XY):</label>
                     <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas dentro de um tile"></textarea>
                 </div>
             </div>
+
+            <!-- <<<--- CAMPO DE INPUT E BOTÃO DE DOWNLOAD ZIP AGRUPADOS --->>>
+            <div class="download-zip-group">
+                <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)">
+                <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive"></i> Baixar Layout (ZIP)</button>
+            </div>
+            <!-- <<<--- FIM DO GRUPO --->>>
+
             <p><small>Nota: As coordenadas XY são relativas ao centro da estação ou do tile. Os valores para a altitude estão incorretos.</small></p>
         </section>
     </div>
@@ -132,6 +145,10 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+
+    <!-- Bibliotecas JSZip e FileSaver -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
 
     <!-- Scripts da aplicação -->
     <script src="js/bingo_layouts.js"></script>
