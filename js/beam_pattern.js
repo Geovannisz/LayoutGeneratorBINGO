@@ -4,7 +4,7 @@
  * Handles fetching antenna element data, calculating Array Factor (AF),
  * and plotting the beam pattern automatically when layout or plot parameters change.
  * Uses Plotly.js and includes options for dB/linear scale and Phi angle selection via slider.
- * --- MODIFIED: Removed explicit Plotly range settings for better autoscaling ---
+ * --- MODIFIED: Plotly graph now adapts colors based on CSS theme variables ---
  */
 
 // === Constants ===
@@ -204,6 +204,7 @@ function applyAF(elementFieldData, afComplex) {
 /**
  * Plots the beam pattern using Plotly.js, allowing for dB or linear scale.
  * Uses Plotly's default autoscaling.
+ * --- MODIFIED: Reads CSS variables to apply current theme colors ---
  */
 function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
     console.log(`Plotting beam pattern for Phi = ${phiValue}°, Scale = ${scaleType}`);
@@ -220,22 +221,29 @@ function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
     const peakMagnitude = Math.max(...fieldMagnitude); // Find peak for normalization
 
     if (scaleType === 'dB') {
-        // Calculate normalized dB values
         yData = fieldMagnitude.map(mag => {
-            if (mag <= 0 || peakMagnitude <= 0) return -100; // Assign a low dB value
+            if (mag <= 0 || peakMagnitude <= 0) return -100;
             const normalizedMag = mag / peakMagnitude;
-            const magForDb = Math.max(normalizedMag, 1e-10); // Prevent log10(0)
+            const magForDb = Math.max(normalizedMag, 1e-10);
             return 20 * Math.log10(magForDb);
         });
         yAxisTitle = 'Magnitude Normalizada (dB)';
-        // Let Plotly autoscale, but you could suggest a range if needed
-        // yAxisRange = [-60, 0];
     } else { // Linear scale
-        yData = fieldMagnitude; // Use raw magnitude
+        yData = fieldMagnitude;
         yAxisTitle = 'Magnitude (Linear)';
-        // Let Plotly autoscale
-        // yAxisRange = [0, peakMagnitude > 0 ? peakMagnitude * 1.1 : 1];
     }
+
+    // --- MODIFICATION: Get theme colors from CSS variables ---
+    const rootStyle = getComputedStyle(document.documentElement);
+    const plotBgColor = rootStyle.getPropertyValue('--plot-bg-color').trim() || '#ffffff'; // Use specific plot background var
+    const paperBgColor = rootStyle.getPropertyValue('--card-bg-color').trim() || '#ffffff'; // Use card background for paper
+    const textColor = rootStyle.getPropertyValue('--text-color').trim() || '#333333';
+    const gridColor = rootStyle.getPropertyValue('--plot-grid-color').trim() || '#eeeeee'; // Use specific plot grid var
+    const lineColor = rootStyle.getPropertyValue('--primary-color').trim() || '#3498db'; // Use primary color for plot line
+    const axisColor = rootStyle.getPropertyValue('--border-color').trim() || '#cccccc'; // Use border color for axis lines
+
+    console.log(`Plotting with colors: BG=${plotBgColor}, Text=${textColor}, Line=${lineColor}, Grid=${gridColor}`);
+    // --- END MODIFICATION ---
 
     const trace = {
         x: theta,
@@ -244,51 +252,44 @@ function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
         type: 'scatter',
         name: `Phi = ${phiValue}°`,
         line: {
-            color: '#8be9fd' // Dracula cyan
+            // Use detected line color
+            color: lineColor
         }
     };
 
-    // Define layout using Dracula theme colors
+    // Define layout using detected theme colors
     const layout = {
         title: `Padrão de Feixe (Phi = ${phiValue}°, Escala ${scaleType === 'dB' ? 'dB' : 'Linear'})`,
         xaxis: {
             title: 'Theta (graus)',
-            gridcolor: '#44475a',
-            zerolinecolor: '#6272a4',
-            linecolor: '#6272a4',
-            tickcolor: '#f8f8f2',
-            titlefont: { color: '#f8f8f2' },
-            tickfont: { color: '#f8f8f2' },
-            // <<<--- REMOVED: Let Plotly autoscale or set dynamically if needed --- >>>
-            // range: [-90, 90]
-             automargin: true // Helps prevent title/labels being cut off
+            gridcolor: gridColor,       // Use detected grid color
+            zerolinecolor: axisColor,   // Use detected axis color
+            linecolor: axisColor,       // Use detected axis color
+            tickcolor: textColor,       // Use detected text color for ticks
+            titlefont: { color: textColor },
+            tickfont: { color: textColor },
+            automargin: true
         },
         yaxis: {
-            title: yAxisTitle, // Dynamic title based on scale
-            gridcolor: '#44475a',
-            zerolinecolor: '#6272a4',
-            linecolor: '#6272a4',
-            tickcolor: '#f8f8f2',
-            titlefont: { color: '#f8f8f2' },
-            tickfont: { color: '#f8f8f2' },
-            // <<<--- REMOVED: Let Plotly autoscale --- >>>
-            // range: yAxisRange
-            automargin: true // Helps prevent title/labels being cut off
+            title: yAxisTitle,
+            gridcolor: gridColor,       // Use detected grid color
+            zerolinecolor: axisColor,   // Use detected axis color
+            linecolor: axisColor,       // Use detected axis color
+            tickcolor: textColor,       // Use detected text color for ticks
+            titlefont: { color: textColor },
+            tickfont: { color: textColor },
+            automargin: true
         },
-        plot_bgcolor: '#282a36',
-        paper_bgcolor: '#282a36',
+        plot_bgcolor: plotBgColor,     // Use detected plot background color
+        paper_bgcolor: paperBgColor,   // Use detected paper background color
         font: {
-            color: '#f8f8f2'
+            color: textColor            // Use detected text color for general font
         },
-        showlegend: false, // Only one trace
-        // <<<--- REMOVED: Let Plotly handle resizing/redrawing --- >>>
-        // uirevision: 'true'
-        autosize: true // Ensure plot tries to fill container
+        showlegend: false,
+        autosize: true
     };
 
-    // Use Plotly.react for potentially smoother updates if layout changes often
-    // Plotly.newPlot is generally fine here too.
-    Plotly.newPlot(plotDivId, [trace], layout, {responsive: true}) // Ensure responsive flag is set
+    Plotly.newPlot(plotDivId, [trace], layout, {responsive: true})
         .then(() => console.log(`Plotly chart rendered: Phi = ${phiValue}°, Scale = ${scaleType}.`))
         .catch(err => console.error("Error rendering Plotly chart:", err));
 }
@@ -299,12 +300,12 @@ function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
  * Orchestrates the beam pattern generation and plotting process.
  */
 async function generateBeamPatternPlot() {
-    // (Implementation remains the same)
+    // (Implementation remains largely the same, calls modified plotBeamPattern)
     if (isPlotting) { console.log("Plotting busy."); return; }
     isPlotting = true;
     console.log("Attempting to generate beam pattern plot...");
 
-    if (!phiInput || !scaleRadios || !statusDiv) { // Check phiInput instead of phiSlider
+    if (!phiInput || !scaleRadios || !statusDiv) {
         console.error("Beam pattern controls not initialized."); isPlotting = false; return;
     }
 
@@ -337,7 +338,8 @@ async function generateBeamPatternPlot() {
         const resultingMagnitude = resultingField.map(point => point.rETotalMagnitude);
 
         statusDiv.textContent = 'Renderizando gráfico...';
-        plotBeamPattern(thetaValues, resultingMagnitude, selectedPhi, selectedScale); // Pass correct theta
+        // Calls the modified plotting function which now handles themes
+        plotBeamPattern(thetaValues, resultingMagnitude, selectedPhi, selectedScale);
 
         statusDiv.textContent = `Padrão para Phi = ${selectedPhi}° atualizado (Escala ${selectedScale}).`;
 
@@ -360,7 +362,7 @@ const debouncedGenerateBeamPatternPlot = debounce(generateBeamPatternPlot, DEBOU
  * Initializes the controls and sets up event listeners for automatic updates.
  */
 function initBeamPatternControls() {
-    // (Initialization remains the same - assigns elements to module vars)
+    // (Initialization remains the same)
     phiSlider = document.getElementById('beam-phi-slider');
     phiInput = document.getElementById('beam-phi-input');
     scaleRadios = document.querySelectorAll('input[name="beamScale"]');
@@ -371,10 +373,10 @@ function initBeamPatternControls() {
         return;
     }
 
-    // --- Event Listeners ---
+    // --- Event Listeners (remain the same) ---
     phiSlider.addEventListener('input', () => {
         phiInput.value = phiSlider.value;
-        statusDiv.textContent = `Phi = ${phiSlider.value}°. Atualizando...`; // More concise status
+        statusDiv.textContent = `Phi = ${phiSlider.value}°. Atualizando...`;
         debouncedGenerateBeamPatternPlot();
     });
     phiInput.addEventListener('input', () => {
@@ -392,7 +394,6 @@ function initBeamPatternControls() {
         value = Math.max(0, Math.min(90, value));
         phiInput.value = value;
         phiSlider.value = value;
-        // Call directly here as well in case 'input' didn't fire or finished debouncing early
         generateBeamPatternPlot();
      });
 
@@ -405,11 +406,33 @@ function initBeamPatternControls() {
         });
     });
 
+    // Listener for layout changes (remains the same)
     window.addEventListener('layoutGenerated', () => {
-        console.log("Event 'layoutGenerated' received.");
+        console.log("Event 'layoutGenerated' received by beam_pattern.js.");
         statusDiv.textContent = 'Layout alterado. Atualizando gráfico...';
         generateBeamPatternPlot(); // Update immediately
     });
+
+    // --- MODIFICATION: Add listener for theme changes ---
+    window.addEventListener('themeChanged', () => {
+        console.log('Event themeChanged received by beam_pattern.js');
+        // Check if a layout exists before replotting
+        if (window.antennaGenerator?.getAllAntennas && window.antennaGenerator.getAllAntennas().length > 0) {
+            statusDiv.textContent = 'Tema alterado. Redesenhando gráfico...';
+            // Regenerate plot with new theme colors
+            // It might be sufficient to just call plotBeamPattern if the data is cached,
+            // but generateBeamPatternPlot ensures everything is recalculated if needed.
+            generateBeamPatternPlot();
+        } else {
+            console.log('Tema alterado, mas sem layout para gerar gráfico.');
+            // Optionally clear the plot if needed
+            // const plotDiv = document.getElementById(plotDivId);
+            // if (plotDiv) Plotly.purge(plotDiv);
+            // statusDiv.textContent = 'Tema alterado. Gere um layout para ver o gráfico.';
+        }
+    });
+    // --- END MODIFICATION ---
+
 
     console.log("Beam pattern controls initialized.");
 }
