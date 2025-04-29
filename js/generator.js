@@ -339,7 +339,7 @@ class AntennaLayoutGenerator {
          if (minY <= axisEpsilon && maxY >= -axisEpsilon) { const { y: zeroY } = transformCoord(minX, 0); const { x: leftX } = transformCoord(minX, 0); const { x: rightX } = transformCoord(maxX, 0); ctx.beginPath(); ctx.moveTo(leftX, zeroY); ctx.lineTo(rightX, zeroY); ctx.stroke(); if (!(xStart <= axisEpsilon && xEnd >= -axisEpsilon)) { ctx.fillStyle = scaleColor; ctx.font = '10px Segoe UI'; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('0', transformCoord(0, 0).x, xAxisYPos + 2); } }
          ctx.fillStyle = scaleColor; ctx.font = '12px Segoe UI, Tahoma, Geneva, Verdana, sans-serif';
          ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('X (metros)', canvas.width / 2, canvas.height - axisTextMargin / 3);
-         ctx.save(); ctx.translate(axisTextMargin / 2, canvas.height / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('Y (metros)', 0, 0); ctx.restore();
+         ctx.save(); ctx.translate(axisTextMargin, canvas.height / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('Y (metros)', 0, 0); ctx.restore();
      } // === FIM DO MÉTODO drawScale ===
 
     /** Atualiza contagem de tiles/antenas e info de colisões. */
