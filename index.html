@@ -22,78 +22,101 @@
             font-size: 14px; background-color: var(--input-bg-color);
             color: var(--input-text-color); flex-grow: 1; min-width: 200px; max-width: 400px;
         }
-        /* Estilos para grupo de download de imagem (agora abaixo do layout) */
+        /* Estilos para grupo de download de imagem */
         .download-image-controls {
-            background-color: var(--card-bg-color); /* Fundo igual ao card */
-            padding: 20px;
-            margin-top: 20px; /* Espaço acima */
-            border-radius: 8px;
-            box-shadow: 0 2px 10px var(--shadow-color);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            align-items: center; /* Centraliza conteúdo */
+            background-color: var(--card-bg-color);
+            padding: 20px; margin-top: 20px; border-radius: 8px;
+            box-shadow: 0 2px 10px var(--shadow-color); display: flex;
+            flex-direction: column; gap: 15px; align-items: center;
         }
         .download-image-controls h3 { margin-bottom: 10px;}
         .download-image-options {
-            display: flex; gap: 30px; /* Mais espaço entre grupos */
-            flex-wrap: wrap; align-items: flex-start; /* Alinha início */
-            justify-content: center; /* Centraliza os grupos */
-            width: 100%; /* Ocupa largura */
+            display: flex; gap: 30px; flex-wrap: wrap;
+            align-items: flex-start; justify-content: center; width: 100%;
         }
         .download-image-options .option-group { display: flex; flex-direction: column; gap: 5px; }
         .download-image-options .option-group label { font-weight: 500;}
         .download-image-options .radio-group label { display: inline-flex; align-items: center; margin-right: 15px; font-weight: normal;}
         .download-image-options .radio-group input[type="radio"] { margin-right: 5px;}
-        .download-image-button-container { text-align: center; margin-top: 10px;} /* Espaço acima do botão */
+        .download-image-button-container { text-align: center; margin-top: 10px;}
 
-        /* <<<--- Estilos para a nova seção de Padrão de Feixe --- >>> */
+        /* Estilos para Padrão de Feixe */
         .beam-pattern-container {
-            margin-bottom: 30px;
-            background-color: var(--card-bg-color);
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 10px var(--shadow-color);
+            margin-bottom: 30px; background-color: var(--card-bg-color);
+            border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px var(--shadow-color);
         }
-        .beam-pattern-container h2 {
-            margin-bottom: 15px;
-            text-align: center;
-        }
+        .beam-pattern-container h2 { margin-bottom: 15px; text-align: center; }
         .beam-controls {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 15px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
+            display: flex; justify-content: center; align-items: center;
+            gap: 25px; /* Increased gap */
+            margin-bottom: 20px; flex-wrap: wrap;
         }
-        .beam-controls label {
-             font-weight: 500;
+        .beam-controls .control-group { /* Group label and input/select/slider */
+             display: flex;
+             flex-direction: column; /* Stack label above control */
+             align-items: flex-start; /* Align items to the start */
+             gap: 5px; /* Space between label and control */
+             min-width: 150px; /* Min width for control groups */
         }
-         .beam-controls select {
-            padding: 8px;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            font-size: 14px;
-            background-color: var(--input-bg-color);
-            color: var(--input-text-color);
-            min-width: 100px;
+        .beam-controls label { font-weight: 500; display: block; /* Ensure label takes full width */ }
+         /* <<<--- Adaptação do slider-group para beam controls --- >>> */
+         .beam-controls .slider-group {
+             display: flex;
+             align-items: center;
+             gap: 10px; /* Space between slider and number */
+             width: 100%; /* Take full width of the control-group */
          }
+         .beam-controls .slider-group input[type="range"] {
+             flex-grow: 1;
+             /* Inherit general slider styles if defined elsewhere, or add here */
+             height: 8px; cursor: pointer; appearance: none;
+             background: var(--slider-track-color); border-radius: 4px; outline: none;
+             padding: 0; margin: 0; border: none;
+         }
+        .beam-controls .slider-group input[type="range"]::-webkit-slider-thumb {
+             appearance: none; width: 16px; height: 16px;
+             background: var(--slider-thumb-color); border-radius: 50%; cursor: pointer;
+         }
+         .beam-controls .slider-group input[type="range"]::-moz-range-thumb {
+             width: 16px; height: 16px; background: var(--slider-thumb-color);
+             border-radius: 50%; cursor: pointer; border: none;
+         }
+         .beam-controls .slider-group input[type="number"] {
+             width: 60px; /* Slightly narrower */
+             flex-shrink: 0; text-align: right;
+             padding: 6px; /* Adjust padding */
+             /* Inherit general input styles or define here */
+             border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px;
+             background-color: var(--input-bg-color); color: var(--input-text-color);
+         }
+         /* Hide number input spinners */
+         .beam-controls .slider-group input[type=number]::-webkit-inner-spin-button,
+         .beam-controls .slider-group input[type=number]::-webkit-outer-spin-button {
+             -webkit-appearance: none; margin: 0;
+         }
+         .beam-controls .slider-group input[type=number] { -moz-appearance: textfield; }
+
+         /* Styles for radio buttons */
+        .beam-controls .radio-group { /* Container for radios */
+             display: flex; gap: 15px; /* Space between radio options */
+             margin-top: 5px; /* Align with other controls */
+        }
+        .beam-controls .radio-group label {
+            display: inline-flex; align-items: center;
+            font-weight: normal; cursor: pointer;
+        }
+        .beam-controls .radio-group input[type="radio"] {
+            margin-right: 5px; cursor: pointer;
+        }
+
         #beam-pattern-plot {
-            width: 100%;
-            min-height: 450px; /* Altura mínima para o gráfico */
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            background-color: #282a36; /* Fundo escuro padrão para Plotly (pode ser ajustado via JS) */
+            width: 100%; min-height: 450px; border: 1px solid var(--border-color);
+            border-radius: 4px; background-color: #282a36;
         }
          #beam-status {
-            text-align: center;
-            margin-top: 10px;
-            min-height: 1.2em; /* Evita que o layout pule */
-            font-style: italic;
-            opacity: 0.8;
+            text-align: center; margin-top: 10px; min-height: 1.2em;
+            font-style: italic; opacity: 0.8;
          }
-         /* <<<--- Fim dos estilos do Padrão de Feixe --- >>> */
 
     </style>
 </head>
@@ -109,7 +132,8 @@
     <div class="container">
         <!-- Gerador de Layout -->
         <section class="layout-generator">
-            <h2>Gerador de Layout</h2>
+             <!-- ... (layout generator content remains the same) ... -->
+             <h2>Gerador de Layout</h2>
             <div class="layout-controls"> <!-- Container para painel e visualização -->
                 <div class="control-panel">
                     <div class="form-group">
@@ -134,7 +158,6 @@
                         <button id="generate-btn" class="primary">Gerar Layout</button>
                         <button id="random-btn" class="secondary">Gerar Aleatório</button>
                     </div>
-                     <!-- Controles de Download de Imagem foram MOVIDOS daqui -->
                 </div>
                 <div class="visualization">
                     <canvas id="layout-canvas"></canvas>
@@ -142,34 +165,26 @@
                         <div>Tiles: <span id="tile-count">0</span></div>
                         <div>Antenas: <span id="antenna-count">0</span></div>
                     </div>
-                    <!-- Div para informações de colisão será criada/atualizada via JS -->
+                    <!-- Div para informações de colisão -->
                 </div>
-            </div> <!-- Fim de .layout-controls -->
+            </div> <!-- Fim .layout-controls -->
 
-             <!-- <<<--- SEÇÃO DE DOWNLOAD DE IMAGEM MOVIDA PARA CÁ (Fora e Abaixo de layout-controls) --->
+            <!-- Download Imagem Layout -->
             <div class="download-image-controls">
                 <h3>Baixar Imagem do Layout</h3>
                 <div class="download-image-options">
-                    <div class="option-group">
+                     <div class="option-group">
                         <label>Tema da Imagem:</label>
                         <div class="radio-group">
-                            <label>
-                                <input type="radio" name="imageTheme" value="light" checked> Claro
-                            </label>
-                            <label>
-                                <input type="radio" name="imageTheme" value="dark"> Dracula
-                            </label>
+                            <label><input type="radio" name="imageTheme" value="light" checked> Claro</label>
+                            <label><input type="radio" name="imageTheme" value="dark"> Dracula</label>
                         </div>
                     </div>
                     <div class="option-group">
                         <label>Incluir Eixos:</label>
                         <div class="radio-group">
-                            <label>
-                                <input type="radio" name="imageAxes" value="yes" checked> Sim
-                            </label>
-                            <label>
-                                <input type="radio" name="imageAxes" value="no"> Não
-                            </label>
+                            <label><input type="radio" name="imageAxes" value="yes" checked> Sim</label>
+                            <label><input type="radio" name="imageAxes" value="no"> Não</label>
                         </div>
                     </div>
                 </div>
@@ -177,96 +192,107 @@
                     <button id="download-image-btn" class="primary"><i class="fas fa-camera"></i> Baixar Imagem (PNG)</button>
                 </div>
             </div>
-             <!-- <<<--- FIM DA SEÇÃO DE DOWNLOAD DE IMAGEM --->
+        </section> <!-- Fim .layout-generator -->
 
-        </section> <!-- Fim de .layout-generator -->
-
-        <!-- <<<--- NOVA SEÇÃO: Padrão de Feixe --- >>> -->
+        <!-- Padrão de Feixe -->
         <section class="beam-pattern-container">
             <h2>Padrão de Feixe Simulado</h2>
             <div class="beam-controls">
-                <label for="beam-phi-select">Selecionar Ângulo Phi:</label>
-                <select id="beam-phi-select">
-                    <!-- Opções serão adicionadas via JS -->
-                </select>
+                <!-- <<<--- Grupo para Seleção de Phi (agora com Slider) --- >>> -->
+                <div class="control-group">
+                    <label for="beam-phi-input">Ângulo Phi (0°-90°):</label>
+                    <div class="slider-group">
+                        <input type="range" id="beam-phi-slider" name="beamPhiSlider" min="0" max="90" value="90" step="1">
+                        <input type="number" id="beam-phi-input" name="beamPhiInput" min="0" max="90" value="90" step="1">
+                    </div>
+                </div>
+                <!-- Grupo para Seleção de Escala -->
+                <div class="control-group">
+                    <label>Escala Y:</label>
+                    <div class="radio-group">
+                        <label>
+                            <input type="radio" name="beamScale" value="dB" checked> dB
+                        </label>
+                        <label>
+                            <input type="radio" name="beamScale" value="linear"> Linear
+                        </label>
+                    </div>
+                </div>
+                <!-- <<<--- Botão Removido --- >>>
                 <button id="generate-beam-btn" class="primary">Gerar Gráfico</button>
+                -->
             </div>
             <div id="beam-pattern-plot">
-                 <!-- Gráfico Plotly será renderizado aqui -->
+                 <!-- Gráfico Plotly -->
             </div>
-             <div id="beam-status">Clique em "Gerar Gráfico" para visualizar o padrão de feixe.</div>
+             <div id="beam-status">Aguardando geração do layout inicial...</div>
         </section>
-        <!-- <<<--- FIM DA SEÇÃO: Padrão de Feixe --- >>> -->
-
 
         <!-- Mapa Interativo -->
         <section class="map-container">
-            <h2>Mapa Interativo</h2>
-            <div class="map-content">
-                <div id="map" class="map"></div>
-                <div class="map-info">
-                    <p>Coordenadas selecionadas: <span id="selected-coords">Nenhuma</span></p>
-                    <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
-                    <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
-                    <p>Clique no mapa para adicionar uma localização ou escolha um arranjo existente:</p>
-                    <div class="form-group">
-                        <label for="arranjo-select">Arranjo:</label>
-                        <select id="arranjo-select">
-                            <option value="0">Selecione um arranjo</option>
-                        </select>
-                    </div>
-                    <div id="coordinates-list" class="coordinates-list"></div>
-                </div>
-            </div>
-        </section>
+             <!-- ... (map content remains the same) ... -->
+             <h2>Mapa Interativo</h2>
+             <div class="map-content">
+                 <div id="map" class="map"></div>
+                 <div class="map-info">
+                     <p>Coordenadas selecionadas: <span id="selected-coords">Nenhuma</span></p>
+                     <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
+                     <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
+                     <p>Clique no mapa ou escolha um arranjo:</p>
+                     <div class="form-group">
+                         <label for="arranjo-select">Arranjo:</label>
+                         <select id="arranjo-select">
+                             <option value="0">Selecione um arranjo</option>
+                         </select>
+                     </div>
+                     <div id="coordinates-list" class="coordinates-list"></div>
+                 </div>
+             </div>
+         </section>
 
         <!-- Exportação -->
         <section class="export-container">
+            <!-- ... (export content remains the same) ... -->
             <h2>Exportação (Estrutura OSKAR)</h2>
             <div class="export-fields">
                  <div class="export-field">
-                    <label for="export-layout-wgs84">layout_wgs84.txt (Estações WGS84):</label>
-                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações selecionadas no mapa"></textarea>
+                    <label for="export-layout-wgs84">layout_wgs84.txt:</label>
+                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações"></textarea>
                 </div>
                  <div class="export-field">
-                    <label for="export-position">position.txt (BINGO Central WGS84):</label>
+                    <label for="export-position">position.txt:</label>
                     <textarea id="export-position" readonly title="Coordenadas WGS84 fixas do BINGO"></textarea>
                 </div>
                  <div class="export-field">
-                    <label for="export-station-layout">station/layout.txt (Centros Tiles XY):</label>
-                    <textarea id="export-station-layout" readonly title="Coordenadas XY relativas dos centros dos tiles na estação"></textarea>
+                    <label for="export-station-layout">station/layout.txt:</label>
+                    <textarea id="export-station-layout" readonly title="Coordenadas XY relativas dos centros dos tiles"></textarea>
                 </div>
                  <div class="export-field">
-                    <label for="export-tile-layout">station/tile/layout.txt (Antenas Tile XY):</label>
-                    <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas dentro de um tile"></textarea>
+                    <label for="export-tile-layout">station/tile/layout.txt:</label>
+                    <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas no tile"></textarea>
                 </div>
             </div>
-            <!-- Campo de input e botão de download ZIP agrupados -->
             <div class="download-zip-group">
                 <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)">
                 <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive"></i> Baixar Layout (ZIP)</button>
             </div>
-            <p><small>Nota: As coordenadas XY são relativas ao centro da estação ou do tile. Os valores para a altitude estão incorretos.</small></p>
+            <p><small>Nota: Altitude incorreta.</small></p>
         </section>
     </div>
 
     <footer>
-        <p>Gerador de Layouts de Antenas BINGO - Desenvolvido para visualização e exportação de layouts de antenas</p>
+        <p>Gerador de Layouts de Antenas BINGO</p>
     </footer>
 
-    <!-- Leaflet JS -->
+    <!-- Scripts JS -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <!-- Bibliotecas JSZip e FileSaver -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
-    <!-- Scripts da aplicação -->
     <script src="js/bingo_layouts.js"></script>
-    <script src="js/generator.js"></script>
+    <script src="js/generator.js"></script> <!-- modified -->
     <script src="js/map.js"></script>
     <script src="js/export.js"></script>
-    <!-- <<<--- Novo Script para Padrão de Feixe --- >>> -->
-    <script src="js/beam_pattern.js"></script>
-    <!-- <<<--- Script principal (deve vir depois dos outros) --- >>> -->
-    <script src="js/main.js"></script>
+    <script src="js/beam_pattern.js"></script> <!-- modified -->
+    <script src="js/main.js"></script> <!-- modified -->
 </body>
 </html>
