@@ -623,3 +623,56 @@ footer {
 .coordinate-actions {
     align-items: center; /* Centraliza verticalmente os botões */
 }
+
+/* Estilos para a nova seção de Padrão de Feixe */
+.beam-pattern-container {
+    margin-bottom: 30px;
+    background-color: var(--card-bg-color);
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 10px var(--shadow-color);
+}
+.beam-pattern-container h2 {
+    margin-bottom: 15px;
+    text-align: center;
+}
+.beam-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+.beam-controls label {
+     font-weight: 500;
+}
+ .beam-controls select {
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 14px;
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+    min-width: 100px;
+ }
+#beam-pattern-plot {
+    width: 100%;
+    min-height: 450px; /* Altura mínima para o gráfico */
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    /* Plotly will set its own background, but a fallback can be useful */
+    background-color: #eee; /* Fallback light background */
+}
+/* Ensure dark theme plot background */
+[data-theme="dark"] #beam-pattern-plot {
+     background-color: #282a36; /* Dark background for dark theme */
+}
+
+ #beam-status {
+    text-align: center;
+    margin-top: 10px;
+    min-height: 1.2em; /* Evita que o layout pule */
+    font-style: italic;
+    opacity: 0.8;
+ }

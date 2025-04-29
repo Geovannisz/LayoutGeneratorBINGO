@@ -9,6 +9,8 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
+    <!-- Plotly.js CDN -->
+    <script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
     <style>
         /* Estilo adicional para alinhar input e botão de ZIP */
         .download-zip-group {
@@ -44,6 +46,55 @@
         .download-image-options .radio-group label { display: inline-flex; align-items: center; margin-right: 15px; font-weight: normal;}
         .download-image-options .radio-group input[type="radio"] { margin-right: 5px;}
         .download-image-button-container { text-align: center; margin-top: 10px;} /* Espaço acima do botão */
+
+        /* <<<--- Estilos para a nova seção de Padrão de Feixe --- >>> */
+        .beam-pattern-container {
+            margin-bottom: 30px;
+            background-color: var(--card-bg-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px var(--shadow-color);
+        }
+        .beam-pattern-container h2 {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .beam-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .beam-controls label {
+             font-weight: 500;
+        }
+         .beam-controls select {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            font-size: 14px;
+            background-color: var(--input-bg-color);
+            color: var(--input-text-color);
+            min-width: 100px;
+         }
+        #beam-pattern-plot {
+            width: 100%;
+            min-height: 450px; /* Altura mínima para o gráfico */
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background-color: #282a36; /* Fundo escuro padrão para Plotly (pode ser ajustado via JS) */
+        }
+         #beam-status {
+            text-align: center;
+            margin-top: 10px;
+            min-height: 1.2em; /* Evita que o layout pule */
+            font-style: italic;
+            opacity: 0.8;
+         }
+         /* <<<--- Fim dos estilos do Padrão de Feixe --- >>> */
+
     </style>
 </head>
 <body>
@@ -130,6 +181,23 @@
 
         </section> <!-- Fim de .layout-generator -->
 
+        <!-- <<<--- NOVA SEÇÃO: Padrão de Feixe --- >>> -->
+        <section class="beam-pattern-container">
+            <h2>Padrão de Feixe Simulado</h2>
+            <div class="beam-controls">
+                <label for="beam-phi-select">Selecionar Ângulo Phi:</label>
+                <select id="beam-phi-select">
+                    <!-- Opções serão adicionadas via JS -->
+                </select>
+                <button id="generate-beam-btn" class="primary">Gerar Gráfico</button>
+            </div>
+            <div id="beam-pattern-plot">
+                 <!-- Gráfico Plotly será renderizado aqui -->
+            </div>
+             <div id="beam-status">Clique em "Gerar Gráfico" para visualizar o padrão de feixe.</div>
+        </section>
+        <!-- <<<--- FIM DA SEÇÃO: Padrão de Feixe --- >>> -->
+
 
         <!-- Mapa Interativo -->
         <section class="map-container">
@@ -196,6 +264,9 @@
     <script src="js/generator.js"></script>
     <script src="js/map.js"></script>
     <script src="js/export.js"></script>
+    <!-- <<<--- Novo Script para Padrão de Feixe --- >>> -->
+    <script src="js/beam_pattern.js"></script>
+    <!-- <<<--- Script principal (deve vir depois dos outros) --- >>> -->
     <script src="js/main.js"></script>
 </body>
 </html>
