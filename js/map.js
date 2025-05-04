@@ -148,7 +148,11 @@ class InteractiveMap {
 
         // --- Eventos do Mapa ---
         this.map.on('click', (e) => {
-            this.addMarker(e.latlng.lat, e.latlng.lng, BINGO_ALTITUDE);
+            const { lat, lng } = e.latlng;
+            // agora buscamos a elevação antes de adicionar o marcador
+            this.fetchElevation(lat, lng).then(alt => {
+                this.addMarker(lat, lng, alt);
+            });
         });
         this.map.on('mousemove', (e) => {
             this.updateDynamicDistance(e.latlng);
@@ -177,13 +181,16 @@ class InteractiveMap {
                 arranjoSelect.appendChild(option);
             });
             arranjoSelect.addEventListener('change', () => {
-                const selectedIndex = parseInt(arranjoSelect.value, 10);
-                if (selectedIndex > 0 && selectedIndex < arranjos.length) {
-                    const arranjo = arranjos[selectedIndex];
-                    this.addMarker(arranjo.latitude, arranjo.longitude, arranjo.altitude, arranjo.nome);
+                const idx = parseInt(arranjoSelect.value, 10);
+                if (idx > 0 && idx < arranjos.length) {
+                    const { latitude: lat, longitude: lng, nome } = arranjos[idx];
+                    // busca elevação em vez de usar altitude fixa do CSV
+                    this.fetchElevation(lat, lng).then(alt => {
+                        this.addMarker(lat, lng, alt, nome);
+                    });
                     arranjoSelect.value = "0";
                 }
-            });
+            });            
         }).catch(error => {
              console.error('Falha ao processar arranjos após carregamento:', error);
         });
@@ -286,26 +293,67 @@ class InteractiveMap {
             }
             this.updateOskarExportFields();
         });
-        marker.on('dragend', (e) => {
+        marker.on('dragend', async (e) => {
             const currentMarker = e.target;
             const currentIndex = getCurrentIndex(currentMarker);
             if (currentIndex === -1) return;
+        
+            // 1) Pega a nova posição
             const finalLatLng = currentMarker.getLatLng();
+        
+            // 2) Busca a altitude via Open‑Meteo
+            let newAlt;
+            try {
+                newAlt = await this.fetchElevation(finalLatLng.lat, finalLatLng.lng);
+            } catch (err) {
+                console.error('Erro ao buscar elevação no dragend:', err);
+                newAlt = currentCoords.alt; // mantém altitude antiga em caso de erro
+            }
+        
+            // 3) Atualiza o objeto this.selectedCoordinates
             const currentCoords = this.selectedCoordinates[currentIndex];
-            if (!currentCoords) return;
-            const finalDistance = this.calculateDistance(finalLatLng.lat, finalLatLng.lng, BINGO_LATITUDE, BINGO_LONGITUDE);
-            const finalPopupContent = this._createPopupContent(currentCoords.name, finalLatLng.lat, finalLatLng.lng, currentCoords.alt, finalDistance);
+            currentCoords.lat = finalLatLng.lat;
+            currentCoords.lon = finalLatLng.lng;
+            currentCoords.alt = newAlt;
+        
+            // 4) Recalcula distância e conteúdo do popup
+            const finalDistance = this.calculateDistance(
+                finalLatLng.lat, finalLatLng.lng,
+                BINGO_LATITUDE, BINGO_LONGITUDE
+            );
+            const finalPopupContent = this._createPopupContent(
+                currentCoords.name,
+                finalLatLng.lat, finalLatLng.lng,
+                newAlt,
+                finalDistance
+            );
             currentMarker.setPopupContent(finalPopupContent);
+        
+            // 5) Atualiza a linha de distância + tooltip
             if (this.distanceLines[currentIndex]) {
                 const line = this.distanceLines[currentIndex];
-                const currentTooltip = line.getTooltip();
-                if (currentTooltip) {
-                    const midPoint = this.calculateMidpoint(finalLatLng.lat, finalLatLng.lng, BINGO_LATITUDE, BINGO_LONGITUDE);
-                    currentTooltip.setLatLng(midPoint);
-                    currentTooltip.setContent(`${finalDistance.toFixed(2)} km`);
+                line.setLatLngs([
+                    [finalLatLng.lat, finalLatLng.lng],
+                    [BINGO_LATITUDE, BINGO_LONGITUDE]
+                ]);
+                const tooltip = line.getTooltip();
+                if (tooltip) {
+                    const midPoint = this.calculateMidpoint(
+                        finalLatLng.lat, finalLatLng.lng,
+                        BINGO_LATITUDE, BINGO_LONGITUDE
+                    );
+                    tooltip.setLatLng(midPoint);
+                    tooltip.setContent(`${finalDistance.toFixed(2)} km`);
                 }
             }
-        });
+        
+            // 6) Atualiza UI, listas e exportação
+            this.updateCoordinatesList();
+            if (this.activeMarkerIndex === currentIndex) {
+                this.updateSelectedCoordinatesDisplay();
+            }
+            this.updateOskarExportFields();
+        });        
         marker.on('click', (e) => {
              const currentMarker = e.target;
              const currentIndex = getCurrentIndex(currentMarker);
@@ -580,6 +628,30 @@ class InteractiveMap {
              return -1;
         }
         return this.activeMarkerIndex;
+    }
+    /**
+     * Obtém a elevação (em metros) para uma coordenada via Open‑Meteo.
+     * @param {number} lat — latitude em graus
+     * @param {number} lng — longitude em graus
+     * @returns {Promise<number>} elevação em metros (ou altitude de referência em caso de erro)
+     */
+    async fetchElevation(lat, lng) {
+        const url = `https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lng}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`Erro na API de elevação: ${res.status}`);
+            const json = await res.json();
+            // o JSON retorna { elevation: [ <valor> ] }
+            if (json && Array.isArray(json.elevation) && json.elevation.length > 0) {
+                return json.elevation[0];
+            } else {
+                throw new Error('Resposta de elevação inesperada');
+            }
+        } catch (err) {
+            console.error('fetchElevation:', err);
+            // fallback: altitude do BINGO
+            return BINGO_ALTITUDE;
+        }
     }
 } // === FIM DA CLASSE InteractiveMap ===
 
