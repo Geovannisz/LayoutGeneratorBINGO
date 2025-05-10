@@ -3,7 +3,7 @@
 /**
  * beam_pattern.js
  *
- * Handles fetching antenna element data (from an external CSV source if needed),
+ * Handles fetching antenna element data (from Raw GitHub User Content),
  * calculating Array Factor (AF) via Web Worker, and plotting the beam pattern.
  * Includes downsampling for large datasets.
  * Uses Plotly.js and includes options for dB/linear scale and Phi angle selection.
@@ -15,18 +15,12 @@ const C_LIGHT = 299792458;
 const LAMBDA = C_LIGHT / FREQUENCY;
 const K = (2 * Math.PI) / LAMBDA;
 
-// --- MODIFICADO: Caminho para o CSV via GitHub Releases ---
-const GITHUB_USER = 'Geovannisz'; // Seu nome de usuário GitHub
-const GITHUB_REPO = 'LayoutGeneratorBINGO'; // O nome do seu repositório
-const GITHUB_RELEASE_TAG = 'v0.3-data'; // <<< COLOQUE A TAG QUE VOCÊ CRIOU AQUI
-const E_FIELD_CSV_PATH = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/download/${GITHUB_RELEASE_TAG}/rE_table_vivaldi.csv`;
-
-// Comente ou remova as outras definições de E_FIELD_CSV_PATH
-// const GOOGLE_DRIVE_FILE_ID = '1JExGnjt-XubbZokUnPuHiWcTt0PBuAxi';
-// const E_FIELD_CSV_PATH = `https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_FILE_ID}`;
-// const E_FIELD_CSV_PATH = 'data/rE_table_vivaldi.csv'; // Se o LFS estivesse funcionando com Pages
-// Se o problema original com LFS e GitHub Pages for resolvido, volte para:
-// const E_FIELD_CSV_PATH = 'data/rE_table_vivaldi.csv';
+// --- MODIFICADO: Caminho para o CSV via Raw GitHub User Content ---
+const GITHUB_USER = 'geovannisz';
+const GITHUB_REPO = 'LayoutGeneratorBINGO';
+const GITHUB_BRANCH = 'main'; // <<< VERIFIQUE SE ESTE É O NOME CORRETO DO SEU BRANCH PADRÃO
+const CSV_FILE_PATH_IN_REPO = 'data/rE_table_vivaldi.csv';
+const E_FIELD_CSV_PATH = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_FILE_PATH_IN_REPO}`;
 
 const DEBOUNCE_DELAY = 300;
 const MAX_PLOT_POINTS_BEAM = 2000;
@@ -66,25 +60,26 @@ async function fetchAndParseEFieldData() {
     if (isFetchingData && fetchPromise) return fetchPromise;
 
     isFetchingData = true;
-    console.log(`Fetching E-field data from external source: ${E_FIELD_CSV_PATH}`);
+    console.log(`Fetching E-field data from Raw GitHub: ${E_FIELD_CSV_PATH}`);
     if (statusDiv) statusDiv.textContent = 'Carregando dados do elemento irradiante (CSV)...';
 
     fetchPromise = new Promise(async (resolve, reject) => {
         try {
-            const response = await fetch(E_FIELD_CSV_PATH); // Fetching from the new URL
+            const response = await fetch(E_FIELD_CSV_PATH);
             if (!response.ok) {
-                // Se for Google Drive e der erro, pode ser que precise de um proxy CORS para desenvolvimento local
-                // ou que o link de compartilhamento não esteja correto / público.
                 console.error(`HTTP error! Status: ${response.status} ao buscar ${E_FIELD_CSV_PATH}`);
-                console.error("Detalhes da resposta:", response);
-                throw new Error(`HTTP error! Status: ${response.status} ao buscar CSV. Verifique se o link está correto e as permissões de compartilhamento.`);
+                throw new Error(`HTTP error! Status: ${response.status} ao buscar CSV de Raw GitHub. Verifique o link/branch/caminho.`);
             }
             const csvText = await response.text();
 
-            // A verificação de ponteiro LFS não é mais relevante se estamos buscando de um URL direto.
-            // if (csvText.startsWith("version https://git-lfs.github.com/spec/v1")) {
-            //     throw new Error("Falha ao buscar CSV: Recebido ponteiro Git LFS. Esta verificação não deveria ser acionada com URL externo.");
-            // }
+            // Se o arquivo no repositório AINDA é um ponteiro LFS, e o raw.githubusercontent.com
+            // serve esse ponteiro em vez do conteúdo LFS resolvido (o que não deveria acontecer para LFS files).
+            // Esta verificação ajuda a diagnosticar se o LFS não está sendo "expandido" em nenhum nível.
+            if (csvText.startsWith("version https://git-lfs.github.com/spec/v1")) {
+                console.error("ERRO: O arquivo CSV baixado via link 'raw' ainda é um ponteiro Git LFS.");
+                console.error("Isso sugere que o Git LFS não está sendo resolvido corretamente nem mesmo pelo raw.githubusercontent.com, ou o arquivo no branch não é o conteúdo real.");
+                throw new Error("Falha ao buscar CSV: Recebido ponteiro Git LFS via link 'raw'. Verifique a configuração do LFS e o estado do arquivo no branch.");
+            }
 
             console.log("CSV data fetched. Parsing...");
             if (statusDiv) statusDiv.textContent = 'Analisando dados do CSV...';
@@ -153,7 +148,7 @@ async function fetchAndParseEFieldData() {
             isFetchingData = false;
             resolve(parsedEFieldData);
         } catch (error) {
-            console.error("Error fetching/parsing E-field data from external source:", error);
+            console.error("Error fetching/parsing E-field data from Raw GitHub:", error);
             if (statusDiv) statusDiv.textContent = `Erro ao carregar CSV: ${error.message.substring(0,100)}`;
             isFetchingData = false; fetchPromise = null; reject(error);
         }
@@ -183,7 +178,6 @@ function downsampleData(xData, yData, maxPoints) {
 
 // === Plotting (sem alterações) ===
 function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
-    // ... (código inalterado) ...
     console.log(`Plotting beam pattern for Phi = ${phiValue}°, Scale = ${scaleType}, Points = ${theta.length}`);
     const plotDiv = document.getElementById(plotDivId);
     if (!plotDiv) {
@@ -248,10 +242,8 @@ function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
         .catch(err => console.error("Error rendering Plotly chart:", err));
 }
 
-
 // === Main Generation Function (Usa Web Worker - sem alterações na lógica principal) ===
 async function generateBeamPatternPlot() {
-    // ... (código inalterado) ...
     if (isPlotting && beamCalculationWorker) {
         console.log("Cálculo do padrão de feixe já em andamento no worker. Nova solicitação ignorada.");
         return;
@@ -324,7 +316,6 @@ const debouncedGenerateBeamPatternPlot = debounce(generateBeamPatternPlot, DEBOU
 
 // === Initialization and Event Handling (sem alterações na lógica principal) ===
 function initBeamPatternControls() {
-    // ... (código inalterado) ...
     phiSlider = document.getElementById('beam-phi-slider');
     phiInput = document.getElementById('beam-phi-input');
     scaleRadios = document.querySelectorAll('input[name="beamScale"]');
@@ -339,19 +330,18 @@ function initBeamPatternControls() {
     if (window.Worker) {
         beamCalculationWorker = new Worker('js/beam_worker.js');
         beamCalculationWorker.onmessage = function(e) {
-            const { id, type, data, error } = e.data; 
+            const { id, type, data, error } = e.data;
 
             if (id !== currentCalculationId) {
                 console.log("Worker retornou para uma tarefa antiga/invalidada (ID: " + id + ", Esperado: " + currentCalculationId + "). Ignorando.");
                 return;
             }
             if (type === 'progress') {
-                if (e.data.data) { 
+                if (e.data.data) {
                     statusDiv.textContent = e.data.data;
                 }
                 return;
             }
-
 
             isPlotting = false;
 
