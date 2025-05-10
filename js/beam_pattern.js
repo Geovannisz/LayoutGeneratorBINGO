@@ -16,7 +16,7 @@ const LAMBDA = C_LIGHT / FREQUENCY;
 const K = (2 * Math.PI) / LAMBDA;
 
 // --- MODIFICADO: Caminho para o CSV via Raw GitHub User Content ---
-const GITHUB_USER = 'geovannisz';
+const GITHUB_USER = 'Geovannisz';
 const GITHUB_REPO = 'LayoutGeneratorBINGO';
 const GITHUB_BRANCH = 'main'; // <<< VERIFIQUE SE ESTE É O NOME CORRETO DO SEU BRANCH PADRÃO
 const CSV_FILE_PATH_IN_REPO = 'data/rE_table_vivaldi.csv';
