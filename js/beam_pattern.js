@@ -15,18 +15,16 @@ const C_LIGHT = 299792458;
 const LAMBDA = C_LIGHT / FREQUENCY;
 const K = (2 * Math.PI) / LAMBDA;
 
-// --- MODIFICADO: Caminho para o CSV ---
-// Substitua 'SEU_FILE_ID_REAL_AQUI' pelo ID real do seu arquivo no Google Drive
-// Exemplo de ID: 1JExGnjt-XubbZokUnPuHiWcTt0PBuAxi
-const GOOGLE_DRIVE_FILE_ID = '1JExGnjt-XubbZokUnPuHiWcTt0PBuAxi'; // <<< COLOQUE SEU ID AQUI
-const E_FIELD_CSV_PATH = `https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_FILE_ID}`;
+// --- MODIFICADO: Caminho para o CSV via GitHub Releases ---
+const GITHUB_USER = 'Geovannisz'; // Seu nome de usuário GitHub
+const GITHUB_REPO = 'LayoutGeneratorBINGO'; // O nome do seu repositório
+const GITHUB_RELEASE_TAG = 'v0.3-data'; // <<< COLOQUE A TAG QUE VOCÊ CRIOU AQUI
+const E_FIELD_CSV_PATH = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/download/${GITHUB_RELEASE_TAG}/rE_table_vivaldi.csv`;
 
-// Se preferir usar GitHub Releases (RECOMENDADO):
-// const GITHUB_USER = 'SEU_USUARIO_GITHUB';
-// const GITHUB_REPO = 'LayoutGeneratorBINGO';
-// const GITHUB_RELEASE_TAG = 'v1.0-data'; // O nome da tag que você criou para o release
-// const E_FIELD_CSV_PATH = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/download/${GITHUB_RELEASE_TAG}/rE_table_vivaldi.csv`;
-
+// Comente ou remova as outras definições de E_FIELD_CSV_PATH
+// const GOOGLE_DRIVE_FILE_ID = '1JExGnjt-XubbZokUnPuHiWcTt0PBuAxi';
+// const E_FIELD_CSV_PATH = `https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_FILE_ID}`;
+// const E_FIELD_CSV_PATH = 'data/rE_table_vivaldi.csv'; // Se o LFS estivesse funcionando com Pages
 // Se o problema original com LFS e GitHub Pages for resolvido, volte para:
 // const E_FIELD_CSV_PATH = 'data/rE_table_vivaldi.csv';
 
