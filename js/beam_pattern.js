@@ -1,12 +1,12 @@
+// js/beam_pattern.js
+
 /**
  * beam_pattern.js
  *
- * Handles fetching antenna element data, calculating Array Factor (AF) via Web Worker,
- * and plotting the beam pattern. Includes downsampling for large datasets.
+ * Handles fetching antenna element data (from an external CSV source if needed),
+ * calculating Array Factor (AF) via Web Worker, and plotting the beam pattern.
+ * Includes downsampling for large datasets.
  * Uses Plotly.js and includes options for dB/linear scale and Phi angle selection.
- * --- MODIFIED: Utiliza Web Worker para cálculos pesados (AF). ---
- * --- MODIFIED: Implementa downsampling para plotagem de grandes datasets. ---
- * --- MODIFIED: Feedback de progresso do worker. ---
  */
 
 // === Constants ===
@@ -14,21 +14,36 @@ const FREQUENCY = 1e9;
 const C_LIGHT = 299792458;
 const LAMBDA = C_LIGHT / FREQUENCY;
 const K = (2 * Math.PI) / LAMBDA;
-const E_FIELD_CSV_PATH = 'data/rE_table_vivaldi.csv';
+
+// --- MODIFICADO: Caminho para o CSV ---
+// Substitua 'SEU_FILE_ID_REAL_AQUI' pelo ID real do seu arquivo no Google Drive
+// Exemplo de ID: 1JExGnjt-XubbZokUnPuHiWcTt0PBuAxi
+const GOOGLE_DRIVE_FILE_ID = '1JExGnjt-XubbZokUnPuHiWcTt0PBuAxi'; // <<< COLOQUE SEU ID AQUI
+const E_FIELD_CSV_PATH = `https://drive.google.com/uc?export=download&id=${GOOGLE_DRIVE_FILE_ID}`;
+
+// Se preferir usar GitHub Releases (RECOMENDADO):
+// const GITHUB_USER = 'SEU_USUARIO_GITHUB';
+// const GITHUB_REPO = 'LayoutGeneratorBINGO';
+// const GITHUB_RELEASE_TAG = 'v1.0-data'; // O nome da tag que você criou para o release
+// const E_FIELD_CSV_PATH = `https://github.com/${GITHUB_USER}/${GITHUB_REPO}/releases/download/${GITHUB_RELEASE_TAG}/rE_table_vivaldi.csv`;
+
+// Se o problema original com LFS e GitHub Pages for resolvido, volte para:
+// const E_FIELD_CSV_PATH = 'data/rE_table_vivaldi.csv';
+
 const DEBOUNCE_DELAY = 300;
-const MAX_PLOT_POINTS_BEAM = 2000; // Máximo de pontos para enviar ao Plotly após downsampling
+const MAX_PLOT_POINTS_BEAM = 2000;
 
 // Cache & State
 let parsedEFieldData = null;
 let isFetchingData = false;
 let fetchPromise = null;
 let debounceTimeout = null;
-let isPlotting = false; // Flag para evitar chamadas concorrentes ao worker/plotagem
+let isPlotting = false;
 
 // Web Worker
 let beamCalculationWorker = null;
-let currentCalculationId = 0; // Para rastrear e invalidar chamadas antigas ao worker
-let storedPlotParams = {}; // Para armazenar parâmetros no momento da chamada ao worker
+let currentCalculationId = 0;
+let storedPlotParams = {};
 
 // References to DOM elements
 let phiSlider = null;
@@ -47,28 +62,41 @@ function debounce(func, delay) {
     };
 }
 
-// === Data Fetching and Parsing (sem grandes alterações, apenas logs) ===
+// === Data Fetching and Parsing ===
 async function fetchAndParseEFieldData() {
     if (parsedEFieldData) return parsedEFieldData;
     if (isFetchingData && fetchPromise) return fetchPromise;
 
     isFetchingData = true;
-    console.log(`Fetching E-field data from: ${E_FIELD_CSV_PATH}`);
-    statusDiv.textContent = 'Carregando dados do elemento irradiante (CSV)...';
+    console.log(`Fetching E-field data from external source: ${E_FIELD_CSV_PATH}`);
+    if (statusDiv) statusDiv.textContent = 'Carregando dados do elemento irradiante (CSV)...';
 
     fetchPromise = new Promise(async (resolve, reject) => {
         try {
-            const response = await fetch(E_FIELD_CSV_PATH);
-            if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+            const response = await fetch(E_FIELD_CSV_PATH); // Fetching from the new URL
+            if (!response.ok) {
+                // Se for Google Drive e der erro, pode ser que precise de um proxy CORS para desenvolvimento local
+                // ou que o link de compartilhamento não esteja correto / público.
+                console.error(`HTTP error! Status: ${response.status} ao buscar ${E_FIELD_CSV_PATH}`);
+                console.error("Detalhes da resposta:", response);
+                throw new Error(`HTTP error! Status: ${response.status} ao buscar CSV. Verifique se o link está correto e as permissões de compartilhamento.`);
+            }
             const csvText = await response.text();
+
+            // A verificação de ponteiro LFS não é mais relevante se estamos buscando de um URL direto.
+            // if (csvText.startsWith("version https://git-lfs.github.com/spec/v1")) {
+            //     throw new Error("Falha ao buscar CSV: Recebido ponteiro Git LFS. Esta verificação não deveria ser acionada com URL externo.");
+            // }
+
             console.log("CSV data fetched. Parsing...");
-            statusDiv.textContent = 'Analisando dados do CSV...';
+            if (statusDiv) statusDiv.textContent = 'Analisando dados do CSV...';
 
             const lines = csvText.trim().split('\n');
-            if (lines.length < 2) throw new Error("CSV empty or header-only.");
+            if (lines.length < 2) throw new Error("CSV vazio ou apenas com cabeçalho.");
 
             const headersRaw = lines[0].split(',');
             const headers = headersRaw.map(h => h.replace(/"/g, '').trim().toLowerCase());
+
             const indices = {
                 theta: headers.indexOf('theta [deg]'),
                 phi: headers.indexOf('phi [deg]'),
@@ -80,7 +108,8 @@ async function fetchAndParseEFieldData() {
 
             if (Object.values(indices).some(index => index === -1)) {
                 console.error("Required columns not found. Processed headers by script (lowercase, no quotes):", headers);
-                // ... (console.error detalhado)
+                console.error("Expected (lowercase): ['theta [deg]', 'phi [deg]', 're(retheta) [v]', 'im(retheta) [v]', 're(rephi) [v]', 'im(rephi) [v]']");
+                console.error("Indices found:", indices);
                 throw new Error("CSV header missing one or more required columns. Check console.");
             }
 
@@ -89,11 +118,12 @@ async function fetchAndParseEFieldData() {
                  const valuesRaw = lines[i].split(',');
                  if(valuesRaw.length !== headers.length) {
                      if(lines[i].trim() !== '') {
-                        console.warn(`Skipping row ${i+1}: Expected ${headers.length} columns, found ${valuesRaw.length}. Line: "${lines[i]}"`);
+                        console.warn(`Skipping row ${i+1}: Expected ${headers.length} columns, found ${valuesRaw.length}. Line content: "${lines[i]}"`);
                      }
                      continue;
                  }
                  const values = valuesRaw.map(v => v.replace(/"/g, '').trim());
+
                 try {
                     const theta = parseFloat(values[indices.theta]);
                     const phi = parseFloat(values[indices.phi]);
@@ -103,42 +133,37 @@ async function fetchAndParseEFieldData() {
                     const imPhiV = parseFloat(values[indices.imPhi]);
 
                     if ([theta, phi, reThetaV, imThetaV, rePhiV, imPhiV].some(isNaN)) {
-                        console.warn(`Skipping row ${i+1} due to invalid numeric value. Line: "${lines[i]}"`);
+                        console.warn(`Skipping row ${i+1} due to invalid numeric value after parsing. Line: "${lines[i]}"`);
                         continue;
                     }
+
                     const rETheta = { re: reThetaV, im: imThetaV };
                     const rEPhi = { re: rePhiV, im: imPhiV };
                     const rETotalMag = Math.sqrt(rETheta.re**2 + rETheta.im**2 + rEPhi.re**2 + rEPhi.im**2);
+
                     data.push({ theta, phi, rETheta, rEPhi, rETotal: rETotalMag });
                 } catch (parseError) {
                     console.warn(`Error processing data in row ${i + 1}: ${lines[i]}. Error: ${parseError.message}`);
                 }
             }
+
             if (data.length === 0 && lines.length > 1) {
-                console.warn("CSV parsing resulted in an empty dataset. Check data format/headers.");
+                console.warn("CSV parsing resulted in an empty dataset, though file was not empty. Check data format and headers carefully.");
             }
             console.log(`Parsing complete. ${data.length} data points loaded.`);
             parsedEFieldData = data;
             isFetchingData = false;
             resolve(parsedEFieldData);
         } catch (error) {
-            console.error("Error fetching/parsing E-field data:", error);
-            statusDiv.textContent = `Erro ao carregar CSV: ${error.message.substring(0,100)}`;
+            console.error("Error fetching/parsing E-field data from external source:", error);
+            if (statusDiv) statusDiv.textContent = `Erro ao carregar CSV: ${error.message.substring(0,100)}`;
             isFetchingData = false; fetchPromise = null; reject(error);
         }
     });
     return fetchPromise;
 }
 
-
-// === Downsampling Function ===
-/**
- * Reduces the number of data points for plotting.
- * @param {Array<number>} xData Array of x-coordinates (theta).
- * @param {Array<number>} yData Array of y-coordinates (magnitude).
- * @param {number} maxPoints Maximum number of points desired.
- * @returns {Object} Object with downsampled {x, y} arrays.
- */
+// === Downsampling Function (sem alterações) ===
 function downsampleData(xData, yData, maxPoints) {
     if (xData.length <= maxPoints) {
         return { x: xData, y: yData };
@@ -150,7 +175,6 @@ function downsampleData(xData, yData, maxPoints) {
         sampledX.push(xData[i]);
         sampledY.push(yData[i]);
     }
-    // Ensure the last actual data point is included if not already
     if ((xData.length - 1) % factor !== 0) {
          sampledX.push(xData[xData.length - 1]);
          sampledY.push(yData[yData.length - 1]);
@@ -159,28 +183,32 @@ function downsampleData(xData, yData, maxPoints) {
     return { x: sampledX, y: sampledY };
 }
 
-
-// === Plotting (sem alterações na lógica interna, apenas nos logs) ===
+// === Plotting (sem alterações) ===
 function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
+    // ... (código inalterado) ...
     console.log(`Plotting beam pattern for Phi = ${phiValue}°, Scale = ${scaleType}, Points = ${theta.length}`);
     const plotDiv = document.getElementById(plotDivId);
-    if (!plotDiv) { /* ... */ return; }
+    if (!plotDiv) {
+        console.error(`Target div "${plotDivId}" not found for plotting.`);
+        return;
+    }
+
     Plotly.purge(plotDiv);
-    // ... (lógica de yData, yAxisTitle, cores e layout do Plotly permanecem) ...
+
     let yData;
     let yAxisTitle;
     const peakMagnitude = Math.max(0.0000000001, ...fieldMagnitude);
 
     if (scaleType === 'dB') {
         yData = fieldMagnitude.map(mag => {
-            if (mag <= 0) return -100; // Avoid log(0) or log(negative)
+            if (mag <= 0) return -100;
             const normalizedMag = mag / peakMagnitude;
-            const magForDb = Math.max(normalizedMag, 1e-10); // Clamp to a small positive number
+            const magForDb = Math.max(normalizedMag, 1e-10);
             return 20 * Math.log10(magForDb);
         });
         yAxisTitle = 'Magnitude Normalizada (dB)';
-    } else { // Linear scale
-        yData = fieldMagnitude.map(mag => mag / peakMagnitude); // Normalize linear scale too
+    } else {
+        yData = fieldMagnitude.map(mag => mag / peakMagnitude);
         yAxisTitle = 'Magnitude Normalizada (Linear)';
     }
 
@@ -193,13 +221,26 @@ function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
     const axisColor = rootStyle.getPropertyValue('--border-color').trim() || '#cccccc';
 
     const trace = {
-        x: theta, y: yData, mode: 'lines', type: 'scatter',
-        name: `Phi = ${phiValue}°`, line: { color: lineColor }
+        x: theta,
+        y: yData,
+        mode: 'lines',
+        type: 'scatter',
+        name: `Phi = ${phiValue}°`,
+        line: { color: lineColor }
     };
+
     const layout = {
         title: `Padrão de Feixe (Phi = ${phiValue}°, Escala ${scaleType === 'dB' ? 'dB' : 'Linear'})`,
-        xaxis: { title: 'Theta (graus)', gridcolor: gridColor, zerolinecolor: axisColor, linecolor: axisColor, tickcolor: textColor, titlefont: { color: textColor }, tickfont: { color: textColor }, automargin: true },
-        yaxis: { title: yAxisTitle, gridcolor: gridColor, zerolinecolor: axisColor, linecolor: axisColor, tickcolor: textColor, titlefont: { color: textColor }, tickfont: { color: textColor }, automargin: true },
+        xaxis: {
+            title: 'Theta (graus)', gridcolor: gridColor, zerolinecolor: axisColor,
+            linecolor: axisColor, tickcolor: textColor, titlefont: { color: textColor },
+            tickfont: { color: textColor }, automargin: true
+        },
+        yaxis: {
+            title: yAxisTitle, gridcolor: gridColor, zerolinecolor: axisColor,
+            linecolor: axisColor, tickcolor: textColor, titlefont: { color: textColor },
+            tickfont: { color: textColor }, automargin: true
+        },
         plot_bgcolor: plotBgColor, paper_bgcolor: paperBgColor,
         font: { color: textColor }, showlegend: false, autosize: true
     };
@@ -210,17 +251,14 @@ function plotBeamPattern(theta, fieldMagnitude, phiValue, scaleType) {
 }
 
 
-// === Main Generation Function (Usa Web Worker) ===
+// === Main Generation Function (Usa Web Worker - sem alterações na lógica principal) ===
 async function generateBeamPatternPlot() {
-    if (isPlotting && beamCalculationWorker) { // Se um cálculo já está em andamento NO WORKER
+    // ... (código inalterado) ...
+    if (isPlotting && beamCalculationWorker) {
         console.log("Cálculo do padrão de feixe já em andamento no worker. Nova solicitação ignorada.");
-        // Ou, podemos invalidar a chamada anterior e iniciar uma nova
-        // currentCalculationId++; // Isso faria com que a resposta anterior fosse ignorada
-        // console.log("Cálculo anterior invalidado. Nova solicitação será processada.");
-        // Para simplificar, a abordagem de "ignorar se ocupado" é mantida.
         return;
     }
-    isPlotting = true; // Bloqueia novas chamadas
+    isPlotting = true;
     console.log("Attempting to generate beam pattern plot...");
 
     if (!phiInput || !scaleRadios || !statusDiv) {
@@ -257,9 +295,8 @@ async function generateBeamPatternPlot() {
             throw new Error(`Dados não encontrados para Phi = ${selectedPhi}°. Verifique o CSV.`);
         }
 
-        // Armazena os parâmetros atuais para uso quando o worker responder
         storedPlotParams = { phi: selectedPhi, scale: selectedScale };
-        currentCalculationId++; // Incrementa para esta nova tarefa
+        currentCalculationId++;
 
         if (beamCalculationWorker) {
             statusDiv.textContent = 'Enviando dados para cálculo em background (Worker)...';
@@ -268,16 +305,12 @@ async function generateBeamPatternPlot() {
                 antennaCoords,
                 filteredElementData: filteredData,
                 K_CONST: K,
-                selectedPhiValue: selectedPhi // Envia o valor de Phi para o worker
-                // theta_0, phi_0 podem ser adicionados se forem configuráveis
+                selectedPhiValue: selectedPhi
             });
         } else {
-            // Fallback: Se Web Workers não são suportados (já logado em init)
-            // Para este exercício, assumimos que o worker está disponível.
-            // Se não, a plotagem não ocorreria ou precisaria de lógica síncrona aqui.
             console.error("Web Worker não está disponível. Não é possível calcular o padrão de feixe.");
             statusDiv.textContent = "Erro: Web Workers não suportados. Cálculo não pode ser realizado.";
-            isPlotting = false; // Libera a flag
+            isPlotting = false;
         }
 
     } catch (error) {
@@ -285,16 +318,15 @@ async function generateBeamPatternPlot() {
         statusDiv.textContent = `Erro: ${error.message.substring(0,150)}`;
         const plotDiv = document.getElementById(plotDivId);
         if (plotDiv) Plotly.purge(plotDiv);
-        isPlotting = false; // Libera a flag em caso de erro na preparação
+        isPlotting = false;
     }
-    // A flag isPlotting será resetada para false no handler onmessage/onerror do worker
 }
 
 const debouncedGenerateBeamPatternPlot = debounce(generateBeamPatternPlot, DEBOUNCE_DELAY);
 
-
-// === Initialization and Event Handling ===
+// === Initialization and Event Handling (sem alterações na lógica principal) ===
 function initBeamPatternControls() {
+    // ... (código inalterado) ...
     phiSlider = document.getElementById('beam-phi-slider');
     phiInput = document.getElementById('beam-phi-input');
     scaleRadios = document.querySelectorAll('input[name="beamScale"]');
@@ -306,31 +338,29 @@ function initBeamPatternControls() {
         return;
     }
 
-    // Inicializa o Web Worker
     if (window.Worker) {
-        beamCalculationWorker = new Worker('js/beam_worker.js'); // Caminho para o worker
+        beamCalculationWorker = new Worker('js/beam_worker.js');
         beamCalculationWorker.onmessage = function(e) {
-            const { id, type, data, error, progress } = e.data;
+            const { id, type, data, error } = e.data; 
 
             if (id !== currentCalculationId) {
                 console.log("Worker retornou para uma tarefa antiga/invalidada (ID: " + id + ", Esperado: " + currentCalculationId + "). Ignorando.");
-                return; // Ignora resultados de tarefas antigas/canceladas
+                return;
             }
-
             if (type === 'progress') {
-                statusDiv.textContent = progress; // Atualiza com mensagem de progresso do worker
+                if (e.data.data) { 
+                    statusDiv.textContent = e.data.data;
+                }
                 return;
             }
 
-            isPlotting = false; // Libera a flag após receber resultado final ou erro
+
+            isPlotting = false;
 
             if (type === 'result') {
                 let { thetaValues, resultingMagnitude, phiValue: phiFromWorker } = data;
-                
-                // Usa os parâmetros armazenados no momento da chamada, não os atuais da UI
                 const { phi: callTimePhi, scale: callTimeScale } = storedPlotParams;
 
-                // Consistência: usar o phi retornado pelo worker, que deve ser o mesmo que callTimePhi
                 if (Math.abs(phiFromWorker - callTimePhi) > 1e-6) {
                      console.warn(`Disparidade de Phi: Worker usou ${phiFromWorker}, chamada foi para ${callTimePhi}. Usando ${callTimePhi}.`);
                 }
@@ -356,11 +386,10 @@ function initBeamPatternControls() {
         beamCalculationWorker.onerror = function(err) {
             console.error("Erro fatal no Web Worker:", err.message, err.filename, err.lineno);
             statusDiv.textContent = `Erro fatal no Worker: ${err.message.substring(0,100)}`;
-            isPlotting = false; // Libera a flag
+            isPlotting = false;
             const plotDiv = document.getElementById(plotDivId);
             if (plotDiv) Plotly.purge(plotDiv);
-            // Considerar desabilitar funcionalidade ou notificar usuário
-            beamCalculationWorker = null; // Worker está inutilizável
+            beamCalculationWorker = null;
         };
         console.log("Web Worker para cálculo do padrão de feixe inicializado.");
     } else {
@@ -368,29 +397,27 @@ function initBeamPatternControls() {
         statusDiv.textContent = "Aviso: Web Workers não suportados. Performance pode ser afetada.";
     }
 
-    // Event Listeners para controles da UI
     phiSlider.addEventListener('input', () => {
         phiInput.value = phiSlider.value;
         statusDiv.textContent = `Phi = ${phiSlider.value}°. Atualizando...`;
         debouncedGenerateBeamPatternPlot();
     });
-    phiInput.addEventListener('input', () => { // Validação e sincronia com slider
+    phiInput.addEventListener('input', () => {
         let value = parseFloat(phiInput.value);
-        if (isNaN(value)) return; // Não gera se não for número
+        if (isNaN(value)) return;
         const min = parseFloat(phiSlider.min); const max = parseFloat(phiSlider.max);
         if (!isNaN(min)) value = Math.max(min, value); if (!isNaN(max)) value = Math.min(max, value);
-        phiInput.value = value; // Atualiza input se valor foi clamped
+        phiInput.value = value;
         phiSlider.value = value;
         statusDiv.textContent = `Phi = ${value}°. Atualizando...`;
         debouncedGenerateBeamPatternPlot();
     });
-     phiInput.addEventListener('change', () => { // Garante geração ao perder foco/Enter
+     phiInput.addEventListener('change', () => {
         let value = parseFloat(phiInput.value);
-        if (isNaN(value)) { value = parseFloat(phiSlider.value); } // Reverte se inválido
+        if (isNaN(value)) { value = parseFloat(phiSlider.value); }
         const min = parseFloat(phiSlider.min); const max = parseFloat(phiSlider.max);
         if (!isNaN(min)) value = Math.max(min, value); if (!isNaN(max)) value = Math.min(max, value);
         phiInput.value = value; phiSlider.value = value;
-        // Chama diretamente, sem debounce, para garantir atualização ao finalizar edição
         generateBeamPatternPlot();
      });
 
@@ -398,7 +425,7 @@ function initBeamPatternControls() {
         radio.addEventListener('change', () => {
             if (radio.checked) {
                  statusDiv.textContent = `Escala = ${radio.value}. Atualizando...`;
-                generateBeamPatternPlot(); // Sem debounce para mudança de escala
+                generateBeamPatternPlot();
             }
         });
     });
@@ -406,17 +433,14 @@ function initBeamPatternControls() {
     window.addEventListener('layoutGenerated', () => {
         console.log("Event 'layoutGenerated' recebido por beam_pattern.js.");
         statusDiv.textContent = 'Layout alterado. Atualizando padrão de feixe...';
-        generateBeamPatternPlot(); // Sem debounce para mudança de layout
+        generateBeamPatternPlot();
     });
 
     window.addEventListener('themeChanged', () => {
         console.log('Event themeChanged recebido por beam_pattern.js');
-        // Só redesenha se já houver dados e um layout.
-        // A função generateBeamPatternPlot já lida com buscar dados e verificar layout.
-        // E o worker já terá os dados cacheados se for o caso.
         if (parsedEFieldData && window.antennaGenerator?.getAllAntennas().length > 0) {
             statusDiv.textContent = 'Tema alterado. Redesenhando gráfico...';
-            generateBeamPatternPlot(); // Regera para aplicar novas cores do tema ao Plotly
+            generateBeamPatternPlot();
         } else {
             statusDiv.textContent = 'Tema alterado. Gere um layout para ver o gráfico.';
         }
