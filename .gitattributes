@@ -1,0 +1,1 @@
+data/rE_table_vivaldi.csv filter=lfs diff=lfs merge=lfs -text
