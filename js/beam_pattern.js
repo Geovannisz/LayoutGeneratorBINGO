@@ -19,7 +19,7 @@ const E_FIELD_CSV_BASE_PATH = 'https://raw.githubusercontent.com/Geovannisz/Layo
 // OBSOLETO:
 // const E_FIELD_CSV_PATH ='https://gateway.pinata.cloud/ipfs/bafybeigdx5ssprf2wmgjbv56sfv36yawvyw6k2usorxacx63bbmtw3udvq';
 const MAX_PLOT_POINTS_BEAM = 2000;
-const PLOT_REQUEST_DEBOUNCE_DELAY = 350; // Milliseconds to wait after last input before processing
+const PLOT_REQUEST_DEBOUNCE_DELAY = 5; // Milliseconds to wait after last input before processing
 
 // === Cache & State ===
 let parsedEFieldDataCache = {};
