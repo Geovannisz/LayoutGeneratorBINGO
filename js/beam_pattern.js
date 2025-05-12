@@ -20,7 +20,7 @@ const GITHUB_USER = 'geovannisz';
 const GITHUB_REPO = 'LayoutGeneratorBINGO';
 const GITHUB_BRANCH = 'main'; // <<< VERIFIQUE SE ESTE É O NOME CORRETO DO SEU BRANCH PADRÃO
 const CSV_FILE_PATH_IN_REPO = 'data/rE_table_vivaldi.csv';
-const E_FIELD_CSV_PATH ='https://cdn.jsdelivr.net/gh/geovannisz/LayoutGeneratorBINGO@main/data/rE_table_vivaldi.csv';
+const E_FIELD_CSV_PATH ='https://cloudflare-ipfs.com/ipfs/bafybeigdx5ssprf2wmgjbv56sfv36yawvyw6k2usorxacx63bbmtw3udvq/rE_table_vivaldi.csv';
 
 const DEBOUNCE_DELAY = 300;
 const MAX_PLOT_POINTS_BEAM = 2000;
