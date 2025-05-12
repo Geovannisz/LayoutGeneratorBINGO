@@ -16,11 +16,11 @@ const LAMBDA = C_LIGHT / FREQUENCY;
 const K = (2 * Math.PI) / LAMBDA;
 
 // --- MODIFICADO: Caminho para o CSV via Raw GitHub User Content ---
-const GITHUB_USER = 'Geovannisz';
+const GITHUB_USER = 'geovannisz';
 const GITHUB_REPO = 'LayoutGeneratorBINGO';
 const GITHUB_BRANCH = 'main'; // <<< VERIFIQUE SE ESTE É O NOME CORRETO DO SEU BRANCH PADRÃO
 const CSV_FILE_PATH_IN_REPO = 'data/rE_table_vivaldi.csv';
-const E_FIELD_CSV_PATH = `https://raw.githubusercontent.com/${GITHUB_USER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${CSV_FILE_PATH_IN_REPO}`;
+const E_FIELD_CSV_PATH ='https://cdn.jsdelivr.net/gh/geovannisz/LayoutGeneratorBINGO@main/data/rE_table_vivaldi.csv';
 
 const DEBOUNCE_DELAY = 300;
 const MAX_PLOT_POINTS_BEAM = 2000;
