@@ -63,15 +63,14 @@ body {
 }
 
 .container {
-    /* ===== MODIFICADO: Aumenta max-width para 1800px ===== */
-    max-width: 1800px; /* Mais largo */
+    max-width: 1800px; 
     width: 95%;
     margin: 0 auto;
     padding: 20px;
     box-sizing: border-box;
 }
 
-/* Header e Título (sem grandes mudanças) */
+/* Header e Título */
 header {
     background-color: var(--header-bg-color); color: var(--header-text-color);
     padding: 15px 3%; text-align: center; margin-bottom: 20px;
@@ -80,7 +79,6 @@ header {
 }
 header h1 { margin: 0; flex-grow: 1; text-align: center; font-size: 1.5em; }
 .theme-toggle { display: flex; align-items: center; gap: 10px; color: var(--header-text-color); flex-shrink: 0; }
-/* Estilos do theme toggle (inalterados) */
 .theme-toggle input[type="checkbox"] { width: 40px; height: 20px; appearance: none; background-color: var(--bg-color); border-radius: 10px; position: relative; cursor: pointer; outline: none; transition: background-color 0.3s; }
 .theme-toggle input[type="checkbox"]::before { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; top: 2px; left: 2px; background-color: var(--primary-color); transition: transform 0.3s, background-color 0.3s; }
 .theme-toggle input[type="checkbox"]:checked::before { transform: translateX(20px); background-color: var(--secondary-color); }
@@ -88,7 +86,7 @@ header h1 { margin: 0; flex-grow: 1; text-align: center; font-size: 1.5em; }
 
 h1, h2, h3 { margin: 0; }
 
-/* Layout Lado-a-Lado (generator-beam-row) - Estrutura mantida */
+/* Layout Lado-a-Lado (generator-beam-row) */
 .generator-beam-row {
     display: flex; flex-wrap: wrap; gap: 20px; margin-bottom: 30px;
 }
@@ -99,12 +97,12 @@ h1, h2, h3 { margin: 0; }
     box-sizing: border-box;
 }
 
-/* Ajustes internos do Gerador (mantidos) */
+/* Ajustes internos do Gerador */
 .layout-generator h2 { margin-bottom: 15px; text-align: center; }
 .layout-controls { display: flex; flex-wrap: wrap; gap: 20px; flex-grow: 1; }
 .control-panel { flex: 1; min-width: 250px; max-width: 350px; }
 .visualization {
-    flex: 2; min-width: 300px; min-height: 450px; /* Aumenta altura mínima da visualização */
+    flex: 2; min-width: 300px; min-height: 450px; 
     border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden;
     background-color: var(--card-bg-color); display: flex; flex-direction: column;
     position: relative;
@@ -122,11 +120,53 @@ h1, h2, h3 { margin: 0; }
 .download-image-options .radio-group input[type="radio"] { margin-right: 5px; }
 .download-image-button-container { text-align: center; margin-top: 5px; }
 
-/* Ajustes internos do Padrão de Feixe (mantidos) */
-.beam-pattern-container { display: flex; flex-direction: column; }
+/* ... (todo o CSS anterior inalterado até a seção .beam-controls) ... */
+
+/* Ajustes internos do Padrão de Feixe */
+.beam-pattern-container { 
+    display: flex; 
+    flex-direction: column; 
+}
 .beam-pattern-container h2 { margin-bottom: 15px; text-align: center; flex-shrink: 0; }
-.beam-controls { display: flex; justify-content: center; align-items: center; gap: 20px; margin-bottom: 15px; flex-wrap: wrap; flex-shrink: 0; }
-.beam-controls .control-group { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; min-width: 180px; }
+.beam-controls { 
+    display: flex; 
+    justify-content: center; 
+    align-items: flex-end; /* Alinha a base dos grupos de controle */
+    gap: 15px; /* Espaçamento entre grupos */
+    margin-bottom: 15px; 
+    flex-wrap: wrap; 
+    flex-shrink: 0; 
+}
+.beam-controls .control-group { 
+    display: flex; 
+    flex-direction: column; 
+    align-items: flex-start; /* Labels e inputs alinhados à esquerda dentro do grupo */
+    gap: 5px; 
+    min-width: 150px; /* Largura mínima padrão para grupos de Phi e Escala */
+}
+
+/* NOVO: Estilos para o grupo de botões 2D/3D */
+.beam-controls .control-group.button-group-2d-3d {
+    min-width: auto; /* Permitir que este grupo se ajuste ao conteúdo dos botões */
+    /* Se quiser que ocupe mais espaço ou alinhe com outros, ajuste min-width aqui */
+}
+.beam-controls .view-mode-buttons {
+    display: flex;
+    gap: 10px; /* Espaço entre os botões 2D e 3D */
+    /* width: 100%; */ /* Removido para não forçar largura total se não necessário */
+}
+.beam-controls .view-mode-buttons button {
+    /* flex-grow: 1; */ /* Removido para os botões terem largura baseada no conteúdo */
+    padding: 8px 12px; /* Padding consistente */
+    font-size: 0.9em;
+    white-space: nowrap; /* Evita quebra de linha no texto do botão */
+}
+.beam-controls .view-mode-buttons button i {
+    margin-right: 5px;
+}
+/* FIM NOVO */
+
+
 .beam-controls label { font-weight: 500; display: block; }
 .beam-controls .slider-group { display: flex; align-items: center; gap: 10px; width: 100%; }
 .beam-controls .slider-group input[type="range"] { flex-grow: 1; height: 8px; cursor: pointer; appearance: none; background: var(--slider-track-color); border-radius: 4px; outline: none; padding: 0; margin: 0; border: none; }
@@ -140,12 +180,36 @@ h1, h2, h3 { margin: 0; }
 .beam-controls .radio-group input[type="radio"] { margin-right: 5px; cursor: pointer; }
 
 #beam-pattern-plot {
-    width: 100%; border: 1px solid var(--border-color); border-radius: 4px;
-    /* Usa variável CSS para fundo, que será lida pelo JS do Plotly */
+    width: 100%;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
     background-color: var(--plot-bg-color);
-    flex-grow: 1; /* Permite crescer */
-    min-height: 400px; /* Altura mínima para o gráfico */
+    flex-grow: 1;
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    /* ESTADO INICIAL: Escondido mas ocupando espaço, e transparente */
+    visibility: hidden; /* Esconde visualmente, mas permite cálculo de tamanho */
+    opacity: 0;         /* Garante transparência */
+    transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s; /* Transição suave para opacity */
 }
+
+#beam-pattern-plot.visible {
+    /* ESTADO VISÍVEL: */
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out, visibility 0s linear 0s;
+}
+
+#beam-pattern-plot .plot-container,
+#beam-pattern-plot .svg-container,
+#beam-pattern-plot .plotly {
+    width: 100% !important;
+    height: 100% !important;
+}
+
 #beam-status { text-align: center; margin-top: 10px; min-height: 1.2em; font-style: italic; opacity: 0.8; flex-shrink: 0; }
 
 
@@ -157,38 +221,31 @@ h1, h2, h3 { margin: 0; }
 }
 .map-container h2 { margin-bottom: 15px; text-align: center; }
 .map-content { display: flex; flex-wrap: wrap; gap: 20px; }
-
 .map {
     flex: 3; min-width: 450px;
-    height: 550px; /* Altura fixa do mapa */
+    height: 550px; 
     border: 1px solid var(--border-color); border-radius: 4px;
 }
-
-/* ===== MODIFICADO: Define altura para map-info e scroll para lista ===== */
 .map-info {
     flex: 1; min-width: 300px;
     display: flex; flex-direction: column;
-    height: 550px; /* Define altura igual à do mapa */
-    max-height: 550px; /* Garante que não ultrapasse */
-    overflow: hidden; /* Esconde overflow do container pai */
+    height: 550px; 
+    max-height: 550px; 
+    overflow: hidden; 
 }
 .map-info p, .map-info .form-group {
-    flex-shrink: 0; /* Evita que estes elementos encolham */
+    flex-shrink: 0; 
 }
 .map-info p { margin: 8px 0; }
-
 .coordinates-list {
     margin-top: 15px;
     border: 1px solid var(--border-color); border-radius: 4px;
     background-color: var(--bg-color);
-    flex-grow: 1; /* Ocupa o espaço restante dentro do map-info */
-    overflow-y: auto; /* Habilita scroll VERTICAL apenas para a lista */
-    /* Remove max-height daqui, pois a altura é controlada pelo pai (.map-info) */
+    flex-grow: 1; 
+    overflow-y: auto; 
 }
-/* ======================================================================== */
 
-
-/* Estilos para a exportação (4 colunas mantido) */
+/* Estilos para a exportação */
 .export-container {
     margin-bottom: 30px; background-color: var(--card-bg-color);
     border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px var(--shadow-color);
@@ -205,13 +262,12 @@ h1, h2, h3 { margin: 0; }
 .copy-btn { position: absolute; top: 30px; right: 8px; background: transparent; border: none; cursor: pointer; font-size: 16px; padding: 5px; color: var(--copy-btn-color); z-index: 10; transition: color 0.2s; }
 .copy-btn:hover { opacity: 0.8; }
 
-/* Grupo de download ZIP (mantido) */
+/* Grupo de download ZIP */
 .download-zip-group { display: flex; align-items: center; gap: 10px; margin-top: 20px; justify-content: center; flex-wrap: wrap; }
 .download-zip-group input[type="text"] { padding: 9px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; background-color: var(--input-bg-color); color: var(--input-text-color); flex-grow: 1; min-width: 200px; max-width: 400px; }
 .export-container p small { display: block; text-align: center; margin-top: 15px; }
 
-
-/* Estilos comuns (formulários, botões, sliders - mantidos) */
+/* Estilos comuns (formulários, botões, sliders) */
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }
 .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; background-color: var(--input-bg-color); color: var(--input-text-color); box-sizing: border-box; }
@@ -232,10 +288,10 @@ button.secondary { background-color: var(--secondary-color); color: var(--card-b
 button:hover { opacity: 0.9; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Rodapé (mantido) */
+/* Rodapé */
 footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-color); color: var(--header-text-color); margin-top: 30px; }
 
-/* Colisões (mantido) */
+/* Colisões */
 .collision-info { margin-top: 15px; border: 1px solid var(--border-color); border-radius: 4px; overflow: hidden; background-color: var(--card-bg-color); flex-shrink: 0; }
 .collision-header { padding: 10px 15px; background-color: var(--highlight-color); border-bottom: 1px solid var(--border-color); cursor: pointer; font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
 .collision-header:hover { background-color: var(--highlight-hover-color); }
@@ -243,7 +299,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 .collision-content ul { margin: 0; padding-left: 20px; list-style: disc; }
 .collision-content li { margin-bottom: 5px; font-size: 0.9em; }
 
-/* Lista de Coordenadas (mantida) */
+/* Lista de Coordenadas */
 .coordinate-item { padding: 10px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background-color 0.2s; }
 .coordinate-item.active { background-color: var(--highlight-hover-color); }
 .coordinate-item:hover:not(.active) { background-color: var(--highlight-color); }
@@ -259,7 +315,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 .coordinate-actions .remove-btn:hover { color: var(--secondary-color); }
 .empty-list-message { padding: 15px; text-align: center; font-style: italic; color: var(--text-color); opacity: 0.7; }
 
-/* Leaflet (mantido) */
+/* Leaflet */
 .leaflet-marker-draggable { cursor: move; }
 .distance-tooltip { background-color: var(--tooltip-bg-color); color: var(--tooltip-text-color); padding: 5px 10px; border: none; border-radius: 4px; font-size: 12px; white-space: nowrap; box-shadow: 0 1px 3px var(--shadow-color); }
 
@@ -267,41 +323,45 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 /* ========================== */
 /* ===== MEDIA QUERIES ====== */
 /* ========================== */
-
-/* Ajustes para telas menores (tablets e celulares) */
-@media (max-width: 1200px) { /* Ajusta breakpoint para maior responsividade */
+@media (max-width: 1200px) { 
     .container { width: 98%; padding: 15px; }
-
-    /* Empilha Gerador e Padrão de Feixe */
     .generator-beam-row { flex-direction: column; }
     .layout-generator, .beam-pattern-container { flex-basis: auto; min-width: unset; width: 100%; }
-
-    /* Empilha Mapa e Info */
     .map-content { flex-direction: column; }
     .map, .map-info {
         flex: unset; min-width: unset; width: 100%;
-        height: auto; /* Altura automática para map-info */
-        max-height: none; /* Remove max-height */
+        height: auto; 
+        max-height: none; 
     }
-    .map { height: 450px; /* Altura fixa apenas para o mapa */ }
+    .map { height: 450px; }
     .coordinates-list {
-        max-height: 250px; /* Altura máxima para scroll */
-        /* flex-grow: 0; */ /* Não precisa crescer indefinidamente */
-        height: 250px; /* Define uma altura fixa para scroll funcionar melhor */
+        max-height: 250px; 
+        height: 250px; 
     }
-
-    /* Exportação: 2 colunas */
     .export-fields { grid-template-columns: repeat(2, 1fr); }
+    .beam-controls {
+        justify-content: space-around; 
+    }
+    .beam-controls .control-group {
+        min-width: 180px; /* Reduzido um pouco para caber melhor */
+        flex-grow: 1; 
+    }
+    .beam-controls .control-group.button-group-2d-3d {
+        flex-basis: 100%; /* Faz o grupo de botões 2D/3D ocupar a linha toda */
+        min-width: unset; /* Remove min-width para este grupo específico */
+        align-items: center; /* Centraliza o label "Modo de Visualização" */
+    }
+    .beam-controls .view-mode-buttons {
+        justify-content: center; /* Centraliza os botões dentro do div */
+        width: auto; /* Largura automática baseada nos botões */
+    }
 }
 
-/* Ajustes adicionais para celulares */
-@media (max-width: 768px) { /* Aumenta breakpoint de celular */
+@media (max-width: 768px) { 
     header { flex-direction: column; gap: 10px; padding: 15px; }
     header h1 { font-size: 1.3em; }
     .container { padding: 10px; }
     .layout-generator, .beam-pattern-container, .map-container, .export-container { padding: 15px; }
-
-    /* Empilha painel e visualização dentro do gerador */
      .layout-controls {
         flex-direction: column;
     }
@@ -309,14 +369,26 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
         max-width: none; min-width: unset; width: 100%;
     }
     .visualization { min-height: 350px; }
-
-    /* Exportação: 1 coluna */
     .export-fields { grid-template-columns: 1fr; gap: 15px; }
     .export-field textarea { height: 150px; }
-
     .button-group, .download-zip-group { flex-direction: column; align-items: stretch; }
     .download-zip-group input[type="text"] { max-width: none; }
-
-    .map { height: 400px; } /* Ajusta altura do mapa */
-    .coordinates-list { height: 200px; max-height: 200px; } /* Ajusta altura da lista */
+    .map { height: 400px; } 
+    .coordinates-list { height: 200px; max-height: 200px; } 
+    .beam-controls {
+        flex-direction: column;
+        align-items: stretch; 
+    }
+    .beam-controls .control-group {
+        width: 100%; 
+        min-width: unset;
+    }
+    .beam-controls .control-group.button-group-2d-3d .view-mode-buttons {
+        flex-direction: row; /* Mantém botões lado a lado */
+        justify-content: space-around; /* Espaça bem os botões */
+    }
+     .beam-controls .view-mode-buttons button {
+        flex-grow: 0; /* Não força crescimento, largura baseada no conteúdo */
+        min-width: 120px; /* Largura mínima para cada botão */
+    }
 }

@@ -100,14 +100,14 @@
                     <!-- Grupo para Seleção de Phi -->
                     <div class="control-group">
                         <label for="beam-phi-input">Ângulo Phi (0°-90°):</label>
-                        <div class="slider-group"> <!-- Reutilizando a classe slider-group -->
+                        <div class="slider-group"> 
                             <input type="range" id="beam-phi-slider" name="beamPhiSlider" min="0" max="90" value="90" step="1">
                             <input type="number" id="beam-phi-input" name="beamPhiInput" min="0" max="90" value="90" step="1">
                         </div>
                     </div>
                     <!-- Grupo para Seleção de Escala -->
                     <div class="control-group">
-                        <label>Escala Y:</label>
+                        <label>Escala Y (2D/3D):</label> <!-- Label unificado -->
                         <div class="radio-group">
                             <label>
                                 <input type="radio" name="beamScale" value="dB" checked> dB
@@ -117,8 +117,16 @@
                             </label>
                         </div>
                     </div>
+                    <!-- Grupo de botões para alternar 2D/3D -->
+                    <div class="control-group button-group-2d-3d">
+                        <label>Modo de Visualização:</label>
+                        <div class="view-mode-buttons">
+                            <button id="visualize-2d-btn" class="primary" title="Visualizar padrão de feixe em 2D para o Phi selecionado."><i class="fas fa-chart-line"></i> Padrão 2D</button>
+                            <button id="visualize-3d-btn" class="secondary" title="Visualizar padrão de feixe em 3D (varredura completa)."><i class="fas fa-cube"></i> Padrão 3D</button>
+                        </div>
+                    </div>
                 </div>
-                <div id="beam-pattern-plot">
+                <div id="beam-pattern-plot" class="plot-area"> <!-- Adicionada classe plot-area -->
                      <!-- Gráfico Plotly será inserido aqui -->
                 </div>
                  <div id="beam-status">Aguardando geração do layout inicial...</div>
@@ -196,7 +204,7 @@
     <script src="js/generator.js"></script>
     <script src="js/map.js"></script>
     <script src="js/export.js"></script>
-    <script src="js/beam_pattern.js"></script>
+    <script src="js/beam_pattern.js"></script> 
     <script src="js/main.js"></script>
 </body>
 </html>
