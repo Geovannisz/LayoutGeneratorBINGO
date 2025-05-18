@@ -35,6 +35,7 @@ function computeAFForPoint(theta_deg, phi_deg, antennaCoords, k, theta_0_deg = 0
 
 
 self.onmessage = function(e) {
+    // CORREÇÃO: 'id' é o ID da tarefa, incluído nas mensagens de progresso e resultado.
     const { id, antennaCoords, elementFieldData3D, K_CONST } = e.data;
 
     if (!elementFieldData3D || elementFieldData3D.length === 0) {
@@ -42,6 +43,7 @@ self.onmessage = function(e) {
         return;
     }
 
+    // CORREÇÃO: Inclui 'id' na mensagem de progresso.
     self.postMessage({ type: 'progress', id, data: 'Worker 3D: Iniciando cálculos... 0%' });
 
     try {
@@ -75,11 +77,13 @@ self.onmessage = function(e) {
 
             const currentProgress = Math.round(((index + 1) / totalPoints) * 100);
             if (currentProgress > lastReportedProgress) {
+                // CORREÇÃO: Inclui 'id' na mensagem de progresso.
                 self.postMessage({ type: 'progress', id, data: `Worker 3D: Calculando... ${currentProgress}%` });
                 lastReportedProgress = currentProgress;
             }
         });
         
+        // CORREÇÃO: Inclui 'id' na mensagem de progresso.
         self.postMessage({ type: 'progress', id, data: 'Worker 3D: Processando dados para plotagem...' });
 
         const uniquePhis = Array.from(uniquePhiSet).sort((a, b) => a - b);
@@ -119,6 +123,7 @@ self.onmessage = function(e) {
             })
         );
 
+        // CORREÇÃO: Inclui 'id' na mensagem de progresso.
         self.postMessage({ type: 'progress', id, data: 'Worker 3D: Cálculo concluído.' });
 
         self.postMessage({

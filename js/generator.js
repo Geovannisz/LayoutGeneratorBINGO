@@ -105,18 +105,22 @@ class AntennaLayoutGenerator {
         this.imageThemeRadios = null;
         this.imageAxesRadios = null;
 
-        // Ajusta o tamanho inicial do canvas e configura listener para redimensionamento da janela.
+        // Ajusta o tamanho inicial do canvas.
         this.resizeCanvas();
-        // O listener de resize global está em main.js e chama this.resizeCanvas().
-        // window.addEventListener('resize', () => this.resizeCanvas()); // Movido para main.js
-
+        
         // Inicializa os controles da interface (parâmetros dinâmicos, botões, download).
         this.initControls();
+
+        // **NOVO**: Adiciona listener para o evento global 'themeChanged'.
+        // Quando o tema mudar, redesenha o layout do canvas com as novas cores.
+        window.addEventListener('themeChanged', () => {
+            console.log('Generator: Evento "themeChanged" recebido. Redesenhando layout do canvas.');
+            this.drawLayout(); // Redesenha o canvas com as cores do novo tema.
+        });
 
         // A geração do layout inicial é adiada para main.js para garantir
         // que todos os módulos (mapa, exportação, padrão de feixe) estejam prontos
         // para receber o evento 'layoutGenerated'.
-        // this.generateLayout(); // Não chamar aqui mais.
     }
 
     /**
@@ -418,28 +422,17 @@ class AntennaLayoutGenerator {
      * @returns {boolean} O resultado da avaliação da condição. Retorna `true` em caso de erro.
      */
     evaluateCondition(conditionString) {
-        // Substitui nomes de parâmetros simples (ex: 'paramName') por 'this.params.paramName'
-        // para que a string possa ser avaliada no contexto da classe.
-        const fullCondition = conditionString.replace(/(\b)([a-zA-Z_]\w*)(\b)/g, (match, p1, p2, p3) => {
-            // Verifica se a palavra é um nome de parâmetro válido em `this.params`.
-            if (this.params.hasOwnProperty(p2)) {
-                return `${p1}this.params.${p2}${p3}`;
-            }
-            // Permite palavras reservadas JS, métodos Math, literais, etc., sem modificar.
-            if (['true', 'false', 'Math', 'null', 'undefined', 'NaN', 'Infinity'].includes(p2) || !isNaN(p2)) {
-                return match;
-            }
-             // Se não é parâmetro nem palavra conhecida, tenta tratar como parâmetro (pode causar erro).
-            return `${p1}this.params.${p2}${p3}`;
-        });
-
+        // CORREÇÃO: Remove a substituição complexa.
+        // A string de condição já deve estar no formato correto (ex: 'this.params.someValue > 0')
+        // para ser avaliada com .call(this).
         try {
             // Usa Function para avaliar a string de condição.
-            const evaluator = new Function(`return (${fullCondition});`);
-            // `evaluator.call(this)` executa a função com `this` sendo a instância da classe.
+            // 'this' dentro da Function será o 'this' da instância AntennaLayoutGenerator
+            // porque estamos usando .call(this).
+            const evaluator = new Function(`return (${conditionString});`);
             return evaluator.call(this);
         } catch (e) {
-            console.error(`Erro ao avaliar condição para controle dinâmico "${conditionString}" -> "${fullCondition}":`, e);
+            console.error(`Erro ao avaliar condição para controle dinâmico "${conditionString}":`, e);
             return true; // Assume true em caso de erro para não esconder controles indevidamente.
         }
     }

@@ -12,6 +12,7 @@
 /**
  * Calcula o Array Factor (AF) complexo para um conjunto de ângulos (theta, phi).
  * Esta versão é otimizada para execução dentro do Web Worker.
+ * @param {number} taskId O ID da tarefa atual, para ser incluído nas mensagens de progresso.
  * @param {Float64Array} theta_deg_array Array de ângulos theta em graus.
  * @param {Float64Array} phi_deg_array Array de ângulos phi em graus (para plot 2D, este será constante).
  * @param {Array<Array<number>>} antennaCoords Array de coordenadas [x,y] das antenas (metros).
@@ -20,12 +21,13 @@
  * @param {number} [phi_0_deg=0] Ângulo de varredura (steering) phi em graus (não usado atualmente).
  * @returns {object} Objeto contendo { af_re: Float64Array, af_im: Float64Array } - partes real e imaginária do AF.
  */
-function computeAF_worker_optimized(theta_deg_array, phi_deg_array, antennaCoords, k, theta_0_deg = 0, phi_0_deg = 0) {
+function computeAF_worker_optimized(taskId, theta_deg_array, phi_deg_array, antennaCoords, k, theta_0_deg = 0, phi_0_deg = 0) {
     const numPoints = theta_deg_array.length;
-    self.postMessage({ type: 'progress', data: `Worker 2D: Iniciando cálculo AF para ${antennaCoords.length} antenas, ${numPoints} pontos angulares...` });
+    // CORREÇÃO: Inclui taskId (renomeado de 'id' para clareza no escopo da função) nas mensagens de progresso.
+    self.postMessage({ type: 'progress', id: taskId, data: `Worker 2D: Iniciando cálculo AF para ${antennaCoords.length} antenas, ${numPoints} pontos angulares...` });
 
     if (numPoints === 0) {
-        self.postMessage({ type: 'progress', data: "Worker 2D: Nenhum ponto angular fornecido para cálculo do AF." });
+        self.postMessage({ type: 'progress', id: taskId, data: "Worker 2D: Nenhum ponto angular fornecido para cálculo do AF." });
         return { af_re: new Float64Array(0), af_im: new Float64Array(0) };
     }
     // Validação importante: os arrays de ângulos devem ter o mesmo tamanho.
@@ -40,12 +42,12 @@ function computeAF_worker_optimized(theta_deg_array, phi_deg_array, antennaCoord
 
     // Se não há antenas (ou apenas uma no centro de referência), o AF é 1 (sem efeito de arranjo).
     if (antennaCoords.length === 0) {
-        self.postMessage({ type: 'progress', data: "Worker 2D: Nenhuma antena fornecida. AF será 1 (sem efeito de arranjo)." });
+        self.postMessage({ type: 'progress', id: taskId, data: "Worker 2D: Nenhuma antena fornecida. AF será 1 (sem efeito de arranjo)." });
         for(let i=0; i < numPoints; i++) {
             af_re[i] = 1.0; 
             af_im[i] = 0.0;
         }
-        self.postMessage({ type: 'progress', data: "Worker 2D: Cálculo AF (sem antenas) concluído." });
+        self.postMessage({ type: 'progress', id: taskId, data: "Worker 2D: Cálculo AF (sem antenas) concluído." });
         return { af_re, af_im };
     }
 
@@ -100,10 +102,10 @@ function computeAF_worker_optimized(theta_deg_array, phi_deg_array, antennaCoord
 
         // Envia mensagem de progresso periodicamente.
         if (i > 0 && i % progressInterval === 0) {
-            self.postMessage({ type: 'progress', data: `Worker 2D: Cálculo AF ${Math.round((i / numPoints) * 100)}% concluído...` });
+            self.postMessage({ type: 'progress', id: taskId, data: `Worker 2D: Cálculo AF ${Math.round((i / numPoints) * 100)}% concluído...` });
         }
     }
-    self.postMessage({ type: 'progress', data: "Worker 2D: Cálculo AF 100% concluído." });
+    self.postMessage({ type: 'progress', id: taskId, data: "Worker 2D: Cálculo AF 100% concluído." });
     return { af_re, af_im };
 }
 
@@ -111,15 +113,17 @@ function computeAF_worker_optimized(theta_deg_array, phi_deg_array, antennaCoord
  * Multiplica o campo E-field complexo do elemento individual pelo Array Factor (AF) complexo.
  * E_total = E_elemento * AF
  * A magnitude do E_total é então calculada.
+ * @param {number} taskId O ID da tarefa atual, para ser incluído nas mensagens de progresso.
  * @param {Array<Object>} elementFieldData Array de objetos, cada um contendo {theta, phi, rETheta, rEPhi},
  *                                         onde rETheta e rEPhi são objetos {re, im}.
  * @param {Float64Array} af_re_array Parte real do Array Factor para cada ponto angular.
  * @param {Float64Array} af_im_array Parte imaginária do Array Factor para cada ponto angular.
  * @returns {Float64Array} Array com as magnitudes resultantes do campo total para cada ponto angular.
  */
-function applyAF_worker_optimized(elementFieldData, af_re_array, af_im_array) {
+function applyAF_worker_optimized(taskId, elementFieldData, af_re_array, af_im_array) {
     const numPoints = elementFieldData.length;
-    self.postMessage({ type: 'progress', data: "Worker 2D: Aplicando AF ao campo do elemento..." });
+    // CORREÇÃO: Inclui taskId nas mensagens de progresso.
+    self.postMessage({ type: 'progress', id: taskId, data: "Worker 2D: Aplicando AF ao campo do elemento..." });
 
     // Validação: os arrays de E-field e AF devem ter o mesmo comprimento.
     if (numPoints !== af_re_array.length || numPoints !== af_im_array.length) {
@@ -158,7 +162,7 @@ function applyAF_worker_optimized(elementFieldData, af_re_array, af_im_array) {
             rEPhiTotal_re * rEPhiTotal_re + rEPhiTotal_im * rEPhiTotal_im
         );
     }
-    self.postMessage({ type: 'progress', data: "Worker 2D: Aplicação do AF concluída." });
+    self.postMessage({ type: 'progress', id: taskId, data: "Worker 2D: Aplicação do AF concluída." });
     return resultingMagnitude;
 }
 
@@ -169,6 +173,7 @@ function applyAF_worker_optimized(elementFieldData, af_re_array, af_im_array) {
  * Executa os cálculos e envia o resultado (ou erro) de volta.
  */
 self.onmessage = function(e) {
+    // CORREÇÃO: 'id' é o ID da tarefa, passado para as funções de cálculo para ser incluído nas mensagens de progresso.
     const { id, antennaCoords, filteredElementData, K_CONST, selectedPhiValue } = e.data;
     
     // Validação inicial dos dados recebidos.
@@ -197,10 +202,12 @@ self.onmessage = function(e) {
 
         // Calcula o Array Factor.
         // Parâmetros de steering (theta_0, phi_0) são omitidos, usando o padrão (0,0) - zênite.
-        const { af_re, af_im } = computeAF_worker_optimized(thetaValuesDeg, phiValuesDeg, antennaCoords, K_CONST);
+        // CORREÇÃO: Passa o 'id' para a função de cálculo.
+        const { af_re, af_im } = computeAF_worker_optimized(id, thetaValuesDeg, phiValuesDeg, antennaCoords, K_CONST);
 
         // Aplica o AF ao campo do elemento para obter a magnitude resultante.
-        const resultingMagnitudeTyped = applyAF_worker_optimized(filteredElementData, af_re, af_im);
+        // CORREÇÃO: Passa o 'id' para a função de cálculo.
+        const resultingMagnitudeTyped = applyAF_worker_optimized(id, filteredElementData, af_re, af_im);
 
         // Converte TypedArrays de volta para arrays normais para postMessage (Plotly pode preferir).
         const resultingMagnitude = Array.from(resultingMagnitudeTyped);
