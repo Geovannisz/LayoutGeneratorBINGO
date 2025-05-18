@@ -35,56 +35,42 @@ class OskarLayoutExporter {
 
     /**
      * Gera o layout das 64 antenas de um único tile, centrado em (0,0).
+     * As antenas são dispostas em uma grade uniforme de 4x16.
      * Este layout é usado para o arquivo station/tile/layout.txt.
-     * As dimensões e posições são baseadas nas especificações do BINGO.
      */
     generateSingleTileLayout() {
-        const antennas = [];
-        const SUBGROUP_N = 2; // Subgrupos na direção X
-        const SUBGROUP_M = 8; // Subgrupos na direção Y
-        const SUBGROUP_DX = 0.1760695885; // Espaçamento X entre centros de subgrupos
-        const SUBGROUP_DY = 0.1675843071; // Espaçamento Y entre centros de subgrupos
-        const DIAMOND_OFFSET = 0.05; // Offset para formar o "diamante" de 4 antenas por subponto
+        const Nx = 4; // Número de antenas na direção da largura do tile
+        const Ny = 16; // Número de antenas na direção da altura do tile
 
-        // Calcula centros dos 16 subpontos (2x8)
-        const subgroupCenters = [];
-        for (let i = 0; i < SUBGROUP_N; i++) {
-            const posCx = (i - (SUBGROUP_N - 1) / 2.0) * SUBGROUP_DX;
-            for (let j = 0; j < SUBGROUP_M; j++) {
-                const posCy = (j - (SUBGROUP_M - 1) / 2.0) * SUBGROUP_DY;
-                subgroupCenters.push([posCx, posCy]);
+        // Dimensões do tile BINGO (mesmas que em generator.js)
+        const TILE_WIDTH_EXPORT = 0.35;  // Largura do tile em metros
+        const TILE_HEIGHT_EXPORT = 1.34; // Altura do tile em metros
+
+        // Calcula o espaçamento entre antenas em cada direção
+        const spacingX = TILE_WIDTH_EXPORT / Nx;
+        const spacingY = TILE_HEIGHT_EXPORT / Ny;
+
+        const tileAntennasRelative = [];
+        for (let i = 0; i < Nx; i++) {
+            // Posição X relativa ao centro (0,0) do tile
+            const posX_relative = (i - (Nx - 1) / 2.0) * spacingX;
+            for (let j = 0; j < Ny; j++) {
+                // Posição Y relativa ao centro (0,0) do tile
+                const posY_relative = (j - (Ny - 1) / 2.0) * spacingY;
+                tileAntennasRelative.push([posX_relative, posY_relative]);
             }
         }
 
-        // Define os 4 offsets para as antenas em cada subponto (formato diamante)
-        const offsets = [
-            [0, DIAMOND_OFFSET], [DIAMOND_OFFSET, 0],
-            [0, -DIAMOND_OFFSET], [-DIAMOND_OFFSET, 0]
-        ];
-
-        // Adiciona as 4 antenas para cada um dos 16 subpontos
-        for (const center of subgroupCenters) {
-            for (const offset of offsets) {
-                antennas.push([
-                    center[0] + offset[0],
-                    center[1] + offset[1]
-                ]);
-            }
-        } // Total de 16 * 4 = 64 antenas
-
-        // Re-centraliza o conjunto de 64 antenas para garantir que o centro médio seja (0,0)
-        let sumX = 0, sumY = 0;
-        for(const ant of antennas) { sumX += ant[0]; sumY += ant[1]; }
-        const centerX = sumX / antennas.length;
-        const centerY = sumY / antennas.length;
-
-        this.singleTileAntennaLayout = antennas.map(ant => [
-            ant[0] - centerX,
-            ant[1] - centerY
+        // A formulação (k - (N-1)/2.0) * spacing já centraliza o layout em (0,0).
+        // As coordenadas são arredondadas para 6 casas decimais para a exportação.
+        this.singleTileAntennaLayout = tileAntennasRelative.map(ant => [
+            parseFloat(ant[0].toFixed(6)),
+            parseFloat(ant[1].toFixed(6))
         ]);
 
-        console.log("Layout interno do tile (64 antenas) gerado e centrado.");
+        console.log("Layout interno do tile (64 antenas - grade 4x16) gerado e centrado para exportação.");
         // Atualiza o campo de exportação do layout do tile imediatamente.
+        // Esta chamada já existia e deve ser mantida.
         this.updateTileLayoutField();
     }
 

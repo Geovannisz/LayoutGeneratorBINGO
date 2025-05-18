@@ -439,40 +439,41 @@ class AntennaLayoutGenerator {
 
     /**
      * Cria o layout interno das 64 antenas de um único tile, centrado nas coordenadas (centerX, centerY).
-     * Usado para gerar as posições de todas as antenas a partir dos centros dos tiles gerados.
+     * As antenas são dispostas em uma grade uniforme de 4x16.
      * @param {number} centerX Coordenada X do centro do tile.
      * @param {number} centerY Coordenada Y do centro do tile.
      * @returns {Array<Array<number>>} Array de coordenadas [x,y] das 64 antenas deste tile.
      */
     createTileLayout64Antennas(centerX, centerY) {
         const antennas = [];
-        const subgroupCenters = [];
+        const Nx = 4; // Número de antenas na direção da largura do tile (TILE_WIDTH)
+        const Ny = 16; // Número de antenas na direção da altura do tile (TILE_HEIGHT)
 
-        // Calcula centros dos 16 subpontos (2x8) relativos ao centro do tile.
-        for (let i = 0; i < SUBGROUP_N; i++) {
-            const offsetX = (i - (SUBGROUP_N - 1) / 2.0) * SUBGROUP_DX;
-            for (let j = 0; j < SUBGROUP_M; j++) {
-                const offsetY = (j - (SUBGROUP_M - 1) / 2.0) * SUBGROUP_DY;
-                subgroupCenters.push([centerX + offsetX, centerY + offsetY]);
+        // TILE_WIDTH e TILE_HEIGHT são constantes globais definidas no topo deste arquivo.
+        // TILE_WIDTH = 0.35 m
+        // TILE_HEIGHT = 1.34 m
+
+        // Calcula o espaçamento entre antenas em cada direção para preencher o tile.
+        // Se os tiles estiverem adjacentes sem espaçamento, a distância entre antenas
+        // de tiles vizinhos será igual a este espaçamento.
+        const spacingX = TILE_WIDTH / Nx;
+        const spacingY = TILE_HEIGHT / Ny;
+
+        // Gera as posições das antenas.
+        // O loop externo itera sobre as colunas (largura), e o interno sobre as linhas (altura).
+        for (let i = 0; i < Nx; i++) {
+            // Posição X da coluna atual de antenas, relativa ao centro do tile.
+            // A fórmula (i - (Nx - 1) / 2.0) centraliza o conjunto de antenas.
+            // Para Nx=4, os multiplicadores de spacingX são: -1.5, -0.5, 0.5, 1.5
+            const posX = centerX + (i - (Nx - 1) / 2.0) * spacingX;
+            for (let j = 0; j < Ny; j++) {
+                // Posição Y da linha atual de antenas, relativa ao centro do tile.
+                // Para Ny=16, os multiplicadores de spacingY são: -7.5, -6.5, ..., 6.5, 7.5
+                const posY = centerY + (j - (Ny - 1) / 2.0) * spacingY;
+                antennas.push([posX, posY]);
             }
         }
-
-        // Define os 4 offsets para as antenas em cada subponto (formato diamante).
-        const offsets = [
-            [0, DIAMOND_OFFSET], [DIAMOND_OFFSET, 0],
-            [0, -DIAMOND_OFFSET], [-DIAMOND_OFFSET, 0]
-        ];
-
-        // Adiciona as 4 antenas para cada um dos 16 subpontos.
-        for (const center of subgroupCenters) {
-            for (const offset of offsets) {
-                antennas.push([
-                    center[0] + offset[0],
-                    center[1] + offset[1]
-                ]);
-            }
-        }
-        return antennas; // Retorna 64 coordenadas [x,y].
+        return antennas; // Retorna 4 * 16 = 64 coordenadas [x,y].
     }
 
     /**
