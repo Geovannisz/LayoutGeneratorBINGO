@@ -1,6 +1,8 @@
 /**
  * main.js
- * (Comentários anteriores mantidos)
+ * Ponto de entrada principal da aplicação.
+ * Inicializa todos os módulos, configura listeners de eventos globais
+ * e coordena a comunicação entre os módulos.
  */
 
 let resizeDebounceTimer;
@@ -9,7 +11,7 @@ function initApp() {
     console.log('Aplicação BINGO Layout Generator: Inicializando...');
     setTimeout(() => {
         checkComponentsAndSetup();
-    }, 250); // Aumentado ligeiramente para garantir que psfAnalyzer também seja registrado
+    }, 250);
 }
 
 function checkComponentsAndSetup() {
@@ -20,7 +22,6 @@ function checkComponentsAndSetup() {
      if (!window.antennaGenerator) { missingComponents.push('AntennaLayoutGenerator'); allComponentsReady = false; }
      if (!window.interactiveMap) { missingComponents.push('InteractiveMap'); allComponentsReady = false; }
      if (!window.oskarExporter) { missingComponents.push('OskarLayoutExporter'); allComponentsReady = false; }
-     // beam_pattern.js é inicializado por DOMContentLoaded
      if (!window.psfAnalyzer) { missingComponents.push('PSFAnalyzer'); allComponentsReady = false; }
 
 
@@ -29,11 +30,10 @@ function checkComponentsAndSetup() {
          setupGlobalEventListeners();
          setupDarkMode();
 
-         // A geração do layout inicial e o disparo do 'layoutGenerated' são feitos por antennaGenerator
          if (window.antennaGenerator) {
             console.log("Chamando geração de layout inicial a partir de main.js...");
             window.antennaGenerator.resizeCanvas();
-            window.antennaGenerator.generateLayout(); // Isso disparará 'layoutGenerated'
+            window.antennaGenerator.generateLayout();
         }
      } else {
           console.error("Falha na inicialização: Componentes ausentes:", missingComponents);
@@ -45,68 +45,60 @@ function checkComponentsAndSetup() {
  * Atualiza o PSFAnalyzer com os dados necessários do arranjo e do campo do elemento.
  * Esta função será chamada após a geração de um layout e após os dados 3D do campo do elemento serem carregados.
  */
-async function updatePSFAnalyzerData() {
+async function updatePSFAnalyzerData() { // Tornada async para aguardar o carregamento dos dados 3D
     if (!window.psfAnalyzer || typeof window.psfAnalyzer.updateData !== 'function') {
         console.warn("PSFAnalyzer não está pronto para receber dados.");
         return;
     }
 
     const antennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
+    let K_CONST_val = null; // Renomeado para evitar conflito com K_CONST de beam_pattern
+    let eFieldData3D_val = null; // Renomeado para evitar conflito
 
     // Tenta obter dados do módulo beam_pattern
-    let beamData = null;
-    if (typeof getBeamPatternModuleData === 'function') { // Verifica se a função existe
-        beamData = getBeamPatternModuleData();
-    } else if (window.beamPattern && typeof window.beamPattern.getModuleData === 'function') { // Alternativa se exposto no window
-        beamData = window.beamPattern.getModuleData();
+    // Primeiro, tenta pegar K_CONST, que não depende de fetch
+    if (typeof getBeamPatternModuleData === 'function') {
+        const beamDataInitial = getBeamPatternModuleData();
+        K_CONST_val = beamDataInitial.K_CONST;
+        eFieldData3D_val = beamDataInitial.parsedEFieldData3D; // Pega o cache atual
+    } else if (window.beamPattern && typeof window.beamPattern.getModuleData === 'function') {
+        const beamDataInitial = window.beamPattern.getModuleData();
+        K_CONST_val = beamDataInitial.K_CONST;
+        eFieldData3D_val = beamDataInitial.parsedEFieldData3D;
+    }
+
+    // Se os dados 3D não estiverem carregados ainda (eFieldData3D_val é null ou vazio),
+    // ou se o estado de carregamento indicar que não foi carregado ou deu erro, tenta carregar.
+    let needsToLoad3DData = !eFieldData3D_val || eFieldData3D_val.length === 0;
+    if (typeof fullEFieldDataLoadingState !== 'undefined') { // fullEFieldDataLoadingState é de beam_pattern.js
+        needsToLoad3DData = needsToLoad3DData || (fullEFieldDataLoadingState !== 'loaded');
     }
 
 
-    let elementFieldData3D = beamData ? beamData.parsedEFieldData3D : null;
-    const K_CONST = beamData ? beamData.K_CONST : null;
-
-    // Se os dados 3D não estiverem carregados ainda, tenta carregá-los.
-    // A função fetchAndParseEFieldData3D é de beam_pattern.js
-    if ((!elementFieldData3D || elementFieldData3D.length === 0) && typeof fetchAndParseEFieldData3D === 'function') {
-        console.log("Main.js: Dados 3D não carregados, tentando buscar...");
+    if (needsToLoad3DData && typeof ensureFullEFieldData3DLoaded === 'function') { // ensureFullEFieldData3DLoaded é de beam_pattern.js
+        console.log("Main.js: Dados 3D não carregados ou estado não 'loaded', tentando buscar/garantir para análise PSF...");
         try {
-            // Garante que o statusDiv de beam_pattern seja atualizado
-            const statusDivBeam = document.getElementById('beam-status');
-            if (statusDivBeam && (eField3DLoadingState === 'idle' || eField3DLoadingState === 'error')) { // eField3DLoadingState é de beam_pattern.js
-                 statusDivBeam.textContent = 'Carregando dados E-field 3D para análise PSF...';
-            }
-
-            elementFieldData3D = await fetchAndParseEFieldData3D(); // Esta função é de beam_pattern.js
-
-            // Atualiza novamente beamData após o fetch, caso getBeamPatternModuleData precise ser chamado
-            if (typeof getBeamPatternModuleData === 'function') {
-                beamData = getBeamPatternModuleData();
-                elementFieldData3D = beamData.parsedEFieldData3D; // Pega o valor atualizado
-            }
-
-            if (statusDivBeam && statusDivBeam.textContent.includes('para análise PSF...')) {
-                if (elementFieldData3D && elementFieldData3D.length > 0) {
-                    statusDivBeam.textContent = 'Dados E-field 3D carregados.';
-                } else {
-                    statusDivBeam.textContent = 'Falha ao carregar dados E-field 3D para análise.';
-                }
-            }
+            // ensureFullEFieldData3DLoaded já atualiza o statusDiv em beam_pattern.js
+            eFieldData3D_val = await ensureFullEFieldData3DLoaded(); // Aguarda o carregamento
+            console.log("Main.js: Dados 3D carregados/garantidos para PSFAnalyzer.");
         } catch (error) {
-            console.error("Main.js: Erro ao buscar dados 3D para PSFAnalyzer:", error);
-            // psfAnalyzer.updateData lidará com dados nulos
+            console.error("Main.js: Erro ao buscar/garantir dados 3D para PSFAnalyzer:", error);
+            // eFieldData3D_val permanecerá null ou com o valor anterior (se houver)
+            // O psfAnalyzer.updateData lidará com dados nulos
         }
+    } else if (eFieldData3D_val && eFieldData3D_val.length > 0) {
+        console.log("Main.js: Usando dados 3D já cacheados para PSFAnalyzer.");
     }
 
-    // Envia os dados (mesmo que nulos, para que o psfAnalyzer possa desabilitar a UI)
-    window.psfAnalyzer.updateData(antennaCoords, elementFieldData3D, K_CONST);
+
+    // Envia os dados (mesmo que eFieldData3D_val seja null após uma falha de fetch)
+    window.psfAnalyzer.updateData(antennaCoords, eFieldData3D_val, K_CONST_val);
 }
 
 
 function setupGlobalEventListeners() {
     window.addEventListener('themeChanged', () => {
         console.log('Evento global "themeChanged" recebido em main.js.');
-        // Os módulos generator, beam_pattern e psf_analyzer (implicitamente pelo tema do navegador)
-        // já devem lidar com a mudança de tema.
     });
 
     window.addEventListener('resize', () => {
@@ -116,25 +108,29 @@ function setupGlobalEventListeners() {
              if (window.antennaGenerator?.resizeCanvas) {
                 window.antennaGenerator.resizeCanvas();
              }
-             // Plotly deve redimensionar automaticamente.
         }, 250);
     });
 
-    // Listener para quando um novo layout é gerado por generator.js
-    window.addEventListener('layoutGenerated', () => {
+    window.addEventListener('layoutGenerated', async () => { // Tornada async
         console.log("Main.js: Evento 'layoutGenerated' recebido.");
-        // Quando um novo layout é gerado, precisamos atualizar o PSFAnalyzer com
-        // as novas coordenadas das antenas e potencialmente recarregar/revalidar os dados 3D.
-        // A função handleNewLayout do psfAnalyzer já é chamada internamente por ele escutar o evento.
-        // Mas precisamos garantir que ele tenha os dados mais recentes.
-        updatePSFAnalyzerData();
+        // Quando um novo layout é gerado, precisamos atualizar o PSFAnalyzer.
+        // A função updatePSFAnalyzerData agora é async e vai aguardar ensureFullEFieldData3DLoaded se necessário.
+        await updatePSFAnalyzerData();
     });
+
+    // Adiciona um listener para quando os dados 3D forem carregados com sucesso pelo beam_pattern
+    // Isso pode ser redundante se layoutGenerated sempre acionar updatePSFAnalyzerData corretamente,
+    // mas pode ajudar em cenários onde os dados 3D são carregados independentemente (ex: pelo botão 3D).
+    window.addEventListener('beamData3DLoaded', async () => {
+        console.log("Main.js: Evento 'beamData3DLoaded' recebido.");
+        await updatePSFAnalyzerData();
+    });
+
 
     console.log('Listeners globais configurados.');
 }
 
 function setupDarkMode() {
-    // ... (código existente de setupDarkMode - sem alterações)
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     if (!darkModeToggle) {
         console.warn("Toggle de modo escuro não encontrado no DOM.");

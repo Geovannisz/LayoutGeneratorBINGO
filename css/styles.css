@@ -7,7 +7,7 @@
     --header-bg-color: #2c3e50;
     --header-text-color: white;
     --border-color: #ddd;
-    --primary-color: #3498db; /* Azul para linhas de gráfico (claro) */
+    --primary-color: #3498db; 
     --secondary-color: #e74c3c;
     --success-color: #2ecc71;
     --highlight-color: #f8f9fa;
@@ -21,8 +21,8 @@
     --copy-feedback-color: #e8f7f0;
     --slider-track-color: #ccc;
     --slider-thumb-color: var(--primary-color);
-    --plot-bg-color: #ffffff; /* Fundo explícito para gráfico claro */
-    --plot-grid-color: #eeeeee; /* Cor de grid para gráfico claro */
+    --plot-bg-color: #ffffff; 
+    --plot-grid-color: #eeeeee; 
 }
 
 /* Tema escuro (Dracula - inalterado nas variáveis base) */
@@ -33,7 +33,7 @@
     --header-bg-color: #6272a4;
     --header-text-color: #f8f8f2;
     --border-color: #6272a4;
-    --primary-color: #8be9fd; /* Ciano para linhas de gráfico (escuro) */
+    --primary-color: #8be9fd; 
     --secondary-color: #ff79c6;
     --success-color: #50fa7b;
     --highlight-color: #44475a;
@@ -47,8 +47,8 @@
     --copy-feedback-color: #50fa7b;
     --slider-track-color: #6272a4;
     --slider-thumb-color: var(--primary-color);
-    --plot-bg-color: #282a36; /* Fundo explícito para gráfico escuro */
-    --plot-grid-color: #44475a; /* Cor de grid para gráfico escuro */
+    --plot-bg-color: #282a36; 
+    --plot-grid-color: #44475a; 
 }
 
 /* Estilos gerais */
@@ -111,29 +111,28 @@ h1, h2, h3 { margin: 0; }
 .stats { display: flex; justify-content: space-around; padding: 10px; border-top: 1px solid var(--border-color); background-color: var(--highlight-color); font-weight: 500; flex-shrink: 0; }
 .stats div { text-align: center; }
 
-/* NOVA ESTRUTURA: Linha para Análise PSF e Download da Imagem */
 .analysis-download-row {
     display: flex;
-    flex-wrap: wrap; /* Permite quebra em telas menores */
-    gap: 20px; /* Espaço entre as duas seções */
-    margin-top: 20px; /* Espaço acima desta linha */
-    background-color: var(--card-bg-color); /* Fundo comum para a linha, pode ser removido se preferir fundos individuais */
+    flex-wrap: wrap; 
+    gap: 20px; 
+    margin-top: 20px; 
+    background-color: var(--card-bg-color); 
     padding: 15px;
     border-radius: 8px;
     border-top: 1px solid var(--border-color);
 }
 
 .psf-analysis-section {
-    flex: 3; /* Ocupa 3/5 do espaço */
-    min-width: 300px; /* Largura mínima para evitar esmagamento */
+    flex: 3; 
+    min-width: 300px; 
     padding: 10px;
-    border-right: 1px solid var(--border-color); /* Linha divisória opcional */
+    border-right: 1px solid var(--border-color); 
     box-sizing: border-box;
 }
 [data-theme="dark"] .psf-analysis-section {
     border-right-color: var(--border-color);
 }
-@media (max-width: 992px) { /* Em telas menores, remove a borda */
+@media (max-width: 992px) { 
     .psf-analysis-section {
         border-right: none;
         border-bottom: 1px solid var(--border-color);
@@ -142,19 +141,17 @@ h1, h2, h3 { margin: 0; }
     }
 }
 
-
 .download-image-section {
-    flex: 2; /* Ocupa 2/5 do espaço */
-    min-width: 250px; /* Largura mínima */
+    flex: 2; 
+    min-width: 250px; 
     padding: 10px;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
-    align-items: center; /* Centraliza conteúdo */
-    justify-content: center; /* Centraliza verticalmente, se houver espaço */
+    align-items: center; 
+    justify-content: center; 
 }
 
-/* Títulos das novas seções */
 .psf-analysis-section h3,
 .download-image-section h3 {
     text-align: center;
@@ -163,40 +160,50 @@ h1, h2, h3 { margin: 0; }
     color: var(--text-color);
 }
 
-/* Controles da Análise PSF */
 .psf-controls {
     display: flex;
     justify-content: center;
     align-items: center;
     gap: 15px;
     margin-bottom: 15px;
+    flex-wrap: wrap; /* Permite quebra se o texto for muito longo */
 }
 
-button.small-btn { /* Classe para botões menores, se necessário */
+/* Ajuste para o span que contém "Volume Total" e "Theta_pico" */
+#psf-total-volume-display {
+    text-align: center; /* Centraliza o texto dentro do span, se ele ocupar a linha toda */
+}
+/* Se precisar de mais espaço entre "Volume Total" e "Theta_pico" */
+#psf-total-volume-value {
+    margin-right: 5px; /* Espaço antes da barra vertical */
+}
+#theta-pico-value {
+    margin-left: 5px; /* Espaço depois da barra vertical */
+}
+
+
+button.small-btn { 
     padding: 8px 12px;
     font-size: 0.9em;
 }
 [data-theme="dark"] button.small-btn.primary {
-    color: #282a36; /* Garante contraste no tema escuro */
+    color: #282a36; 
 }
-
 
 .psf-value-display {
     font-weight: bold;
     color: var(--primary-color);
 }
 [data-theme="dark"] .psf-value-display {
-    color: var(--primary-color); /* Ciano no tema escuro */
+    color: var(--primary-color); 
 }
 
-
-/* Tabela de Análise PSF */
 .psf-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 15px;
     font-size: 0.9em;
-    table-layout: fixed; /* Importante para controlar larguras de coluna */
+    table-layout: fixed; 
 }
 .psf-table th, .psf-table td {
     border: 1px solid var(--border-color);
@@ -206,26 +213,24 @@ button.small-btn { /* Classe para botões menores, se necessário */
     word-wrap: break-word;
 }
 
-/* NOVA Definição explícita das larguras das colunas */
-.psf-table th:nth-child(1), /* Coluna "Métrica" */
+.psf-table th:nth-child(1), 
 .psf-table td:nth-child(1) {
-    width: 22%; /* Um pouco menos */
+    width: 22%; 
 }
-.psf-table th:nth-child(2), /* Coluna "Input" */
+.psf-table th:nth-child(2), 
 .psf-table td:nth-child(2) {
-    width: 28%; /* Um pouco mais para acomodar o input e a unidade */
+    width: 28%; 
 }
-.psf-table th:nth-child(3), /* Coluna "Área (Métrica)" */
+.psf-table th:nth-child(3), /* Coluna "Volume" */
 .psf-table td:nth-child(3) {
-    width: 23%; /* Reduzido um pouco */
+    width: 23%; 
     text-align: right;
 }
-.psf-table th:nth-child(4), /* Coluna "Resultado" */
+.psf-table th:nth-child(4), 
 .psf-table td:nth-child(4) {
-    width: 27%; /* Mantém um bom espaço para o resultado */
+    width: 27%; 
     text-align: right;
 }
-
 
 .psf-table th {
     background-color: var(--highlight-color);
@@ -235,12 +240,12 @@ button.small-btn { /* Classe para botões menores, se necessário */
 .psf-table td .input-with-unit {
     display: flex;
     align-items: center;
-    gap: 5px; /* Espaço entre o label (ΘSLL:), o input e a unidade (°) */
+    gap: 5px; 
     justify-content: flex-start;
 }
 .psf-table td input[type="number"] {
     width: 60px;
-    padding: 6px 8px; /* Ajustado o padding horizontal para dar espaço interno */
+    padding: 6px 8px; 
     font-size: 0.9em;
     text-align: right;
     border: 1px solid var(--border-color);
@@ -249,28 +254,23 @@ button.small-btn { /* Classe para botões menores, se necessário */
     color: var(--input-text-color);
     box-sizing: border-box;
     margin-left: 2px;
-
-    /* Oculta as setas padrão (spinners) do input number */
-    -moz-appearance: textfield; /* Firefox */
-    appearance: textfield; /* Outros navegadores, se suportado para ocultar spinners */
+    -moz-appearance: textfield; 
+    appearance: textfield; 
 }
 
-/* Webkit (Chrome, Safari, Edge) - Oculta spinners */
 .psf-table td input[type="number"]::-webkit-outer-spin-button,
 .psf-table td input[type="number"]::-webkit-inner-spin-button {
     -webkit-appearance: none;
-    margin: 0; /* Garante que nenhum espaço seja reservado para eles */
+    margin: 0; 
 }
 
-
-.psf-table td .input-with-unit span:last-child { /* Unidade (° ou %) */
+.psf-table td .input-with-unit span:last-child { 
     margin-left: 2px;
     white-space: nowrap;
 }
 
-/* Ajuste específico para a célula de resultado da EE para evitar quebra de linha */
-.psf-table td:nth-child(4) { /* Se aplica a toda a célula da coluna de resultado */
-    white-space: nowrap; /* Tenta evitar quebra de linha no conteúdo desta célula */
+.psf-table td:nth-child(4) { 
+    white-space: nowrap; 
 }
 
 .psf-table td:nth-child(4) .psf-value-display,
@@ -282,24 +282,20 @@ button.small-btn { /* Classe para botões menores, se necessário */
     margin-left: 3px;
 }
 
-
-/* Mensagem de Status da Análise PSF */
 #psf-analysis-status.status-message {
     text-align: center;
     margin-top: 10px;
     font-style: italic;
     opacity: 0.8;
-    min-height: 1.2em; /* Para evitar saltos de layout */
+    min-height: 1.2em; 
 }
 
-
-/* Ajustes nos controles de download de imagem (já estavam dentro de .download-image-controls) */
 .download-image-options {
     display: flex;
     gap: 20px;
     flex-wrap: wrap;
-    align-items: flex-start; /* Alinha ao topo se quebrar linha */
-    justify-content: center; /* Centraliza os grupos de opção */
+    align-items: flex-start; 
+    justify-content: center; 
     width: 100%;
     margin-bottom: 10px;
 }
@@ -308,7 +304,7 @@ button.small-btn { /* Classe para botões menores, se necessário */
     flex-direction: column;
     gap: 5px;
 }
-.download-image-options .option-group > label { /* Label principal do grupo */
+.download-image-options .option-group > label { 
     font-weight: 500;
     margin-bottom: 3px;
 }
@@ -316,7 +312,7 @@ button.small-btn { /* Classe para botões menores, se necessário */
     display: flex;
     gap: 10px;
 }
-.download-image-options .radio-group label { /* Label para cada radio button */
+.download-image-options .radio-group label { 
     display: inline-flex;
     align-items: center;
     margin-right: 10px;
@@ -327,9 +323,36 @@ button.small-btn { /* Classe para botões menores, se necessário */
     margin-right: 5px;
     cursor: pointer;
 }
+/* Estilos para #image-format-group e #jpeg-quality-group mantidos caso sejam reutilizados,
+   mas os elementos foram removidos do HTML. */
+#image-format-group label { margin-right: 5px;}
+#jpeg-quality-group { 
+    display: none; /* Escondido por padrão, já que JPEG não é mais opção default */
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px; /* Espaço acima se visível */
+}
+#jpeg-quality-group label { white-space: nowrap; margin-right: 5px;}
+.download-slider-group { /* Classe específica para o slider de qualidade JPEG */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.download-slider-group input[type="range"] {
+    width: 100px; /* Largura menor para este slider específico */
+    height: 6px;
+}
+.download-slider-group input[type="number"] {
+    width: 55px;
+    padding: 5px;
+    font-size: 0.9em;
+}
+.download-slider-group span { font-size: 0.9em; }
+
+
 .download-image-button-container {
     text-align: center;
-    margin-top: auto; /* Empurra o botão para baixo se houver espaço extra */
+    margin-top: auto; 
     padding-top: 10px;
 }
 
@@ -342,8 +365,8 @@ button.small-btn { /* Classe para botões menores, se necessário */
 .beam-controls { 
     display: flex; 
     justify-content: center; 
-    align-items: flex-end; /* Alinha a base dos grupos de controle */
-    gap: 15px; /* Espaçamento entre grupos */
+    align-items: flex-end; 
+    gap: 15px; 
     margin-bottom: 15px; 
     flex-wrap: wrap; 
     flex-shrink: 0; 
@@ -351,32 +374,26 @@ button.small-btn { /* Classe para botões menores, se necessário */
 .beam-controls .control-group { 
     display: flex; 
     flex-direction: column; 
-    align-items: flex-start; /* Labels e inputs alinhados à esquerda dentro do grupo */
+    align-items: flex-start; 
     gap: 5px; 
-    min-width: 150px; /* Largura mínima padrão para grupos de Phi e Escala */
+    min-width: 150px; 
 }
 
-/* NOVO: Estilos para o grupo de botões 2D/3D */
 .beam-controls .control-group.button-group-2d-3d {
-    min-width: auto; /* Permitir que este grupo se ajuste ao conteúdo dos botões */
-    /* Se quiser que ocupe mais espaço ou alinhe com outros, ajuste min-width aqui */
+    min-width: auto; 
 }
 .beam-controls .view-mode-buttons {
     display: flex;
-    gap: 10px; /* Espaço entre os botões 2D e 3D */
-    /* width: 100%; */ /* Removido para não forçar largura total se não necessário */
+    gap: 10px; 
 }
 .beam-controls .view-mode-buttons button {
-    /* flex-grow: 1; */ /* Removido para os botões terem largura baseada no conteúdo */
-    padding: 8px 12px; /* Padding consistente */
+    padding: 8px 12px; 
     font-size: 0.9em;
-    white-space: nowrap; /* Evita quebra de linha no texto do botão */
+    white-space: nowrap; 
 }
 .beam-controls .view-mode-buttons button i {
     margin-right: 5px;
 }
-/* FIM NOVO */
-
 
 .beam-controls label { font-weight: 500; display: block; }
 .beam-controls .slider-group { display: flex; align-items: center; gap: 10px; width: 100%; }
@@ -401,14 +418,12 @@ button.small-btn { /* Classe para botões menores, se necessário */
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    /* ESTADO INICIAL: Escondido mas ocupando espaço, e transparente */
-    visibility: hidden; /* Esconde visualmente, mas permite cálculo de tamanho */
-    opacity: 0;         /* Garante transparência */
-    transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s; /* Transição suave para opacity */
+    visibility: hidden; 
+    opacity: 0;         
+    transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s; 
 }
 
 #beam-pattern-plot.visible {
-    /* ESTADO VISÍVEL: */
     visibility: visible;
     opacity: 1;
     transition: opacity 0.3s ease-in-out, visibility 0s linear 0s;
@@ -554,24 +569,24 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
         justify-content: space-around; 
     }
     .beam-controls .control-group {
-        min-width: 180px; /* Reduzido um pouco para caber melhor */
+        min-width: 180px; 
         flex-grow: 1; 
     }
     .beam-controls .control-group.button-group-2d-3d {
-        flex-basis: 100%; /* Faz o grupo de botões 2D/3D ocupar a linha toda */
-        min-width: unset; /* Remove min-width para este grupo específico */
-        align-items: center; /* Centraliza o label "Modo de Visualização" */
+        flex-basis: 100%; 
+        min-width: unset; 
+        align-items: center; 
     }
     .beam-controls .view-mode-buttons {
-        justify-content: center; /* Centraliza os botões dentro do div */
-        width: auto; /* Largura automática baseada nos botões */
+        justify-content: center; 
+        width: auto; 
     }
     .psf-analysis-section, .download-image-section {
-        flex-basis: 100%; /* Ocupa largura total quando quebrado */
+        flex-basis: 100%; 
         min-width: unset;
     }
     .psf-analysis-section {
-        border-right: none; /* Remove borda direita na quebra */
+        border-right: none; 
         border-bottom: 1px solid var(--border-color);
         margin-bottom: 15px;
         padding-bottom: 15px;
@@ -608,12 +623,12 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
         min-width: unset;
     }
     .beam-controls .control-group.button-group-2d-3d .view-mode-buttons {
-        flex-direction: row; /* Mantém botões lado a lado */
-        justify-content: space-around; /* Espaça bem os botões */
+        flex-direction: row; 
+        justify-content: space-around; 
     }
      .beam-controls .view-mode-buttons button {
-        flex-grow: 0; /* Não força crescimento, largura baseada no conteúdo */
-        min-width: 120px; /* Largura mínima para cada botão */
+        flex-grow: 0; 
+        min-width: 120px; 
     }
     .psf-table {
         font-size: 0.8em;
@@ -623,8 +638,8 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     .psf-table th:nth-child(2), .psf-table td:nth-child(2),
     .psf-table th:nth-child(3), .psf-table td:nth-child(3),
     .psf-table th:nth-child(4), .psf-table td:nth-child(4) {
-        width: auto; /* Deixa o navegador decidir */
-        white-space: normal; /* Permite quebra de linha se necessário */
+        width: auto; 
+        white-space: normal; 
     }
 
     .psf-table th, .psf-table td {
@@ -634,11 +649,11 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
         width: 50px;
     }
     .psf-table td .input-with-unit {
-        flex-wrap: wrap; /* Permite quebra se necessário em telas muito pequenas */
+        flex-wrap: wrap; 
         gap: 3px;
     }
-    .psf-table td .input-with-unit span:first-child { /* Ex: ΘSLL: */
-        flex-basis: 100%; /* Faz o label ocupar a linha toda se quebrar */
+    .psf-table td .input-with-unit span:first-child { 
+        flex-basis: 100%; 
         margin-bottom: 2px;
     }
 }

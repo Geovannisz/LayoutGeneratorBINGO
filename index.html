@@ -62,15 +62,15 @@
                     <div class="psf-analysis-section">
                         <h3>Análise da PSF (Point Spread Function)</h3>
                         <div class="psf-controls">
-                            <button id="calculate-psf-area-btn" class="primary small-btn">Calcular Área da PSF</button>
-                            <span id="psf-total-area-display" class="psf-value-display" style="display: none;">Área Total: <span id="psf-total-area-value">--</span></span>
+                            <button id="calculate-psf-volume-btn" class="primary small-btn">Calcular Volume da PSF</button>
+                            <span id="psf-total-volume-display" class="psf-value-display" style="display: none;">Volume Total: <span id="psf-total-volume-value">--</span> | Θ<sub>pico</sub>: <span id="theta-pico-value">--</span> °</span>
                         </div>
                         <table class="psf-table">
                             <thead>
                                 <tr>
                                     <th>Métrica</th>
                                     <th>Input</th>
-                                    <th>Área</th>
+                                    <th>Volume</th>
                                     <th>Resultado</th>
                                 </tr>
                             </thead>
@@ -84,7 +84,7 @@
                                             <span>°</span>
                                         </div>
                                     </td>
-                                    <td><span id="sll-cone-area" class="psf-value-display">--</span></td>
+                                    <td><span id="sll-cone-volume" class="psf-value-display">--</span></td>
                                     <td><span id="sll-percentage" class="psf-value-display">--</span> %</td>
                                 </tr>
                                 <tr>
@@ -96,12 +96,12 @@
                                             <span>%</span>
                                         </div>
                                     </td>
-                                    <td><span id="ee-fractional-area" class="psf-value-display">--</span></td>
+                                    <td><span id="ee-fractional-volume" class="psf-value-display">--</span></td>
                                     <td>Θ<sub>EE</sub>: <span id="ee-theta-result" class="psf-value-display">--</span> °</td>
                                 </tr>
                             </tbody>
                         </table>
-                        <div id="psf-analysis-status" class="status-message">Aguardando cálculo da área da PSF...</div>
+                        <div id="psf-analysis-status" class="status-message">Aguardando cálculo do volume da PSF...</div>
                     </div>
 
                     <div class="download-image-section">
@@ -121,25 +121,10 @@
                                     <label><input type="radio" name="imageAxes" value="no"> Não</label>
                                 </div>
                             </div>
-                            <!-- NOVAS OPÇÕES DE FORMATO E QUALIDADE -->
-                            <div class="option-group">
-                                <label>Formato:</label>
-                                <div class="radio-group" id="image-format-group">
-                                    <label><input type="radio" name="imageFormat" value="png" checked> PNG</label>
-                                    <label><input type="radio" name="imageFormat" value="jpeg"> JPEG</label>
-                                </div>
-                            </div>
-                            <div class="option-group" id="jpeg-quality-group" style="display: none;"> <!-- Visível apenas para JPEG -->
-                                <label for="jpeg-quality-slider">Qualidade JPEG:</label>
-                                <div class="slider-group download-slider-group"> <!-- Classe específica para estilização se necessário -->
-                                    <input type="range" id="jpeg-quality-slider" name="jpegQualitySlider" min="10" max="100" value="92" step="1">
-                                    <input type="number" id="jpeg-quality-input" name="jpegQualityInput" min="10" max="100" value="92" step="1">
-                                    <span>%</span>
-                                </div>
-                            </div>
+                            <!-- OPÇÕES DE FORMATO E QUALIDADE REMOVIDAS -->
                         </div>
                          <div class="download-image-button-container">
-                            <button id="download-image-btn" class="primary small-btn"><i class="fas fa-camera"></i> Baixar Imagem</button> <!-- Removido (PNG) do texto do botão -->
+                            <button id="download-image-btn" class="primary small-btn"><i class="fas fa-camera"></i> Baixar Imagem</button>
                         </div>
                     </div>
                 </div>

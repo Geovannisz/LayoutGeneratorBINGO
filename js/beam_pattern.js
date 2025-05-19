@@ -2,232 +2,324 @@
 
 /**
  * beam_pattern.js
- * (Comentários anteriores mantidos)
+ * Modificado para usar arquivos CSV individuais para plot 2D (via Pinata)
+ * e o arquivo CSV completo para plot 3D (também via Pinata).
+ * Garante que os dados enviados ao worker 2D usem chaves 'theta' e 'phi'.
+ * Dispara evento 'beamData3DLoaded' após carregamento bem-sucedido dos dados 3D.
  */
 
 // === Constantes ===
-// ... (mantidas)
-const FREQUENCY = 1e9; 
-const C_LIGHT = 299792458; 
-const LAMBDA = C_LIGHT / FREQUENCY; 
-const K = (2 * Math.PI) / LAMBDA; 
+const FREQUENCY = 1e9;
+const C_LIGHT = 299792458;
+const LAMBDA = C_LIGHT / FREQUENCY;
+const K = (2 * Math.PI) / LAMBDA;
 
-const E_FIELD_CSV_BASE_PATH = 'https://raw.githubusercontent.com/Geovannisz/LayoutGeneratorBINGO/main/data/efield_phi_data/efield_phi_';
-const E_FIELD_3D_CSV_PATH = 'https://raw.githubusercontent.com/Geovannisz/LayoutGeneratorBINGO/main/data/rE_table_vivaldi_filtrado_reduzido.csv';
+const E_FIELD_PHI_CSV_BASE_PATH_IPFS = 'https://gateway.pinata.cloud/ipfs/bafybeibod4uopaxesmqti3qmonjcbttgxquuby6y6v2uo6sd7ah475bsai/efield_phi_';
+const E_FIELD_FULL_CSV_PATH_IPFS = 'https://gateway.pinata.cloud/ipfs/bafybeicunhz5lwv3nryglwlppu6o6keo7ii3ilntcqtq536aket7qflc34';
 
-const MAX_PLOT_POINTS_BEAM = 2000; 
-const PLOT_REQUEST_DEBOUNCE_DELAY = 10; 
+const MAX_PLOT_POINTS_BEAM = 2000;
+const PLOT_REQUEST_DEBOUNCE_DELAY = 300;
+
+const MAX_FETCH_RETRIES = 3;
+const INITIAL_RETRY_DELAY_MS = 1000;
 
 // === Cache & Estado ===
-// ... (mantidos)
-let parsedEFieldDataCache = {}; 
-let fetchPromisesCache = {};    
+let parsedEFieldPhiDataCache = {};
+let fetchPhiPromisesCache = {};
 
-let parsedEFieldData3DCache = null; 
-let eField3DLoadingState = 'idle'; 
-let fetchPromise3DActive = null; 
+let fullEFieldDataCache = null;
+let fullEFieldDataLoadingState = 'idle'; // 'idle', 'loading', 'loaded', 'error'
+let fetchFullDataPromiseActive = null;
 
-let isProcessingPlot = false; 
-let beamCalculationWorker = null;   
-let beamCalculationWorker3D = null; 
-let currentCalculationId = 0;       
-let current3DCalculationId = 0;   
+let isProcessingPlot = false;
+let beamCalculationWorker = null;
+let beamCalculationWorker3D = null;
+let currentCalculationId = 0;
+let current3DCalculationId = 0;
 
-let storedWorkerPlotParams = {}; 
-let stored3DScaleType = 'dB'; 
+let storedWorkerPlotParams = {};
+let stored3DScaleType = 'dB';
 
-let latestPlotRequestParams = null; 
+let latestPlotRequestParams = null;
 let currentlyProcessingRequestTimestamp = null;
 let processRequestTimeoutId = null;
 
 
 // === DOM Element References ===
-// ... (mantidas)
-let phiSlider = null; 
-let phiInput = null;  
-let scaleRadios = null; 
-let visualize3DBtn = null; 
-let visualize2DBtn = null; 
-let plotDivId = 'beam-pattern-plot'; 
-let statusDiv = null; 
+let phiSlider = null;
+let phiInput = null;
+let scaleRadios = null;
+let visualize3DBtn = null;
+let visualize2DBtn = null;
+let plotDivId = 'beam-pattern-plot';
+let statusDiv = null;
 
 // === Helper Functions ===
-// ... (mantidas)
-function getEFieldCsvPath(phiValue) {
+function getEFieldPhiCsvPath(phiValue) {
     const roundedPhi = Math.round(parseFloat(phiValue));
-    return `${E_FIELD_CSV_BASE_PATH}${roundedPhi}.csv`;
+    return `${E_FIELD_PHI_CSV_BASE_PATH_IPFS}${roundedPhi}.csv`;
 }
 
-// === Data Fetching and Parsing (2D - per Phi) ===
-// ... (mantida como na última versão correta)
-async function fetchAndParseEFieldData(phiValue) {
-    const roundedPhi = Math.round(parseFloat(phiValue));
-    if (parsedEFieldDataCache[roundedPhi]) {
-        return parsedEFieldDataCache[roundedPhi];
-    }
-    if (fetchPromisesCache[roundedPhi]) {
-        return fetchPromisesCache[roundedPhi];
-    }
-    const csvPath = getEFieldCsvPath(roundedPhi);
-    fetchPromisesCache[roundedPhi] = new Promise(async (resolve, reject) => {
-        try {
-            if (statusDiv) statusDiv.textContent = `Carregando dados E-field 2D (Phi ${roundedPhi}°)...`;
-            const response = await fetch(csvPath);
-            if (!response.ok) {
-                throw new Error(`Falha ao buscar CSV 2D (Phi ${roundedPhi}°): ${response.status}.`);
-            }
-            const csvText = await response.text();
-            const lines = csvText.trim().split('\n'); 
-            if (lines.length < 2 || csvText.startsWith("version https://git-lfs.github.com/spec/v1")) { 
-                 throw new Error(csvText.startsWith("version https://git-lfs.github.com/spec/v1") ? "Falha 2D: Recebido ponteiro Git LFS." : `CSV 2D para Phi ${roundedPhi}° vazio ou inválido.`);
-            }
-            const headersRaw = lines[0].split(',');
-            const headers = headersRaw.map(h => h.replace(/"/g, '').trim().toLowerCase());
-            const indices = {
-                theta: headers.indexOf('theta [deg]'), phi: headers.indexOf('phi [deg]'),
-                reTheta: headers.indexOf('re(retheta) [v]'), imTheta: headers.indexOf('im(retheta) [v]'),
-                rePhi: headers.indexOf('re(rephi) [v]'), imPhi: headers.indexOf('im(rephi) [v]')
-            };
-            if (Object.values(indices).some(index => index === -1)) {
-                console.error("Cabeçalhos 2D esperados não encontrados:", headers, indices);
-                throw new Error(`CSV 2D (Phi ${roundedPhi}°): Cabeçalho inválido.`);
-            }
-            const data = [];
-            for (let i = 1; i < lines.length; i++) {
-                const valuesRaw = lines[i].split(',');
-                if (valuesRaw.length !== headers.length) continue; 
-                const values = valuesRaw.map(v => v.replace(/"/g, '').trim());
-                try {
-                    const thetaVal = parseFloat(values[indices.theta]);
-                    const phiVal = parseFloat(values[indices.phi]); 
-                    const reThetaV = parseFloat(values[indices.reTheta]);
-                    const imThetaV = parseFloat(values[indices.imTheta]);
-                    const rePhiV = parseFloat(values[indices.rePhi]);
-                    const imPhiV = parseFloat(values[indices.imPhi]);
-                    if ([thetaVal, phiVal, reThetaV, imThetaV, rePhiV, imPhiV].some(isNaN)) continue;
-                    data.push({
-                        theta: thetaVal, phi: phiVal,     
-                        rETheta: { re: reThetaV, im: imThetaV }, rEPhi: { re: rePhiV, im: imPhiV },
-                    });
-                } catch (parseError) { /* Ignora */ }
-            }
-            if (data.length === 0) {
-                throw new Error(`CSV 2D (Phi ${roundedPhi}°) não contém dados válidos após parse.`);
-            }
-            parsedEFieldDataCache[roundedPhi] = data; 
-            if (statusDiv && statusDiv.textContent === `Carregando dados E-field 2D (Phi ${roundedPhi}°)...`) {
-                statusDiv.textContent = `Dados E-field 2D (Phi ${roundedPhi}°) carregados.`;
-            }
-            resolve(data);
-        } catch (error) {
-            console.error(`Erro (fetch/parse 2D Phi ${roundedPhi}°):`, error);
-            if (statusDiv) statusDiv.textContent = `Erro CSV 2D (Phi ${roundedPhi}°): ${error.message.substring(0,100)}`;
-            reject(error); 
-        } finally {
-            delete fetchPromisesCache[roundedPhi]; 
-        }
-    });
-    return fetchPromisesCache[roundedPhi];
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// === Data Fetching and Parsing (3D - full scan) ===
-// ... (mantida como na última versão correta)
-async function fetchAndParseEFieldData3D() {
-    if (eField3DLoadingState === 'loaded' && parsedEFieldData3DCache) {
-        return parsedEFieldData3DCache;
+// === Data Fetching and Parsing (2D - por arquivo Phi individual via IPFS) ===
+async function _fetchAndParseSinglePhiWithRetry(phiValue, csvPath, attempt = 1) {
+    const roundedPhi = Math.round(parseFloat(phiValue));
+    if (statusDiv) {
+        statusDiv.textContent = `Carregando dados E-field 2D (Phi ${roundedPhi}° IPFS)... ${attempt > 1 ? `(Tentativa ${attempt}/${MAX_FETCH_RETRIES})` : ''}`;
     }
-    if (eField3DLoadingState === 'loading' && fetchPromise3DActive) { 
-        return fetchPromise3DActive; 
-    }
-    eField3DLoadingState = 'loading'; 
-    if (statusDiv) statusDiv.textContent = 'Carregando dados E-field 3D (CSV completo)...';
-    fetchPromise3DActive = new Promise(async (resolve, reject) => {
-        try {
-            const response = await fetch(E_FIELD_3D_CSV_PATH);
-            if (!response.ok) {
-                throw new Error(`Falha ao buscar CSV 3D: ${response.status}.`);
+
+    try {
+        const response = await fetch(csvPath);
+        if (!response.ok) {
+            if ((response.status === 429 || response.status >=500 ) && attempt < MAX_FETCH_RETRIES) {
+                const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+                if (statusDiv) {
+                    statusDiv.textContent = `Falha ao buscar dados 2D (Phi ${roundedPhi}° IPFS, Status ${response.status}). Tentando novamente em ${retryDelay / 1000}s...`;
+                }
+                console.warn(`Fetch para ${csvPath} falhou (Status ${response.status}). Tentativa ${attempt}. Tentando novamente em ${retryDelay}ms.`);
+                await delay(retryDelay);
+                return _fetchAndParseSinglePhiWithRetry(phiValue, csvPath, attempt + 1);
             }
-            const csvText = await response.text();
-            if (csvText.startsWith("version https://git-lfs.github.com/spec/v1")) {
-                throw new Error("Falha 3D: Recebido ponteiro Git LFS em vez de dados CSV.");
-            }
-            const lines = csvText.trim().split('\n');
-            if (lines.length < 2) {
-                throw new Error("CSV 3D vazio ou apenas com cabeçalho.");
-            }
-            const headersRaw = lines[0].split(',');
-            const headers = headersRaw.map(h => h.replace(/"/g, '').trim().toLowerCase());
-            const indices = {
-                phi: headers.indexOf('phi [deg]'), theta: headers.indexOf('theta [deg]'),
-                rePhi: headers.indexOf('re(rephi) [v]'), imPhi: headers.indexOf('im(rephi) [v]'),
-                reTheta: headers.indexOf('re(retheta) [v]'), imTheta: headers.indexOf('im(retheta) [v]')
-            };
-            if (Object.values(indices).some(index => index === -1)) {
-                console.error("Cabeçalhos 3D esperados não encontrados:", headers, indices);
-                throw new Error("CSV 3D: Cabeçalho inválido.");
-            }
-            const data = [];
-            for (let i = 1; i < lines.length; i++) {
-                const valuesRaw = lines[i].split(',');
-                if (valuesRaw.length !== headers.length) continue; 
-                const values = valuesRaw.map(v => v.replace(/"/g, '').trim());
-                try {
-                    const phiVal = parseFloat(values[indices.phi]);
-                    const thetaVal = parseFloat(values[indices.theta]);
-                    const rePhiV = parseFloat(values[indices.rePhi]);
-                    const imPhiV = parseFloat(values[indices.imPhi]);
-                    const reThetaV = parseFloat(values[indices.reTheta]);
-                    const imThetaV = parseFloat(values[indices.imTheta]);
-                    if ([phiVal, thetaVal, rePhiV, imPhiV, reThetaV, imThetaV].some(isNaN)) continue;
-                    data.push({
-                        phi_deg: phiVal, theta_deg: thetaVal,
-                        rEPhi: { re: rePhiV, im: imPhiV }, rETheta: { re: reThetaV, im: imThetaV }
-                    });
-                } catch (parseError) { /* Ignora */ }
-            }
-            if (data.length === 0) {
-                throw new Error("CSV 3D não contém dados válidos após parse.");
-            }
-            parsedEFieldData3DCache = data; 
-            eField3DLoadingState = 'loaded'; 
-            if (statusDiv && statusDiv.textContent === 'Carregando dados E-field 3D (CSV completo)...') {
-                 statusDiv.textContent = 'Dados E-field 3D carregados com sucesso.';
-            }
-            resolve(data);
-        } catch (error) {
-            console.error("Erro (fetch/parse CSV 3D):", error);
-            if (statusDiv) statusDiv.textContent = `Erro CSV 3D: ${error.message.substring(0, 100)}`;
-            eField3DLoadingState = 'error'; 
-            reject(error);
-        } finally {
-            fetchPromise3DActive = null; 
+            throw new Error(`Falha ao buscar CSV 2D (Phi ${roundedPhi}° IPFS): ${response.status} ${response.statusText}`);
         }
-    });
-    return fetchPromise3DActive;
+
+        const csvText = await response.text();
+        const lines = csvText.trim().split('\n');
+
+        if (lines.length < 2 || csvText.startsWith("version https://git-lfs.github.com/spec/v1")) { 
+            throw new Error(csvText.startsWith("version https://git-lfs.github.com/spec/v1") ? "Falha 2D: Recebido ponteiro Git LFS (IPFS)." : `CSV 2D para Phi ${roundedPhi}° (IPFS) vazio ou inválido.`);
+        }
+        
+        const headersRaw = lines[0].split(',');
+        const headers = headersRaw.map(h => h.replace(/"/g, '').trim().toLowerCase());
+        const indices = {
+            theta_deg: headers.indexOf('theta [deg]'), 
+            phi_deg: headers.indexOf('phi [deg]'),     
+            reTheta: headers.indexOf('re(retheta) [v]'),
+            imTheta: headers.indexOf('im(retheta) [v]'),
+            rePhi: headers.indexOf('re(rephi) [v]'),
+            imPhi: headers.indexOf('im(rephi) [v]')
+        };
+
+        if (Object.values(indices).some(index => index === -1)) {
+            console.error("Cabeçalhos 2D esperados não encontrados (IPFS):", headers, indices);
+            throw new Error(`CSV 2D (Phi ${roundedPhi}° IPFS): Cabeçalho inválido.`);
+        }
+        const data = [];
+        for (let i = 1; i < lines.length; i++) {
+            const valuesRaw = lines[i].split(',');
+            if (valuesRaw.length !== headers.length) continue;
+            const values = valuesRaw.map(v => v.replace(/"/g, '').trim());
+            try {
+                const thetaDegVal = parseFloat(values[indices.theta_deg]);
+                const phiDegVal = parseFloat(values[indices.phi_deg]); 
+                const reThetaV = parseFloat(values[indices.reTheta]);
+                const imThetaV = parseFloat(values[indices.imTheta]);
+                const rePhiV = parseFloat(values[indices.rePhi]);
+                const imPhiV = parseFloat(values[indices.imPhi]);
+
+                if ([thetaDegVal, phiDegVal, reThetaV, imThetaV, rePhiV, imPhiV].some(isNaN)) continue;
+                
+                data.push({
+                    theta: thetaDegVal, 
+                    phi: phiDegVal,     
+                    rETheta: { re: reThetaV, im: imThetaV }, 
+                    rEPhi: { re: rePhiV, im: imPhiV },
+                });
+            } catch (parseError) { /* Ignora */ }
+        }
+        if (data.length === 0) {
+            throw new Error(`CSV 2D (Phi ${roundedPhi}° IPFS) não contém dados válidos após parse.`);
+        }
+        return data;
+    } catch (error) {
+        console.error(`Erro final em _fetchAndParseSinglePhiWithRetry para Phi ${roundedPhi}° (IPFS, tentativa ${attempt}):`, error);
+        throw error;
+    }
 }
+
+async function fetchAndParseEFieldDataForSelectedPhi(phiValue) {
+    const roundedPhi = Math.round(parseFloat(phiValue));
+
+    if (parsedEFieldPhiDataCache[roundedPhi]) {
+        return parsedEFieldPhiDataCache[roundedPhi];
+    }
+    if (fetchPhiPromisesCache[roundedPhi]) {
+        return fetchPhiPromisesCache[roundedPhi];
+    }
+
+    const csvPath = getEFieldPhiCsvPath(roundedPhi);
+    const promise = _fetchAndParseSinglePhiWithRetry(phiValue, csvPath, 1)
+        .then(data => {
+            parsedEFieldPhiDataCache[roundedPhi] = data;
+            if (statusDiv && statusDiv.textContent.startsWith(`Carregando dados E-field 2D (Phi ${roundedPhi}° IPFS)`)) {
+                statusDiv.textContent = `Dados E-field 2D (Phi ${roundedPhi}° IPFS) carregados.`;
+            }
+            delete fetchPhiPromisesCache[roundedPhi];
+            return data;
+        })
+        .catch(error => {
+            if (statusDiv && !statusDiv.textContent.includes("Falha ao buscar dados")) {
+                 statusDiv.textContent = `Erro CSV 2D (Phi ${roundedPhi}° IPFS): ${error.message.substring(0,100)}`;
+            }
+            delete fetchPhiPromisesCache[roundedPhi];
+            throw error;
+        });
+
+    fetchPhiPromisesCache[roundedPhi] = promise;
+    return promise;
+}
+
+
+// === Data Fetching and Parsing (3D - arquivo completo via IPFS) ===
+async function _fetchAndParseFullEFieldDataRecursive3D(attempt = 1) {
+    if (statusDiv) {
+        statusDiv.textContent = `Carregando dados E-field 3D (IPFS)... ${attempt > 1 ? `(Tentativa ${attempt}/${MAX_FETCH_RETRIES})` : ''}`;
+    }
+    try {
+        const response = await fetch(E_FIELD_FULL_CSV_PATH_IPFS);
+        if (!response.ok) {
+            if ((response.status === 429 || response.status >= 500) && attempt < MAX_FETCH_RETRIES) {
+                const retryDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt - 1);
+                if (statusDiv) {
+                    statusDiv.textContent = `Falha ao buscar dados 3D (IPFS, Status ${response.status}). Tentando novamente em ${retryDelay / 1000}s...`;
+                }
+                console.warn(`Fetch do CSV 3D (IPFS) falhou (Status ${response.status}). Tentativa ${attempt}. Tentando novamente em ${retryDelay}ms.`);
+                await delay(retryDelay);
+                return _fetchAndParseFullEFieldDataRecursive3D(attempt + 1);
+            }
+            throw new Error(`Falha ao buscar CSV 3D (IPFS): ${response.status} ${response.statusText}`);
+        }
+        const csvText = await response.text();
+        if (csvText.startsWith("version https://git-lfs.github.com/spec/v1")) {
+            throw new Error("Falha 3D: Recebido ponteiro Git LFS (IPFS).");
+        }
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 2) {
+            throw new Error("CSV 3D (IPFS) vazio ou apenas com cabeçalho.");
+        }
+        const headersRaw = lines[0].split(',');
+        const headers = headersRaw.map(h => 
+            h.replace(/"/g, '').replace(/\[.*?\]/g, '').trim().toLowerCase()
+        );
+        
+        const indices = {
+            phi: headers.indexOf('phi'), 
+            theta: headers.indexOf('theta'),
+            re_rephi: headers.indexOf('re(rephi)'), 
+            im_rephi: headers.indexOf('im(rephi)'),
+            re_retheta: headers.indexOf('re(retheta)'), 
+            im_retheta: headers.indexOf('im(retheta)')
+        };
+
+        if (Object.values(indices).some(index => index === -1)) {
+            console.error("Cabeçalhos 3D normalizados esperados não encontrados (IPFS):", headers, indices);
+            throw new Error("CSV 3D (IPFS): Cabeçalho normalizado inválido.");
+        }
+
+        const data = [];
+        const uniquePhiValues = new Set(); 
+
+        for (let i = 1; i < lines.length; i++) {
+            const valuesRaw = lines[i].split(',');
+            if (valuesRaw.length !== headers.length) continue;
+            const values = valuesRaw.map(v => v.replace(/"/g, '').trim());
+            try {
+                const phiVal = parseFloat(values[indices.phi]);
+                const thetaVal = parseFloat(values[indices.theta]);
+                const rePhiV = parseFloat(values[indices.re_rephi]);
+                const imPhiV = parseFloat(values[indices.im_rephi]);
+                const reThetaV = parseFloat(values[indices.re_retheta]);
+                const imThetaV = parseFloat(values[indices.im_retheta]);
+
+                if ([phiVal, thetaVal, rePhiV, imPhiV, reThetaV, imThetaV].some(isNaN)) continue;
+                
+                data.push({
+                    phi_deg: phiVal, 
+                    theta_deg: thetaVal,
+                    rEPhi: { re: rePhiV, im: imPhiV }, 
+                    rETheta: { re: reThetaV, im: imThetaV }
+                });
+                uniquePhiValues.add(phiVal); // Adiciona para construir a lista de Phis únicos
+            } catch (parseError) { /* Ignora */ }
+        }
+        if (data.length === 0) {
+            throw new Error("CSV 3D (IPFS) não contém dados válidos após parse.");
+        }
+        // Adiciona a propriedade uniquePhis ao array de dados retornado
+        // Isso é usado por processLatestPlotRequestIfIdle para encontrar o Phi mais próximo.
+        Object.defineProperty(data, 'uniquePhis', {
+            value: Array.from(uniquePhiValues).sort((a,b) => a-b),
+            writable: false, // Impede modificação externa acidental
+            enumerable: false // Não aparece em for...in ou Object.keys(data)
+        });
+        return data;
+    } catch (error) {
+        console.error(`Erro final em _fetchAndParseFullEFieldDataRecursive3D (tentativa ${attempt}):`, error);
+        throw error;
+    }
+}
+
+async function ensureFullEFieldData3DLoaded() { 
+    if (fullEFieldDataLoadingState === 'loaded' && fullEFieldDataCache) {
+        return fullEFieldDataCache;
+    }
+    if (fullEFieldDataLoadingState === 'loading' && fetchFullDataPromiseActive) {
+        return fetchFullDataPromiseActive;
+    }
+    
+    fullEFieldDataLoadingState = 'loading';
+    const promise = _fetchAndParseFullEFieldDataRecursive3D(1)
+        .then(data => {
+            fullEFieldDataCache = data;
+            fullEFieldDataLoadingState = 'loaded';
+            if (statusDiv && statusDiv.textContent.startsWith('Carregando dados E-field 3D (IPFS)')) {
+                 statusDiv.textContent = 'Dados E-field 3D (IPFS) carregados com sucesso.';
+            }
+            fetchFullDataPromiseActive = null;
+            // Dispara evento para notificar que os dados 3D estão prontos
+            window.dispatchEvent(new CustomEvent('beamData3DLoaded'));
+            console.log("Evento 'beamData3DLoaded' disparado de beam_pattern.js");
+            return data;
+        })
+        .catch(error => {
+            if (statusDiv && !statusDiv.textContent.includes("Falha ao buscar dados")) {
+                statusDiv.textContent = `Erro ao carregar dados 3D (IPFS): ${error.message.substring(0, 100)}`;
+            }
+            fullEFieldDataLoadingState = 'error';
+            fetchFullDataPromiseActive = null;
+            throw error;
+        });
+    
+    fetchFullDataPromiseActive = promise;
+    return promise;
+}
+
 
 // === Downsampling Function (2D) ===
-// ... (mantida)
+// ... (sem alterações) ...
 function downsampleData(xData, yData, maxPoints) {
-    if (xData.length <= maxPoints) return { x: xData, y: yData }; 
+    if (xData.length <= maxPoints) return { x: xData, y: yData };
     const factor = Math.ceil(xData.length / maxPoints);
     const sampledX = [], sampledY = [];
     for (let i = 0; i < xData.length; i += factor) {
         sampledX.push(xData[i]); sampledY.push(yData[i]);
     }
-    if ((xData.length - 1) % factor !== 0 && xData.length > 0) { 
+    if ((xData.length - 1) % factor !== 0 && xData.length > 0) {
          sampledX.push(xData[xData.length - 1]); sampledY.push(yData[yData.length - 1]);
     }
     return { x: sampledX, y: sampledY };
 }
 
-
 // === 2D Plotting Function ===
+// ... (sem alterações) ...
 function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
     const plotDiv = document.getElementById(plotDivId);
     if (!plotDiv) { console.error(`Div de plot 2D "${plotDivId}" não encontrada.`); return; }
 
-    // GARANTE QUE O PLOTDIV ESTEJA VISÍVEL ANTES DE PLOTAR/ATUALIZAR O 2D
     if (!plotDiv.classList.contains('visible')) {
         plotDiv.classList.add('visible');
     }
@@ -242,11 +334,11 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
         });
         yAxisTitle = 'Magnitude Normalizada (dB)';
         yAxisConfig.range = [-100, 0];
-    } else { 
+    } else {
         yData = fieldMagnitude.map(mag => peakMagnitude > 0 ? mag / peakMagnitude : 0);
         yAxisTitle = 'Magnitude Normalizada (Linear)';
-        yAxisConfig.autorange = true; 
-        yAxisConfig.rangemode = 'tozero'; 
+        yAxisConfig.autorange = true;
+        yAxisConfig.rangemode = 'tozero';
     }
     const rootStyle = getComputedStyle(document.documentElement);
     const plotColors = {
@@ -264,45 +356,45 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
     const layout = {
         title: `Padrão de Feixe 2D (Phi = ${phiValue}°, Escala ${scaleType === 'dB' ? 'dB' : 'Linear'})`,
         xaxis: { title: 'Theta (graus)', gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, tickcolor: plotColors.textColor, titlefont: { color: plotColors.textColor }, tickfont: { color: plotColors.textColor }, automargin: true },
-        yaxis: { 
-            title: yAxisTitle, 
-            gridcolor: plotColors.gridColor, 
-            zerolinecolor: plotColors.axisColor, 
-            linecolor: plotColors.axisColor, 
-            tickcolor: plotColors.textColor, 
-            titlefont: { color: plotColors.textColor }, 
-            tickfont: { color: plotColors.textColor }, 
+        yaxis: {
+            title: yAxisTitle,
+            gridcolor: plotColors.gridColor,
+            zerolinecolor: plotColors.axisColor,
+            linecolor: plotColors.axisColor,
+            tickcolor: plotColors.textColor,
+            titlefont: { color: plotColors.textColor },
+            tickfont: { color: plotColors.textColor },
             automargin: true,
-            ...yAxisConfig 
+            ...yAxisConfig
         },
         plot_bgcolor: plotColors.plotBgColor, paper_bgcolor: plotColors.paperBgColor,
         font: { color: plotColors.textColor }, showlegend: false,
-        autosize: true, 
+        autosize: true,
     };
-    const config = {responsive: true, scrollZoom: true }; 
+    const config = {responsive: true, scrollZoom: true };
 
     Plotly.react(plotDivId, [trace], layout, config)
-        .catch(err => { // Não precisa do .then se a única ação é um log ou nada
+        .catch(err => {
             console.error("Erro ao atualizar 2D (react) Plotly, tentando newPlot:", err);
-            return Plotly.newPlot(plotDivId, [trace], layout, config); // Retorna a promessa do newPlot
+            return Plotly.newPlot(plotDivId, [trace], layout, config);
         })
-        .catch(err2 => { // Captura erro do newPlot (se react falhou)
+        .catch(err2 => {
             console.error("Erro fatal no Plotly 2D (newPlot fallback):", err2);
             if (statusDiv) statusDiv.textContent = "Erro crítico ao renderizar gráfico 2D.";
         });
 }
 
 // === 3D Plotting Function ===
+// ... (sem alterações) ...
 function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, scaleType) {
     const plotDiv = document.getElementById(plotDivId);
     if (!plotDiv) {
         console.error(`Div de plot 3D "${plotDivId}" não encontrada.`);
         return;
     }
-    // A classe 'visible' já foi removida em process3DPlotRequest
 
     const DEG_TO_RAD = Math.PI / 180;
-    const x_surface = []; /* ... (cálculos mantidos) ... */ y_surface = [];
+    const x_surface = []; const y_surface = [];
     for (let i = 0; i < uniqueThetas_deg.length; i++) {
         const theta_val_for_radius_rad = uniqueThetas_deg[i] * DEG_TO_RAD;
         const x_row = []; const y_row = [];
@@ -314,7 +406,7 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
         x_surface.push(x_row); y_surface.push(y_row);
     }
     const rootStyle = getComputedStyle(document.documentElement);
-    const plotColors = { /* ... (mantido) ... */ 
+    const plotColors = {
         plotBgColor: rootStyle.getPropertyValue('--plot-bg-color').trim() || '#ffffff',
         paperBgColor: rootStyle.getPropertyValue('--card-bg-color').trim() || '#ffffff',
         textColor: rootStyle.getPropertyValue('--text-color').trim() || '#333333',
@@ -323,12 +415,12 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
         colorscale: 'Viridis',
     };
     let z_data_to_plot, z_axis_title, z_axis_range_plot, colorbar_title;
-    if (scaleType === 'dB') { /* ... (mantido) ... */ 
+    if (scaleType === 'dB') {
         z_data_to_plot = magnitudes_grid_dB; z_axis_title = 'Magnitude (dB)'; colorbar_title = 'dB'; z_axis_range_plot = [-100, 0];
-    } else { /* ... (mantido) ... */ 
+    } else {
         z_data_to_plot = magnitudes_grid_linear_normalized; z_axis_title = 'Magnitude (Linear Norm.)'; colorbar_title = 'Linear'; z_axis_range_plot = [0, 1];
     }
-    const data = [{ /* ... (mantido) ... */ 
+    const data = [{
         type: 'surface', x: x_surface, y: y_surface, z: z_data_to_plot, surfacecolor: z_data_to_plot, colorscale: plotColors.colorscale,
         showscale: true, colorbar: { title: colorbar_title, tickfont: { color: plotColors.textColor }, titlefont: { color: plotColors.textColor }, len: 0.75, yanchor: 'middle', y: 0.5, },
         cmin: z_axis_range_plot[0], cmax: z_axis_range_plot[1], hoverinfo: 'skip', contours: { x: { show: false }, y: { show: false }, z: { show: false } },
@@ -337,7 +429,7 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
     let zScaleFactor = 0.8;
     let initialCamera = { eye: { x: 1.5, y: 1.5, z: 1.5 }, up: { x: 0, y: 0, z: 1 }, center: { x: 0, y: 0, z: (scaleType === 'dB' ? -50 : 0.4) } };
     if (scaleType === 'dB') { initialCamera.eye = { x: 1.5, y: 1.5, z: 1.8 }; initialCamera.center = { x: 0, y: 0, z: -50 }; }
-    const layout = { /* ... (mantido) ... */ 
+    const layout = {
         title: `Padrão de Feixe 3D (Projeção Polar, Escala ${scaleType})`, autosize: true,
         scene: {
             xaxis: { title: 'X = Θ · cos(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
@@ -361,14 +453,14 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
                         return Plotly.relayout(plotDivId, updateLayout);
                     })
                     .then(() => {
-                        plotDiv.classList.add('visible'); 
+                        plotDiv.classList.add('visible');
                         if (statusDiv && statusDiv.textContent.endsWith("Ajustando câmera...")) {
                             statusDiv.textContent = `Visualização 3D (${scaleType}) pronta. Interaja com controles.`;
                         }
                     })
                     .catch(err => {
                         console.warn("Falha ao tentar resize/relayout da câmera 3D:", err);
-                        plotDiv.classList.add('visible'); 
+                        plotDiv.classList.add('visible');
                         if (statusDiv && statusDiv.textContent.endsWith("Ajustando câmera...")) {
                             statusDiv.textContent = `Visualização 3D (${scaleType}) carregada (erro no ajuste fino).`;
                         }
@@ -382,12 +474,9 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
         });
 }
 
-// MOVER schedulePlotUpdate para ANTES de processLatestPlotRequestIfIdle
-/**
- * Agenda uma atualização do plot 2D. Utiliza um sistema de debounce para processar
- * apenas a requisição mais recente após um curto período de inatividade.
- */
-function schedulePlotUpdate() { 
+
+// === Plot Scheduling and Processing ===
+function schedulePlotUpdate() {
     const currentAntennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
     const currentPhi = phiInput ? parseFloat(phiInput.value) : 90;
     let currentScale = 'dB';
@@ -399,10 +488,10 @@ function schedulePlotUpdate() {
         antennaCoords: currentAntennaCoords,
         phi: currentPhi,
         scale: currentScale,
-        timestamp: Date.now() 
+        timestamp: Date.now()
     };
 
-    if (statusDiv && !isProcessingPlot) { 
+    if (statusDiv && !isProcessingPlot && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
         statusDiv.textContent = `Solicitação 2D (Phi: ${currentPhi}, Ant: ${currentAntennaCoords.length}, Escala: ${currentScale}) pendente...`;
     }
 
@@ -410,15 +499,12 @@ function schedulePlotUpdate() {
     processRequestTimeoutId = setTimeout(processLatestPlotRequestIfIdle, PLOT_REQUEST_DEBOUNCE_DELAY);
 }
 
-
-// --- Modificações em processLatestPlotRequestIfIdle (para 2D) ---
 async function processLatestPlotRequestIfIdle() {
-    if (!latestPlotRequestParams) {
-        return;
-    }
+    if (!latestPlotRequestParams) return;
+
     if (isProcessingPlot) {
         clearTimeout(processRequestTimeoutId);
-        processRequestTimeoutId = setTimeout(processLatestPlotRequestIfIdle, 250);
+        processRequestTimeoutId = setTimeout(processLatestPlotRequestIfIdle, PLOT_REQUEST_DEBOUNCE_DELAY + 50);
         return;
     }
 
@@ -426,58 +512,52 @@ async function processLatestPlotRequestIfIdle() {
     currentlyProcessingRequestTimestamp = latestPlotRequestParams.timestamp;
     const requestToProcess = { ...latestPlotRequestParams };
 
-    if (statusDiv) statusDiv.textContent = 'Preparando para gerar padrão de feixe 2D...';
+    if (statusDiv && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
+        statusDiv.textContent = 'Preparando para gerar padrão de feixe 2D...';
+    }
 
     const plotDivCurrent = document.getElementById(plotDivId);
-    // Para 2D: NÃO remover 'visible' aqui diretamente.
-    // A função plotBeamPattern2D vai garantir que esteja visível ANTES de plotar.
-    // Se um gráfico 3D estava visível, ele será escondido antes de plotar o 2D.
 
     try {
         if (!window.antennaGenerator?.getAllAntennas) {
             throw new Error("Gerador de antenas não disponível.");
         }
-        const { antennaCoords, phi: selectedPhi, scale: selectedScale } = requestToProcess;
+        const { antennaCoords, phi: selectedPhiFromSlider, scale: selectedScale } = requestToProcess;
 
         if (!antennaCoords || antennaCoords.length === 0) {
             if (statusDiv) statusDiv.textContent = 'Layout de antenas vazio. Gere um layout primeiro.';
             if (plotDivCurrent) {
                  Plotly.purge(plotDivCurrent);
-                 plotDivCurrent.classList.remove('visible'); // Esconde se purgar
+                 plotDivCurrent.classList.remove('visible');
             }
             finalizePlotProcessing(true, '2D');
             return;
         }
-        
-        // Se o plot atual é 3D (surface) e estamos mudando para 2D,
-        // precisamos escondê-lo ANTES de chamar plotBeamPattern2D.
+
         if (plotDivCurrent && plotDivCurrent.data && plotDivCurrent.data.length > 0 && plotDivCurrent.data[0].type === 'surface') {
             console.log("Transição de 3D para 2D detectada. Escondendo plot 3D.");
             plotDivCurrent.classList.remove('visible');
-            // Pode ser necessário um pequeno delay para o navegador processar a remoção da classe
-            // antes que plotBeamPattern2D adicione 'visible' novamente.
-            // No entanto, plotBeamPattern2D já adiciona 'visible' no início, o que deve ser suficiente.
         }
 
-        const elementDataFull = await fetchAndParseEFieldData(selectedPhi);
+        const elementDataForSelectedPhi = await fetchAndParseEFieldDataForSelectedPhi(selectedPhiFromSlider);
 
-        if (!elementDataFull || !Array.isArray(elementDataFull) || elementDataFull.length === 0) {
-            throw new Error(`Dados do elemento 2D para Phi=${selectedPhi}° não carregados ou vazios.`);
+        if (!elementDataForSelectedPhi || !Array.isArray(elementDataForSelectedPhi) || elementDataForSelectedPhi.length === 0) {
+            throw new Error(`Dados do elemento 2D para Phi=${selectedPhiFromSlider}° não carregados ou vazios (após tentativas).`);
         }
-
-        const filteredElementData = elementDataFull;
-
-        storedWorkerPlotParams = { phi: selectedPhi, scale: selectedScale };
+        
+        storedWorkerPlotParams = { phi: selectedPhiFromSlider, scale: selectedScale };
         currentCalculationId++;
 
         if (beamCalculationWorker) {
-            if (statusDiv) statusDiv.textContent = `Calculando padrão 2D (Phi: ${selectedPhi}°)...`;
+            if (statusDiv && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
+                statusDiv.textContent = `Calculando padrão 2D (Phi: ${selectedPhiFromSlider}°)...`;
+            }
             beamCalculationWorker.postMessage({
                 id: currentCalculationId,
                 antennaCoords: antennaCoords,
-                filteredElementData: filteredElementData,
+                filteredElementData: elementDataForSelectedPhi,
                 K_CONST: K,
-                selectedPhiValue: selectedPhi
+                selectedPhiValue: selectedPhiFromSlider
             });
         } else {
             console.error("Web Worker 2D não disponível.");
@@ -486,7 +566,9 @@ async function processLatestPlotRequestIfIdle() {
         }
     } catch (error) {
         console.error("Erro ao processar solicitação do padrão de feixe 2D:", error);
-        if (statusDiv) statusDiv.textContent = `Erro 2D: ${error.message.substring(0, 150)}`;
+        if (statusDiv && !statusDiv.textContent.includes("Erro CSV 2D") && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
+            statusDiv.textContent = `Erro 2D: ${error.message.substring(0, 150)}`;
+        }
         if (plotDivCurrent) {
             Plotly.purge(plotDivCurrent);
             plotDivCurrent.classList.remove('visible');
@@ -495,26 +577,25 @@ async function processLatestPlotRequestIfIdle() {
     }
 }
 
-// process3DPlotRequest: ESSENCIAL que 'visible' seja removido no início.
 async function process3DPlotRequest() {
-    if (isProcessingPlot || eField3DLoadingState === 'loading') {
-        if (statusDiv && eField3DLoadingState === 'loading') {
-            statusDiv.textContent = "Carregamento dos dados 3D em andamento, aguarde...";
-        } else if (statusDiv) {
+    if (isProcessingPlot || fullEFieldDataLoadingState === 'loading') {
+        if (statusDiv && fullEFieldDataLoadingState === 'loading') {
+            statusDiv.textContent = "Carregamento dos dados E-field 3D (IPFS) em andamento, aguarde...";
+        } else if (statusDiv && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
             statusDiv.textContent = "Processamento de outro gráfico em andamento. Aguarde...";
         }
-        if (visualize3DBtn && eField3DLoadingState !== 'loading') {
+        if (visualize3DBtn && fullEFieldDataLoadingState !== 'loading') {
             visualize3DBtn.disabled = false;
         }
         return;
     }
     isProcessingPlot = true;
-    if (statusDiv) statusDiv.textContent = 'Preparando para gerar padrão de feixe 3D...';
+    if (statusDiv && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) statusDiv.textContent = 'Preparando para gerar padrão de feixe 3D...';
     if (visualize3DBtn) visualize3DBtn.disabled = true;
 
     const plotDiv = document.getElementById(plotDivId);
     if (plotDiv) {
-        plotDiv.classList.remove('visible'); // <<<< REMOVE VISIBLE PARA 3D
+        plotDiv.classList.remove('visible');
     }
 
     let selectedScale3D = 'dB';
@@ -534,19 +615,19 @@ async function process3DPlotRequest() {
             return;
         }
 
-        const elementData3D = await fetchAndParseEFieldData3D();
-        if (!elementData3D || elementData3D.length === 0) {
-            throw new Error("Dados do elemento 3D não disponíveis após tentativa de carregamento.");
+        const allEFieldDataFor3D = await ensureFullEFieldData3DLoaded();
+        if (!allEFieldDataFor3D || allEFieldDataFor3D.length === 0) {
+            throw new Error("Dados E-field 3D (IPFS) não disponíveis após tentativa de carregamento.");
         }
 
         current3DCalculationId++;
 
         if (beamCalculationWorker3D) {
-            if (statusDiv) statusDiv.textContent = 'Calculando padrão 3D... 0%';
+            if (statusDiv && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) statusDiv.textContent = 'Calculando padrão 3D... 0%';
             beamCalculationWorker3D.postMessage({
                 id: current3DCalculationId,
                 antennaCoords: antennaCoords,
-                elementFieldData3D: elementData3D,
+                elementFieldData3D: allEFieldDataFor3D,
                 K_CONST: K
             });
         } else {
@@ -557,7 +638,7 @@ async function process3DPlotRequest() {
 
     } catch (error) {
         console.error("Erro ao processar solicitação do padrão de feixe 3D:", error);
-        if (statusDiv && !statusDiv.textContent.includes("Erro CSV 3D") && !statusDiv.textContent.includes("Falha ao buscar")) {
+        if (statusDiv && !statusDiv.textContent.includes("Erro") && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
             statusDiv.textContent = `Erro 3D: ${error.message.substring(0, 150)}`;
         }
         if (plotDiv) {
@@ -568,44 +649,54 @@ async function process3DPlotRequest() {
 }
 
 
-// === Finalize Plot Processing and Setup Workers ===
-// ... (mantida)
+// === finalizePlotProcessing, setupWorkers, getBeamPatternModuleData, initBeamPatternControls ===
+// Nenhuma alteração funcional significativa necessária nessas funções para a nova estratégia de dados,
+// mas os comentários podem ser revisados se mencionarem o carregamento de dados 2D específico.
+// Os logs de status já foram ajustados para não sobrescrever "Limite de taxa".
+
+// COPIE O RESTANTE DO CÓDIGO DE beam_pattern.js A PARTIR DAQUI DA SUA VERSÃO ANTERIOR
+// (finalizePlotProcessing, setupWorkers, etc.)
+
 function finalizePlotProcessing(processedSuccessfully, plotType = '2D') {
-    isProcessingPlot = false; 
+    isProcessingPlot = false;
     if (plotType === '3D' && visualize3DBtn) {
-        visualize3DBtn.disabled = false; 
+        visualize3DBtn.disabled = false;
     }
-    // const plotDiv = document.getElementById(plotDivId); // Não usado aqui
     if (plotType === '2D') {
         if (latestPlotRequestParams && latestPlotRequestParams.timestamp === currentlyProcessingRequestTimestamp) {
-            if (processedSuccessfully) { 
-                latestPlotRequestParams = null; 
+            if (processedSuccessfully) {
+                latestPlotRequestParams = null;
             }
         }
-        currentlyProcessingRequestTimestamp = null; 
-        if (latestPlotRequestParams) { 
+        currentlyProcessingRequestTimestamp = null;
+        if (latestPlotRequestParams) {
             clearTimeout(processRequestTimeoutId);
             processRequestTimeoutId = setTimeout(processLatestPlotRequestIfIdle, PLOT_REQUEST_DEBOUNCE_DELAY);
-        } else { 
+        } else {
             const currentStatus = statusDiv ? statusDiv.textContent : "";
-            if (statusDiv && 
-                !currentStatus.startsWith("Padrão de feixe 2D para Phi") && 
+            if (statusDiv &&
+                !currentStatus.startsWith("Padrão de feixe 2D para Phi") &&
                 !currentStatus.startsWith("Visualização 3D") &&
-                !currentStatus.includes("Worker") && 
-                !currentStatus.includes("Erro") &&  
+                !currentStatus.includes("Worker") &&
+                !currentStatus.includes("Erro") &&
                 !currentStatus.includes("Carregando dados") &&
-                !currentStatus.includes("Analisando CSV")) { 
+                !currentStatus.includes("Limite de taxa") && 
+                !currentStatus.includes("Falha ao buscar dados") && 
+                !currentStatus.includes("Analisando CSV") &&
+                !currentStatus.includes("Usando Phi=")) { 
                  if (processedSuccessfully && currentStatus !== "Layout de antenas vazio. Gere um layout primeiro.") {
-                    // statusDiv.textContent = "Pronto."; 
+                    // statusDiv.textContent = "Pronto.";
                  } else if (!currentStatus.startsWith("Layout de antenas vazio")) {
-                     // statusDiv.textContent = "Aguardando interação..."; 
+                     // statusDiv.textContent = "Aguardando interação...";
                  }
             }
         }
     } else { // plotType === '3D'
         const currentStatus = statusDiv ? statusDiv.textContent : "";
-        if (!processedSuccessfully && statusDiv && 
-            !currentStatus.startsWith("Erro") && 
+        if (!processedSuccessfully && statusDiv &&
+            !currentStatus.startsWith("Erro") &&
+            !currentStatus.includes("Limite de taxa") && 
+            !currentStatus.includes("Falha ao buscar dados") && 
             (!currentStatus.startsWith("Visualização 3D") || !currentStatus.endsWith("pronta. Interaja com controles.")) &&
             !currentStatus.includes("Worker 3D: Cálculo concluído.")) {
             statusDiv.textContent = "Falha ao gerar plot 3D. Verifique o console e tente novamente.";
@@ -613,12 +704,10 @@ function finalizePlotProcessing(processedSuccessfully, plotType = '2D') {
     }
 }
 
-// === Setup Workers ===
-// ... (mantida)
 function setupWorkers() {
     if (window.Worker) {
         try {
-            beamCalculationWorker = new Worker('js/beam_worker.js'); 
+            beamCalculationWorker = new Worker('js/beam_worker.js');
             beamCalculationWorker.onmessage = function(e) {
                 const { id, type, data, error } = e.data;
                 if (id !== currentCalculationId) {
@@ -627,38 +716,38 @@ function setupWorkers() {
                 }
                 let plotSuccessful = false;
                 if (type === 'progress') {
-                    if (statusDiv && data && (!visualize3DBtn || !visualize3DBtn.disabled) && !statusDiv.textContent.startsWith("Erro")) {
+                    if (statusDiv && data && (!visualize3DBtn || !visualize3DBtn.disabled) && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) {
                          statusDiv.textContent = data;
                     }
                     return;
                 }
                 if (type === 'result') {
-                    let { thetaValues, resultingMagnitude } = data; 
+                    let { thetaValues, resultingMagnitude } = data;
                     const { phi: plotPhi, scale: plotScale } = storedWorkerPlotParams;
                     if (thetaValues.length > MAX_PLOT_POINTS_BEAM) {
-                        if (statusDiv && !statusDiv.textContent.startsWith("Erro")) statusDiv.textContent = `Amostrando ${thetaValues.length} pontos (2D) para ${MAX_PLOT_POINTS_BEAM}...`;
+                        if (statusDiv && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Limite de taxa")  && !statusDiv.textContent.startsWith("Falha ao buscar dados") && !statusDiv.textContent.includes("Usando Phi=")) statusDiv.textContent = `Amostrando ${thetaValues.length} pontos (2D) para ${MAX_PLOT_POINTS_BEAM}...`;
                         const downsampled = downsampleData(thetaValues, resultingMagnitude, MAX_PLOT_POINTS_BEAM);
                         thetaValues = downsampled.x; resultingMagnitude = downsampled.y;
                     }
                     plotBeamPattern2D(thetaValues, resultingMagnitude, plotPhi, plotScale); 
-                    if (statusDiv && !statusDiv.textContent.startsWith("Erro")) statusDiv.textContent = `Padrão de feixe 2D para Phi=${plotPhi}° (${plotScale}) atualizado.`;
+                    if (statusDiv && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados") && !statusDiv.textContent.includes("Usando Phi=")) statusDiv.textContent = `Padrão de feixe 2D para Phi=${plotPhi}° (${plotScale}) atualizado.`;
                     plotSuccessful = true;
                 } else if (type === 'error') {
                     console.error("Erro do Web Worker 2D:", error);
                     if (statusDiv) statusDiv.textContent = `Erro do Worker 2D: ${String(error).substring(0,150)}`;
-                    const plotDiv = document.getElementById(plotDivId);
-                    if(plotDiv) { Plotly.purge(plotDiv); plotDiv.classList.remove('visible'); }
+                    const plotDivCurrent = document.getElementById(plotDivId);
+                    if(plotDivCurrent) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible'); }
                     plotSuccessful = false;
                 }
                 finalizePlotProcessing(plotSuccessful, '2D');
             };
-            beamCalculationWorker.onerror = function(err) { 
+            beamCalculationWorker.onerror = function(err) {
                 console.error("Erro fatal no Web Worker 2D:", err);
                 if (statusDiv) statusDiv.textContent = `Erro fatal no Worker 2D: ${err.message ? err.message.substring(0,100) : 'Erro desconhecido do worker'}. Recarregue a página.`;
                 finalizePlotProcessing(false, '2D');
-                const plotDiv = document.getElementById(plotDivId);
-                if(plotDiv) plotDiv.classList.remove('visible');
-                beamCalculationWorker = null; 
+                const plotDivCurrent = document.getElementById(plotDivId);
+                if(plotDivCurrent) plotDivCurrent.classList.remove('visible');
+                beamCalculationWorker = null;
             };
             console.log("Web Worker 2D para padrão de feixe inicializado.");
         } catch (e) {
@@ -666,14 +755,14 @@ function setupWorkers() {
             if(statusDiv) statusDiv.textContent = "Erro: Web Worker 2D não pôde ser criado.";
             beamCalculationWorker = null;
         }
-    } else { 
+    } else {
         console.warn("Web Workers não suportados (para 2D). Plotagem de feixe pode ser lenta ou indisponível.");
         if(statusDiv) statusDiv.textContent = "Aviso: Web Workers não suportados. Cálculos podem ser lentos.";
     }
 
     if (window.Worker) {
         try {
-            beamCalculationWorker3D = new Worker('js/beam_worker_3d.js'); 
+            beamCalculationWorker3D = new Worker('js/beam_worker_3d.js');
             beamCalculationWorker3D.onmessage = function(e) {
                 const { id, type, data, error } = e.data;
                  if (id !== current3DCalculationId) {
@@ -682,29 +771,29 @@ function setupWorkers() {
                  }
                 let plotSuccessful = false;
                 if (type === 'progress') {
-                    if (statusDiv && data && !statusDiv.textContent.startsWith("Erro")) statusDiv.textContent = data; 
+                    if (statusDiv && data && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Limite de taxa") && !statusDiv.textContent.startsWith("Falha ao buscar dados")) statusDiv.textContent = data;
                     return;
                 }
-                if (type === 'result3D') { 
+                if (type === 'result3D') {
                     const { uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized } = data;
                     plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, stored3DScaleType);
-                    plotSuccessful = true; 
+                    plotSuccessful = true;
                 } else if (type === 'error') {
                     console.error("Erro do Web Worker 3D:", error);
                     if (statusDiv) statusDiv.textContent = `Erro do Worker 3D: ${String(error).substring(0,150)}`;
-                    const plotDiv = document.getElementById(plotDivId);
-                    if(plotDiv) { Plotly.purge(plotDiv); plotDiv.classList.remove('visible'); }
+                    const plotDivCurrent = document.getElementById(plotDivId);
+                    if(plotDivCurrent) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible'); }
                     plotSuccessful = false;
                 }
                 finalizePlotProcessing(plotSuccessful, '3D');
             };
-            beamCalculationWorker3D.onerror = function(err) { 
+            beamCalculationWorker3D.onerror = function(err) {
                 console.error("Erro fatal no Web Worker 3D:", err);
                 if (statusDiv) statusDiv.textContent = `Erro fatal no Worker 3D: ${err.message ? err.message.substring(0,100) : 'Erro desconhecido do worker'}. Recarregue a página.`;
                 finalizePlotProcessing(false, '3D');
-                const plotDiv = document.getElementById(plotDivId);
-                if(plotDiv) plotDiv.classList.remove('visible');
-                beamCalculationWorker3D = null; 
+                const plotDivCurrent = document.getElementById(plotDivId);
+                if(plotDivCurrent) plotDivCurrent.classList.remove('visible');
+                beamCalculationWorker3D = null;
              };
             console.log("Web Worker 3D para padrão de feixe inicializado.");
         } catch (e) {
@@ -712,7 +801,7 @@ function setupWorkers() {
             if(statusDiv) statusDiv.textContent = "Erro: Web Worker 3D não pôde ser criado.";
             beamCalculationWorker3D = null;
         }
-    } else { 
+    } else {
         console.warn("Web Workers não suportados (para 3D). Plotagem 3D pode ser lenta ou indisponível.");
         if(statusDiv && !statusDiv.textContent.includes("Web Workers não suportados")) {
              statusDiv.textContent = "Aviso: Web Workers não suportados. Cálculos podem ser lentos.";
@@ -720,24 +809,18 @@ function setupWorkers() {
     }
 }
 
-// --- Modificação para expor dados para PSFAnalyzer ---
-// Podemos adicionar uma função getter ou confiar que main.js passará os dados.
-// Para uma abordagem mais encapsulada, uma função getter:
 function getBeamPatternModuleData() {
     return {
-        parsedEFieldData3D: parsedEFieldData3DCache,
-        K_CONST: K, // K já está no escopo global deste módulo
-        isEField3DLoaded: eField3DLoadingState === 'loaded' && parsedEFieldData3DCache !== null
+        parsedEFieldData3D: fullEFieldDataCache, 
+        K_CONST: K,
+        isEField3DLoaded: fullEFieldDataLoadingState === 'loaded' && fullEFieldDataCache !== null
     };
 }
-// Não vamos exportar explicitamente para window aqui, main.js pode chamar isso.
 
-// === Initialization and UI Event Listeners ===
-// ... (mantida)
 function initBeamPatternControls() {
     phiSlider = document.getElementById('beam-phi-slider');
     phiInput = document.getElementById('beam-phi-input');
-    scaleRadios = document.querySelectorAll('input[name="beamScale"]'); 
+    scaleRadios = document.querySelectorAll('input[name="beamScale"]');
     visualize3DBtn = document.getElementById('visualize-3d-btn');
     visualize2DBtn = document.getElementById('visualize-2d-btn');
     statusDiv = document.getElementById('beam-status');
@@ -750,11 +833,10 @@ function initBeamPatternControls() {
         return;
     }
 
-    setupWorkers(); 
+    setupWorkers();
 
-    // CORRIGIDO: Mover trigger2DPlotUpdate para DEPOIS da declaração de schedulePlotUpdate
     const trigger2DPlotUpdate = () => {
-        schedulePlotUpdate(); // Agora schedulePlotUpdate está definida
+        schedulePlotUpdate();
         visualize2DBtn.classList.add('primary');
         visualize2DBtn.classList.remove('secondary');
         visualize3DBtn.classList.add('secondary');
@@ -762,31 +844,31 @@ function initBeamPatternControls() {
     };
 
     phiSlider.addEventListener('input', () => {
-        phiInput.value = phiSlider.value; 
+        phiInput.value = phiSlider.value;
         trigger2DPlotUpdate();
     });
-    phiInput.addEventListener('input', () => { 
+    phiInput.addEventListener('input', () => {
         let value = parseFloat(phiInput.value);
         if (!isNaN(value)) {
             const min = parseFloat(phiSlider.min); const max = parseFloat(phiSlider.max);
-            if (value >= min && value <= max) { 
-                phiSlider.value = value; 
+            if (value >= min && value <= max) {
+                phiSlider.value = value;
             }
         }
-        trigger2DPlotUpdate(); 
+        trigger2DPlotUpdate();
     });
-    phiInput.addEventListener('change', () => { 
+    phiInput.addEventListener('change', () => {
         let value = parseFloat(phiInput.value);
         const min = parseFloat(phiSlider.min); const max = parseFloat(phiSlider.max);
         if (isNaN(value) || value < min) { value = min; }
         if (value > max) { value = max; }
-        phiInput.value = value; 
-        phiSlider.value = value; 
-        trigger2DPlotUpdate(); 
+        phiInput.value = value;
+        phiSlider.value = value;
+        trigger2DPlotUpdate();
     });
 
     visualize2DBtn.addEventListener('click', () => {
-        trigger2DPlotUpdate(); 
+        trigger2DPlotUpdate();
     });
 
     visualize3DBtn.addEventListener('click', () => {
@@ -804,9 +886,9 @@ function initBeamPatternControls() {
                 const isPlotDisplayed = plotDivCurrent && plotDivCurrent.data && plotDivCurrent.data.length > 0;
                 const is3DPlotCurrentlyDisplayed = isPlotDisplayed && plotDivCurrent.data[0].type === 'surface';
                 if (is3DPlotCurrentlyDisplayed) {
-                    process3DPlotRequest(); 
+                    process3DPlotRequest();
                 } else {
-                    trigger2DPlotUpdate(); 
+                    trigger2DPlotUpdate();
                 }
             }
         });
@@ -823,17 +905,17 @@ function initBeamPatternControls() {
         const is3DPlotDisplayed = isPlotDisplayed && plotDivCurrent.data[0].type === 'surface';
         if (is3DPlotDisplayed) {
             if (hasAntennas) {
-                process3DPlotRequest(); 
-            } else { 
+                process3DPlotRequest();
+            } else {
                  if (isPlotDisplayed) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible');}
             }
-        } else if (isPlotDisplayed && hasAntennas) { 
-            schedulePlotUpdate(); 
-        } else { 
+        } else if (isPlotDisplayed && hasAntennas) {
+            schedulePlotUpdate();
+        } else {
             if (isPlotDisplayed) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible');}
         }
     });
-    
+
     visualize2DBtn.classList.add('primary');
     visualize2DBtn.classList.remove('secondary');
     visualize3DBtn.classList.add('secondary');

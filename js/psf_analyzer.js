@@ -3,31 +3,38 @@
  *
  * Módulo para gerenciar a interface e a lógica da Análise da Point Spread Function (PSF).
  * Interage com psf_analysis_worker.js para cálculos e atualiza a UI.
+ * Modificado para usar "Volume" em vez de "Área" e para incluir o cálculo de Theta_pico.
  */
 
 class PSFAnalyzer {
     constructor() {
         // IDs dos elementos da UI
-        this.calculateAreaBtnId = 'calculate-psf-area-btn';
-        this.totalAreaDisplayId = 'psf-total-area-display';
-        this.totalAreaValueId = 'psf-total-area-value';
+        this.calculateVolumeBtnId = 'calculate-psf-volume-btn'; // Alterado de calculate-psf-area-btn
+        this.totalVolumeDisplayId = 'psf-total-volume-display'; // Alterado de psf-total-area-display
+        this.totalVolumeValueId = 'psf-total-volume-value';   // Alterado de psf-total-area-value
+        this.thetaPicoValueId = 'theta-pico-value';           // NOVO para Theta_pico
+
         this.sllThetaInputId = 'sll-theta-input';
-        this.sllConeAreaId = 'sll-cone-area';
+        this.sllConeVolumeId = 'sll-cone-volume';           // Alterado de sll-cone-area
         this.sllPercentageId = 'sll-percentage';
+
         this.eePercentageInputId = 'ee-percentage-input';
-        this.eeFractionalAreaId = 'ee-fractional-area';
+        this.eeFractionalVolumeId = 'ee-fractional-volume'; // Alterado de ee-fractional-area
         this.eeThetaResultId = 'ee-theta-result';
         this.statusDisplayId = 'psf-analysis-status';
 
         // Referências aos elementos DOM (serão buscadas no init)
-        this.calculateAreaBtn = null;
-        this.totalAreaDisplay = null;
-        this.totalAreaValue = null;
+        this.calculateVolumeBtn = null;
+        this.totalVolumeDisplay = null;
+        this.totalVolumeValue = null;
+        this.thetaPicoValue = null; // NOVO
+
         this.sllThetaInput = null;
-        this.sllConeArea = null;
+        this.sllConeVolume = null;
         this.sllPercentage = null;
+
         this.eePercentageInput = null;
-        this.eeFractionalArea = null;
+        this.eeFractionalVolume = null;
         this.eeThetaResult = null;
         this.statusDisplay = null;
 
@@ -35,7 +42,8 @@ class PSFAnalyzer {
         this.psfWorker = null;
         this.currentTaskId = 0;
         this.isCalculating = false;
-        this.cachedTotalPSFArea = null; // Armazena a área total calculada
+        this.cachedTotalPSFVolume = null; // Armazena o volume total calculado
+        this.cachedThetaPico = null;      // NOVO: Armazena Theta_pico calculado
 
         // Dados do arranjo e do elemento (serão fornecidos externamente)
         this.antennaCoords = null;
@@ -51,18 +59,21 @@ class PSFAnalyzer {
      * @private
      */
     _init() {
-        this.calculateAreaBtn = document.getElementById(this.calculateAreaBtnId);
-        this.totalAreaDisplay = document.getElementById(this.totalAreaDisplayId);
-        this.totalAreaValue = document.getElementById(this.totalAreaValueId);
+        this.calculateVolumeBtn = document.getElementById(this.calculateVolumeBtnId);
+        this.totalVolumeDisplay = document.getElementById(this.totalVolumeDisplayId);
+        this.totalVolumeValue = document.getElementById(this.totalVolumeValueId);
+        this.thetaPicoValue = document.getElementById(this.thetaPicoValueId); // NOVO
+
         this.sllThetaInput = document.getElementById(this.sllThetaInputId);
-        this.sllConeArea = document.getElementById(this.sllConeAreaId);
+        this.sllConeVolume = document.getElementById(this.sllConeVolumeId);
         this.sllPercentage = document.getElementById(this.sllPercentageId);
+
         this.eePercentageInput = document.getElementById(this.eePercentageInputId);
-        this.eeFractionalArea = document.getElementById(this.eeFractionalAreaId);
+        this.eeFractionalVolume = document.getElementById(this.eeFractionalVolumeId);
         this.eeThetaResult = document.getElementById(this.eeThetaResultId);
         this.statusDisplay = document.getElementById(this.statusDisplayId);
 
-        if (!this.calculateAreaBtn || !this.sllThetaInput || !this.eePercentageInput || !this.statusDisplay) {
+        if (!this.calculateVolumeBtn || !this.sllThetaInput || !this.eePercentageInput || !this.statusDisplay || !this.thetaPicoValue) {
             console.error("PSFAnalyzer: Falha ao encontrar um ou mais elementos DOM essenciais. A funcionalidade pode estar comprometida.");
             return;
         }
@@ -87,7 +98,7 @@ class PSFAnalyzer {
         }
 
         // Adiciona Listeners
-        this.calculateAreaBtn.addEventListener('click', () => this.triggerFullPSFAreaCalculation());
+        this.calculateVolumeBtn.addEventListener('click', () => this.triggerFullPSFVolumeCalculation());
         this.sllThetaInput.addEventListener('change', () => this.triggerSLLCalculation());
         this.eePercentageInput.addEventListener('change', () => this.triggerEECalculation());
 
@@ -108,18 +119,57 @@ class PSFAnalyzer {
      */
     updateData(antennaCoords, elementFieldData3D, K) {
         this.antennaCoords = antennaCoords;
-        this.elementFieldData3D = elementFieldData3D;
+        this.elementFieldData3D = elementFieldData3D; // Este deve ser o array de dados
         this.K_CONST = K;
 
-        // Se os dados essenciais estiverem presentes, habilita o botão principal.
-        // Caso contrário, um novo layout invalidará a área.
-        if (this.antennaCoords && this.antennaCoords.length > 0 && this.elementFieldData3D && this.K_CONST) {
-            if (this.cachedTotalPSFArea === null && this.calculateAreaBtn) {
-                this.calculateAreaBtn.disabled = false;
+        console.log("PSFAnalyzer updateData: Antennas:", this.antennaCoords ? this.antennaCoords.length : 'null',
+                    "| EField3D:", this.elementFieldData3D ? `(${this.elementFieldData3D.length} points)` : 'null', // Verifica se é um array e tem length
+                    "| K_CONST:", this.K_CONST,
+                    "| Cached Volume:", this.cachedTotalPSFVolume);
+
+        const hasAntennaData = this.antennaCoords && this.antennaCoords.length > 0;
+        const hasEFieldData = this.elementFieldData3D && Array.isArray(this.elementFieldData3D) && this.elementFieldData3D.length > 0;
+        const hasKConst = this.K_CONST !== null;
+        const volumeNotYetCalculated = this.cachedTotalPSFVolume === null;
+
+        if (this.calculateVolumeBtn) {
+            if (hasAntennaData && hasEFieldData && hasKConst && volumeNotYetCalculated) {
+                this.calculateVolumeBtn.disabled = false;
+                this._updateStatus('Pronto para calcular o volume da PSF.'); // Atualiza status se pronto
+                console.log("PSFAnalyzer: Botão Calcular Volume HABILITADO.");
+            } else {
+                this.calculateVolumeBtn.disabled = true;
+                console.log("PSFAnalyzer: Botão Calcular Volume DESABILITADO. Razões:", {hasAntennaData, hasEFieldData, hasKConst, volumeNotYetCalculated});
+                // Mantém a mensagem "Aguardando..." se o volume ainda não foi calculado e os dados não estão completos
+                if (volumeNotYetCalculated && (!hasAntennaData || !hasEFieldData || !hasKConst)) {
+                    this._updateStatus('Aguardando dados completos para análise da PSF...');
+                }
             }
-        } else {
-            if (this.calculateAreaBtn) this.calculateAreaBtn.disabled = true;
         }
+    }
+
+    _resetUIForNewLayout() {
+        if (this.calculateVolumeBtn) {
+            this.calculateVolumeBtn.style.display = 'inline-block';
+        }
+        if (this.totalVolumeDisplay) this.totalVolumeDisplay.style.display = 'none';
+        if (this.totalVolumeValue) this.totalVolumeValue.textContent = '--';
+        if (this.thetaPicoValue) this.thetaPicoValue.textContent = '--';
+
+        if (this.sllThetaInput) this.sllThetaInput.disabled = true;
+        if (this.sllConeVolume) this.sllConeVolume.textContent = '--';
+        if (this.sllPercentage) this.sllPercentage.textContent = '--';
+
+        if (this.eePercentageInput) this.eePercentageInput.disabled = true;
+        if (this.eeFractionalVolume) this.eeFractionalVolume.textContent = '--';
+        if (this.eeThetaResult) this.eeThetaResult.textContent = '--';
+
+        // A habilitação do botão será tratada por updateData quando os dados chegarem.
+        if (this.calculateVolumeBtn) {
+            this.calculateVolumeBtn.disabled = true; // Começa desabilitado
+        }
+        this._updateStatus('Aguardando cálculo do volume da PSF...');
+        this._setCalculating(false);
     }
 
     /**
@@ -128,11 +178,9 @@ class PSFAnalyzer {
      */
     handleNewLayout() {
         console.log("PSFAnalyzer: Novo layout detectado. Resetando análise.");
-        this.cachedTotalPSFArea = null; // Invalida a área total cacheada
+        this.cachedTotalPSFVolume = null; 
+        this.cachedThetaPico = null; // NOVO: Reseta Theta_pico
         this._resetUIForNewLayout();
-
-        // Os dados atualizados (antennaCoords, etc.) serão passados via updateData()
-        // pelo módulo que os gerencia (provavelmente main.js ou beam_pattern.js).
     }
 
     /**
@@ -140,23 +188,24 @@ class PSFAnalyzer {
      * @private
      */
     _resetUIForNewLayout() {
-        if (this.calculateAreaBtn) {
-            this.calculateAreaBtn.style.display = 'inline-block';
-            this.calculateAreaBtn.disabled = !(this.antennaCoords && this.antennaCoords.length > 0 && this.elementFieldData3D && this.K_CONST);
+        if (this.calculateVolumeBtn) {
+            this.calculateVolumeBtn.style.display = 'inline-block';
+            this.calculateVolumeBtn.disabled = !(this.antennaCoords && this.antennaCoords.length > 0 && this.elementFieldData3D && this.K_CONST);
         }
-        if (this.totalAreaDisplay) this.totalAreaDisplay.style.display = 'none';
-        if (this.totalAreaValue) this.totalAreaValue.textContent = '--';
+        if (this.totalVolumeDisplay) this.totalVolumeDisplay.style.display = 'none';
+        if (this.totalVolumeValue) this.totalVolumeValue.textContent = '--';
+        if (this.thetaPicoValue) this.thetaPicoValue.textContent = '--'; // NOVO
 
         if (this.sllThetaInput) this.sllThetaInput.disabled = true;
-        if (this.sllConeArea) this.sllConeArea.textContent = '--';
+        if (this.sllConeVolume) this.sllConeVolume.textContent = '--';
         if (this.sllPercentage) this.sllPercentage.textContent = '--';
 
         if (this.eePercentageInput) this.eePercentageInput.disabled = true;
-        if (this.eeFractionalArea) this.eeFractionalArea.textContent = '--';
+        if (this.eeFractionalVolume) this.eeFractionalVolume.textContent = '--';
         if (this.eeThetaResult) this.eeThetaResult.textContent = '--';
 
-        this._updateStatus('Aguardando cálculo da área da PSF...');
-        this._setCalculating(false); // Garante que o estado de cálculo seja resetado
+        this._updateStatus('Aguardando cálculo do volume da PSF...'); // Termo atualizado
+        this._setCalculating(false); 
     }
 
     /**
@@ -166,9 +215,9 @@ class PSFAnalyzer {
      */
     _setCalculating(calculating) {
         this.isCalculating = calculating;
-        if (this.calculateAreaBtn) this.calculateAreaBtn.disabled = calculating || !(this.antennaCoords && this.antennaCoords.length > 0);
-        if (this.sllThetaInput) this.sllThetaInput.disabled = calculating || this.cachedTotalPSFArea === null;
-        if (this.eePercentageInput) this.eePercentageInput.disabled = calculating || this.cachedTotalPSFArea === null;
+        if (this.calculateVolumeBtn) this.calculateVolumeBtn.disabled = calculating || !(this.antennaCoords && this.antennaCoords.length > 0);
+        if (this.sllThetaInput) this.sllThetaInput.disabled = calculating || this.cachedTotalPSFVolume === null;
+        if (this.eePercentageInput) this.eePercentageInput.disabled = calculating || this.cachedTotalPSFVolume === null;
     }
 
     /**
@@ -210,17 +259,17 @@ class PSFAnalyzer {
     }
 
     /**
-     * Dispara o cálculo da área total da PSF.
+     * Dispara o cálculo do volume total da PSF e de Theta_pico.
      */
-    triggerFullPSFAreaCalculation() {
+    triggerFullPSFVolumeCalculation() {
         if (this.isCalculating || !this._hasRequiredData()) return;
 
         this._setCalculating(true);
-        this._updateStatus('Calculando área total da PSF...');
+        this._updateStatus('Calculando volume total da PSF e Θ_pico...'); // Mensagem atualizada
         this.currentTaskId++;
         this.psfWorker.postMessage({
             id: this.currentTaskId,
-            command: 'calculateTotalArea',
+            command: 'calculateTotalVolumeAndThetaPico', // Comando atualizado
             antennaCoords: this.antennaCoords,
             elementFieldData3D: this.elementFieldData3D,
             K_CONST: this.K_CONST
@@ -231,12 +280,12 @@ class PSFAnalyzer {
      * Dispara o cálculo do SLL.
      */
     triggerSLLCalculation() {
-        if (this.isCalculating || this.cachedTotalPSFArea === null || !this._hasRequiredData() || !this.sllThetaInput) return;
+        if (this.isCalculating || this.cachedTotalPSFVolume === null || !this._hasRequiredData() || !this.sllThetaInput) return;
 
         const sllThetaDeg = parseFloat(this.sllThetaInput.value);
         if (isNaN(sllThetaDeg) || sllThetaDeg <= 0 || sllThetaDeg > 90) {
             this._updateStatus("Valor de Theta para SLL inválido.", true);
-            if (this.sllConeArea) this.sllConeArea.textContent = '--';
+            if (this.sllConeVolume) this.sllConeVolume.textContent = '--';
             if (this.sllPercentage) this.sllPercentage.textContent = '--';
             return;
         }
@@ -247,7 +296,7 @@ class PSFAnalyzer {
         this.psfWorker.postMessage({
             id: this.currentTaskId,
             command: 'calculateSLL',
-            antennaCoords: this.antennaCoords, // Enviado novamente para consistência do cache do worker
+            antennaCoords: this.antennaCoords, 
             elementFieldData3D: this.elementFieldData3D,
             K_CONST: this.K_CONST,
             sllThetaDeg: sllThetaDeg
@@ -258,12 +307,12 @@ class PSFAnalyzer {
      * Dispara o cálculo da EE.
      */
     triggerEECalculation() {
-        if (this.isCalculating || this.cachedTotalPSFArea === null || !this._hasRequiredData() || !this.eePercentageInput) return;
+        if (this.isCalculating || this.cachedTotalPSFVolume === null || !this._hasRequiredData() || !this.eePercentageInput) return;
 
         const eePercentage = parseFloat(this.eePercentageInput.value);
         if (isNaN(eePercentage) || eePercentage <= 0 || eePercentage >= 100) {
             this._updateStatus("Valor de porcentagem para EE inválido.", true);
-            if (this.eeFractionalArea) this.eeFractionalArea.textContent = '--';
+            if (this.eeFractionalVolume) this.eeFractionalVolume.textContent = '--';
             if (this.eeThetaResult) this.eeThetaResult.textContent = '--';
             return;
         }
@@ -274,7 +323,7 @@ class PSFAnalyzer {
         this.psfWorker.postMessage({
             id: this.currentTaskId,
             command: 'calculateEE',
-            antennaCoords: this.antennaCoords, // Enviado novamente
+            antennaCoords: this.antennaCoords, 
             elementFieldData3D: this.elementFieldData3D,
             K_CONST: this.K_CONST,
             eePercentage: eePercentage
@@ -296,41 +345,46 @@ class PSFAnalyzer {
             case 'progress':
                 this._updateStatus(workerData.data);
                 break;
-            case 'resultTotalArea':
-                this.cachedTotalPSFArea = workerData.data.totalArea;
-                if (this.totalAreaValue) this.totalAreaValue.textContent = this.cachedTotalPSFArea.toExponential(4);
-                if (this.calculateAreaBtn) this.calculateAreaBtn.style.display = 'none';
-                if (this.totalAreaDisplay) this.totalAreaDisplay.style.display = 'inline';
-                this._updateStatus('Área total da PSF calculada.');
+            case 'resultTotalVolumeAndThetaPico': // Mensagem atualizada
+                this.cachedTotalPSFVolume = workerData.data.totalVolume;
+                this.cachedThetaPico = workerData.data.thetaPico;
+
+                if (this.totalVolumeValue) this.totalVolumeValue.textContent = this.cachedTotalPSFVolume.toExponential(4);
+                if (this.thetaPicoValue) {
+                    this.thetaPicoValue.textContent = this.cachedThetaPico !== null ? this.cachedThetaPico.toFixed(2) : '--';
+                }
+                
+                if (this.calculateVolumeBtn) this.calculateVolumeBtn.style.display = 'none';
+                if (this.totalVolumeDisplay) this.totalVolumeDisplay.style.display = 'inline';
+                
+                this._updateStatus('Volume total da PSF e Θ_pico calculados.');
                 this._setCalculating(false);
-                // Habilita inputs SLL/EE e dispara seus cálculos com valores padrão
+                
                 if (this.sllThetaInput) this.sllThetaInput.disabled = false;
                 if (this.eePercentageInput) this.eePercentageInput.disabled = false;
-                this.triggerSLLCalculation(); // Calcula SLL com valor padrão do input
-                // A triggerEECalculation será chamada após SLL para evitar sobrecarga inicial
+                this.triggerSLLCalculation(); 
                 break;
             case 'resultSLL':
-                const coneArea = workerData.data.coneArea;
-                if (this.sllConeArea) this.sllConeArea.textContent = coneArea.toExponential(4);
-                if (this.cachedTotalPSFArea !== null && this.cachedTotalPSFArea > 1e-9) {
-                    const percentage = (coneArea / this.cachedTotalPSFArea) * 100;
+                const coneVolume = workerData.data.coneVolume; // Nome da variável atualizado
+                if (this.sllConeVolume) this.sllConeVolume.textContent = coneVolume.toExponential(4);
+                if (this.cachedTotalPSFVolume !== null && this.cachedTotalPSFVolume > 1e-9) {
+                    const percentage = (coneVolume / this.cachedTotalPSFVolume) * 100;
                     if (this.sllPercentage) this.sllPercentage.textContent = percentage.toFixed(2);
                 } else {
-                    if (this.sllPercentage) this.sllPercentage.textContent = this.cachedTotalPSFArea === 0 ? 'Div/0' : '--';
+                    if (this.sllPercentage) this.sllPercentage.textContent = this.cachedTotalPSFVolume === 0 ? 'Div/0' : '--';
                 }
                 this._updateStatus(`SLL para Θ=${workerData.data.sllThetaDeg}° calculado.`);
                 this._setCalculating(false);
-                // Após SLL, se não estivermos já calculando EE por outro motivo:
                 if(!this.isCalculating) this.triggerEECalculation();
                 break;
             case 'resultEE':
-                const { thetaEE, fractionalArea, eePercentage: returnedEEPercentage } = workerData.data;
+                const { thetaEE, fractionalVolume, eePercentage: returnedEEPercentage } = workerData.data; // Nome da variável atualizado
                 if (workerData.data.error) {
                     this._updateStatus(`Erro EE: ${workerData.data.error}`, true);
                     if(this.eeThetaResult) this.eeThetaResult.textContent = "Erro";
-                    if(this.eeFractionalArea) this.eeFractionalArea.textContent = "Erro";
+                    if(this.eeFractionalVolume) this.eeFractionalVolume.textContent = "Erro";
                 } else {
-                    if (this.eeFractionalArea) this.eeFractionalArea.textContent = fractionalArea.toExponential(4);
+                    if (this.eeFractionalVolume) this.eeFractionalVolume.textContent = fractionalVolume.toExponential(4);
                     if (this.eeThetaResult) this.eeThetaResult.textContent = thetaEE.toFixed(2);
                     this._updateStatus(`EE para ${returnedEEPercentage}% calculado: Θ = ${thetaEE.toFixed(2)}°.`);
                 }
@@ -339,11 +393,6 @@ class PSFAnalyzer {
             case 'error':
                 this._updateStatus(`Erro do Worker PSF: ${workerData.error}`, true);
                 this._setCalculating(false);
-                // Resetar campos específicos se o erro foi em um cálculo particular
-                if (this.isCalculating) { // Assumindo que a flag ainda estava ativa
-                    // Poderia verificar aqui qual comando falhou para limpar campos específicos
-                    // Por simplicidade, o status já indica o erro.
-                }
                 break;
         }
     }
