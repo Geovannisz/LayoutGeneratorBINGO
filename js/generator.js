@@ -179,53 +179,81 @@ class AntennaLayoutGenerator {
         const randomBtn = document.getElementById('random-btn');
         const showCollisionsCheckbox = document.getElementById('show-collisions');
 
-        // Listener para o seletor de tipo de layout.
-        // Ao mudar o tipo, atualiza os parâmetros, os controles dinâmicos e gera um novo layout.
         if (layoutTypeSelect) {
             layoutTypeSelect.addEventListener('change', () => {
                 this.layoutType = layoutTypeSelect.value;
-                // Reseta os parâmetros para os padrões do novo tipo de layout.
                 this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType]));
-                this.updateDynamicControls(); // Atualiza a UI com os controles corretos.
-                this.generateLayout(); // Gera o novo layout automaticamente.
+                this.updateDynamicControls();
+                this.generateLayout();
             });
         } else { console.warn("Elemento select#layout-type não encontrado."); }
 
-        // Listener para o botão "Gerar Layout".
-        // Chama a função principal de geração de layout.
         if (generateBtn) {
             generateBtn.addEventListener('click', () => this.generateLayout());
         } else { console.warn("Elemento button#generate-btn não encontrado."); }
 
-        // Listener para o botão "Gerar Aleatório".
-        // Chama a função para gerar parâmetros aleatórios e depois gera o layout.
         if (randomBtn) {
             randomBtn.addEventListener('click', () => this.generateRandomLayout());
         } else { console.warn("Elemento button#random-btn não encontrado."); }
 
-        // Listener para o checkbox "Mostrar Colisões".
-        // Apenas atualiza o estado interno e redesenha o canvas (não recalcula o layout).
         if (showCollisionsCheckbox) {
             showCollisionsCheckbox.addEventListener('change', () => {
                 this.showCollisions = showCollisionsCheckbox.checked;
-                this.drawLayout(); // Redesenha para mostrar/esconder colisões.
+                this.drawLayout();
             });
         } else { console.warn("Elemento input#show-collisions não encontrado."); }
-
 
         // --- Controles para Download da Imagem ---
         this.downloadImageBtn = document.getElementById('download-image-btn');
         this.imageThemeRadios = document.querySelectorAll('input[name="imageTheme"]');
         this.imageAxesRadios = document.querySelectorAll('input[name="imageAxes"]');
+        
+        // Novos controles
+        this.imageFormatRadios = document.querySelectorAll('input[name="imageFormat"]');
+        this.jpegQualityGroup = document.getElementById('jpeg-quality-group');
+        this.jpegQualitySlider = document.getElementById('jpeg-quality-slider');
+        this.jpegQualityInput = document.getElementById('jpeg-quality-input');
 
         if (this.downloadImageBtn) {
             this.downloadImageBtn.addEventListener('click', () => this.downloadLayoutImage());
         } else {
             console.warn("Botão de download da imagem (download-image-btn) não encontrado.");
         }
-        // --- Fim dos Controles de Download ---
 
-        // Cria os controles de parâmetros dinâmicos iniciais com base no layout padrão.
+        // Listener para alternar visibilidade do controle de qualidade JPEG
+        if (this.imageFormatRadios && this.jpegQualityGroup) {
+            this.imageFormatRadios.forEach(radio => {
+                radio.addEventListener('change', (event) => {
+                    if (event.target.value === 'jpeg') {
+                        this.jpegQualityGroup.style.display = 'flex'; // ou 'block' dependendo do estilo do .option-group
+                    } else {
+                        this.jpegQualityGroup.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Sincronização entre slider e input numérico para qualidade JPEG
+        if (this.jpegQualitySlider && this.jpegQualityInput) {
+            this.jpegQualitySlider.addEventListener('input', () => {
+                this.jpegQualityInput.value = this.jpegQualitySlider.value;
+            });
+            this.jpegQualityInput.addEventListener('input', () => {
+                let val = parseInt(this.jpegQualityInput.value, 10);
+                if (isNaN(val)) return;
+                val = Math.max(10, Math.min(100, val)); // Garante que está no range
+                this.jpegQualitySlider.value = val;
+                this.jpegQualityInput.value = val; // Atualiza caso tenha sido corrigido
+            });
+             this.jpegQualityInput.addEventListener('change', () => { // Finaliza a correção
+                let val = parseInt(this.jpegQualityInput.value, 10);
+                 if (isNaN(val) || val < 10) val = 10;
+                 if (val > 100) val = 100;
+                 this.jpegQualityInput.value = val;
+                 this.jpegQualitySlider.value = val;
+            });
+        }
+        
         this.updateDynamicControls();
     }
 
@@ -1239,107 +1267,104 @@ class AntennaLayoutGenerator {
      */
     downloadLayoutImage() {
         console.log("Iniciando processo de download da imagem do layout...");
-        if (!this.canvas) {
-             console.error("Canvas não disponível para download.");
-             alert("Erro: Canvas de visualização não disponível.");
+        if (!this.canvas || !this.imageThemeRadios || !this.imageAxesRadios || !this.imageFormatRadios) {
+             console.error("Componentes essenciais para download da imagem não encontrados.");
+             alert("Erro: Opções de download da imagem não configuradas corretamente.");
              return;
         }
-        if (!this.imageThemeRadios || !this.imageAxesRadios) {
-            console.error("Controles de opção de download da imagem não encontrados (tema ou eixos).");
-            alert("Erro: Opções de download da imagem não configuradas corretamente.");
-            return;
+
+        let selectedTheme = 'light';
+        try { selectedTheme = document.querySelector('input[name="imageTheme"]:checked')?.value || 'light'; } catch (e) { console.warn("Não foi possível ler o tema selecionado.", e); }
+        
+        let includeAxes = true;
+        try { includeAxes = document.querySelector('input[name="imageAxes"]:checked')?.value === 'yes'; } catch (e) { console.warn("Não foi possível ler a opção de eixos.", e); }
+
+        // Lendo o formato da imagem selecionado
+        let selectedFormat = 'png';
+        try { selectedFormat = document.querySelector('input[name="imageFormat"]:checked')?.value || 'png'; } catch (e) { console.warn("Não foi possível ler o formato da imagem selecionado.", e); }
+        
+        let jpegQuality = 0.92; // Padrão para JPEG (0.0 a 1.0)
+        if (selectedFormat === 'jpeg' && this.jpegQualityInput) {
+            const qualityValue = parseInt(this.jpegQualityInput.value, 10);
+            if (!isNaN(qualityValue) && qualityValue >= 10 && qualityValue <= 100) {
+                jpegQuality = qualityValue / 100.0;
+            }
         }
 
-        // Obtém as opções selecionadas na UI.
-        let selectedTheme = 'light'; // Padrão.
-        try { selectedTheme = document.querySelector('input[name="imageTheme"]:checked')?.value || 'light'; } catch (e) { console.warn("Não foi possível ler o tema selecionado para a imagem.", e); }
-        let includeAxes = true; // Padrão.
-        try { includeAxes = document.querySelector('input[name="imageAxes"]:checked')?.value === 'yes'; } catch (e) { console.warn("Não foi possível ler a opção de eixos para a imagem.", e); }
-
-        // Obtém o tema atual da página.
         const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
-        // Verifica se é necessário mudar temporariamente o tema para gerar a imagem.
         const needsThemeChange = currentTheme !== selectedTheme;
 
         const downloadButton = this.downloadImageBtn;
-        // Desabilita o botão e mostra feedback visual durante o processo.
         if(downloadButton) {
             downloadButton.disabled = true;
             downloadButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Preparando...';
-        } else {
-            console.warn("Botão de download não encontrado, feedback visual desabilitado.");
         }
 
-
-        /** Função para restaurar o estado da UI após o download. */
         const restoreState = () => {
-            // Restaura o tema original da página se ele foi alterado temporariamente.
             if (needsThemeChange) {
                 console.log(`Restaurando tema da página para "${currentTheme}".`);
                 if (currentTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
                 else document.documentElement.removeAttribute('data-theme');
-                // Redesenha o canvas visível com o tema original.
                 this.drawLayout();
             }
-            // Restaura o estado do botão de download.
              if(downloadButton) {
                  downloadButton.disabled = false;
-                 downloadButton.innerHTML = '<i class="fas fa-camera"></i> Baixar Imagem (PNG)';
+                 // Atualiza o texto do botão para refletir o formato, se desejado, ou manter genérico
+                 downloadButton.innerHTML = `<i class="fas fa-camera"></i> Baixar Imagem`;
              }
              console.log("Processo de download da imagem finalizado, estado restaurado.");
         };
 
-        /** Função que executa o redesenho para a imagem e o download. */
         const generateAndDownload = () => {
             try {
-                // Redesenha o layout no canvas com as opções de tema e eixos selecionadas para a imagem.
-                this.drawLayout(includeAxes);
+                this.drawLayout(includeAxes); // Redesenha com ou sem eixos
 
-                // Pequeno atraso para garantir que o canvas foi completamente redesenhado.
-                // Isso é importante especialmente após a mudança de tema.
                 setTimeout(() => {
                     try {
-                        // Converte o conteúdo do canvas para uma URL de dados PNG.
-                        const dataURL = this.canvas.toDataURL('image/png');
-                        // Cria um link invisível para acionar o download.
+                        let dataURL;
+                        let fileExtension = selectedFormat;
+                        let mimeType = `image/${selectedFormat}`;
+
+                        if (selectedFormat === 'jpeg') {
+                            dataURL = this.canvas.toDataURL(mimeType, jpegQuality);
+                        } else { // PNG por padrão
+                            mimeType = 'image/png'; // Garante que seja PNG
+                            fileExtension = 'png';
+                            dataURL = this.canvas.toDataURL(mimeType);
+                        }
+                        
                         const link = document.createElement('a');
                         link.href = dataURL;
-                        // Define o nome do arquivo para download.
-                        link.download = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}.png`;
-                        // Adiciona o link ao corpo, clica nele programaticamente, e remove-o.
+                        link.download = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}.${fileExtension}`;
+                        
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                        console.log("Download da imagem acionado.");
+                        console.log(`Download da imagem como ${fileExtension.toUpperCase()} acionado.`);
                     } catch (downloadError) {
-                         console.error("Erro ao gerar URL de dados ou acionar download da imagem:", downloadError);
+                         console.error("Erro ao gerar URL de dados ou acionar download:", downloadError);
                          alert("Ocorreu um erro ao preparar ou iniciar o download da imagem.");
                     } finally {
-                        // Sempre restaura o estado da UI, mesmo se o download falhar.
                         restoreState();
                     }
-                }, 100); // Atraso de 100ms após o redesenho.
+                }, 100);
 
             } catch(drawError) {
-                console.error("Erro durante o redesenho do canvas para download:", drawError);
+                console.error("Erro durante o redesenho para download:", drawError);
                 alert("Ocorreu um erro durante o redesenho da imagem para download.");
-                restoreState(); // Restaura estado em caso de erro de desenho.
+                restoreState();
             }
         };
 
-        // Se for necessário mudar o tema temporariamente, muda e agenda a geração/download.
         if (needsThemeChange) {
-            console.log(`Mudando tema da página temporariamente para "${selectedTheme}" para gerar a imagem.`);
+            console.log(`Mudando tema temporariamente para "${selectedTheme}" para gerar imagem.`);
             if (selectedTheme === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
             else document.documentElement.removeAttribute('data-theme');
-            // Atraso adicional após a mudança de tema para permitir que o CSS aplique.
             setTimeout(generateAndDownload, 150);
         } else {
-            // Se o tema da imagem já é o tema atual da página, gera e baixa imediatamente.
             generateAndDownload();
         }
     }
-
 } // === FIM DA CLASSE AntennaLayoutGenerator ===
 
 // === Instanciação Global ===

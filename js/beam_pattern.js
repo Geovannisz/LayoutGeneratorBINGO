@@ -343,7 +343,7 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
             xaxis: { title: 'X = Θ · cos(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
             yaxis: { title: 'Y = Θ · sin(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
             zaxis: { title: z_axis_title, range: z_axis_range_plot, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
-            camera: initialCamera, aspectmode: 'manual', aspectratio: { x: 1, y: 1, z: zScaleFactor }, dragmode: 'orbit'
+            camera: initialCamera, aspectmode: 'manual', aspectratio: { x: 1, y: 1, z: zScaleFactor }, dragmode: 'turntable'
         },
         plot_bgcolor: plotColors.plotBgColor, paper_bgcolor: plotColors.paperBgColor, font: { color: plotColors.textColor }, margin: { l: 5, r: 5, b: 5, t: 40, pad: 2 }
     };
@@ -719,6 +719,18 @@ function setupWorkers() {
         }
     }
 }
+
+// --- Modificação para expor dados para PSFAnalyzer ---
+// Podemos adicionar uma função getter ou confiar que main.js passará os dados.
+// Para uma abordagem mais encapsulada, uma função getter:
+function getBeamPatternModuleData() {
+    return {
+        parsedEFieldData3D: parsedEFieldData3DCache,
+        K_CONST: K, // K já está no escopo global deste módulo
+        isEField3DLoaded: eField3DLoadingState === 'loaded' && parsedEFieldData3DCache !== null
+    };
+}
+// Não vamos exportar explicitamente para window aqui, main.js pode chamar isso.
 
 // === Initialization and UI Event Listeners ===
 // ... (mantida)

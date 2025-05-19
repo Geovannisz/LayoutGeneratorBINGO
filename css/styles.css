@@ -110,17 +110,228 @@ h1, h2, h3 { margin: 0; }
 #layout-canvas { flex-grow: 1; display: block; width: 100%; height: auto; background-color: var(--input-bg-color); }
 .stats { display: flex; justify-content: space-around; padding: 10px; border-top: 1px solid var(--border-color); background-color: var(--highlight-color); font-weight: 500; flex-shrink: 0; }
 .stats div { text-align: center; }
-.download-image-controls { background-color: var(--card-bg-color); padding: 15px; margin-top: 15px; border-radius: 8px; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 10px; align-items: center; flex-shrink: 0; }
-.download-image-controls h3 { margin-bottom: 5px; font-size: 1.1em; }
-.download-image-options { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; justify-content: center; width: 100%; }
-.download-image-options .option-group { display: flex; flex-direction: column; gap: 5px; }
-.download-image-options .option-group label { font-weight: 500; }
-.download-image-options .radio-group { display: flex; gap: 10px; }
-.download-image-options .radio-group label { display: inline-flex; align-items: center; margin-right: 10px; font-weight: normal; }
-.download-image-options .radio-group input[type="radio"] { margin-right: 5px; }
-.download-image-button-container { text-align: center; margin-top: 5px; }
 
-/* ... (todo o CSS anterior inalterado até a seção .beam-controls) ... */
+/* NOVA ESTRUTURA: Linha para Análise PSF e Download da Imagem */
+.analysis-download-row {
+    display: flex;
+    flex-wrap: wrap; /* Permite quebra em telas menores */
+    gap: 20px; /* Espaço entre as duas seções */
+    margin-top: 20px; /* Espaço acima desta linha */
+    background-color: var(--card-bg-color); /* Fundo comum para a linha, pode ser removido se preferir fundos individuais */
+    padding: 15px;
+    border-radius: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.psf-analysis-section {
+    flex: 3; /* Ocupa 3/5 do espaço */
+    min-width: 300px; /* Largura mínima para evitar esmagamento */
+    padding: 10px;
+    border-right: 1px solid var(--border-color); /* Linha divisória opcional */
+    box-sizing: border-box;
+}
+[data-theme="dark"] .psf-analysis-section {
+    border-right-color: var(--border-color);
+}
+@media (max-width: 992px) { /* Em telas menores, remove a borda */
+    .psf-analysis-section {
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 20px;
+        margin-bottom: 10px;
+    }
+}
+
+
+.download-image-section {
+    flex: 2; /* Ocupa 2/5 do espaço */
+    min-width: 250px; /* Largura mínima */
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centraliza conteúdo */
+    justify-content: center; /* Centraliza verticalmente, se houver espaço */
+}
+
+/* Títulos das novas seções */
+.psf-analysis-section h3,
+.download-image-section h3 {
+    text-align: center;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    color: var(--text-color);
+}
+
+/* Controles da Análise PSF */
+.psf-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+button.small-btn { /* Classe para botões menores, se necessário */
+    padding: 8px 12px;
+    font-size: 0.9em;
+}
+[data-theme="dark"] button.small-btn.primary {
+    color: #282a36; /* Garante contraste no tema escuro */
+}
+
+
+.psf-value-display {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+[data-theme="dark"] .psf-value-display {
+    color: var(--primary-color); /* Ciano no tema escuro */
+}
+
+
+/* Tabela de Análise PSF */
+.psf-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    table-layout: fixed; /* Importante para controlar larguras de coluna */
+}
+.psf-table th, .psf-table td {
+    border: 1px solid var(--border-color);
+    padding: 8px;
+    text-align: left;
+    vertical-align: middle;
+    word-wrap: break-word;
+}
+
+/* NOVA Definição explícita das larguras das colunas */
+.psf-table th:nth-child(1), /* Coluna "Métrica" */
+.psf-table td:nth-child(1) {
+    width: 22%; /* Um pouco menos */
+}
+.psf-table th:nth-child(2), /* Coluna "Input" */
+.psf-table td:nth-child(2) {
+    width: 28%; /* Um pouco mais para acomodar o input e a unidade */
+}
+.psf-table th:nth-child(3), /* Coluna "Área (Métrica)" */
+.psf-table td:nth-child(3) {
+    width: 23%; /* Reduzido um pouco */
+    text-align: right;
+}
+.psf-table th:nth-child(4), /* Coluna "Resultado" */
+.psf-table td:nth-child(4) {
+    width: 27%; /* Mantém um bom espaço para o resultado */
+    text-align: right;
+}
+
+
+.psf-table th {
+    background-color: var(--highlight-color);
+    font-weight: 600;
+    white-space: normal;
+}
+.psf-table td .input-with-unit {
+    display: flex;
+    align-items: center;
+    gap: 5px; /* Espaço entre o label (ΘSLL:), o input e a unidade (°) */
+    justify-content: flex-start;
+}
+.psf-table td input[type="number"] {
+    width: 60px;
+    padding: 6px 8px; /* Ajustado o padding horizontal para dar espaço interno */
+    font-size: 0.9em;
+    text-align: right;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+    box-sizing: border-box;
+    margin-left: 2px;
+
+    /* Oculta as setas padrão (spinners) do input number */
+    -moz-appearance: textfield; /* Firefox */
+    appearance: textfield; /* Outros navegadores, se suportado para ocultar spinners */
+}
+
+/* Webkit (Chrome, Safari, Edge) - Oculta spinners */
+.psf-table td input[type="number"]::-webkit-outer-spin-button,
+.psf-table td input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0; /* Garante que nenhum espaço seja reservado para eles */
+}
+
+
+.psf-table td .input-with-unit span:last-child { /* Unidade (° ou %) */
+    margin-left: 2px;
+    white-space: nowrap;
+}
+
+/* Ajuste específico para a célula de resultado da EE para evitar quebra de linha */
+.psf-table td:nth-child(4) { /* Se aplica a toda a célula da coluna de resultado */
+    white-space: nowrap; /* Tenta evitar quebra de linha no conteúdo desta célula */
+}
+
+.psf-table td:nth-child(4) .psf-value-display,
+.psf-table td:nth-child(4) span {
+    display: inline-block;
+    vertical-align: middle;
+}
+.psf-table td:nth-child(4) .psf-value-display {
+    margin-left: 3px;
+}
+
+
+/* Mensagem de Status da Análise PSF */
+#psf-analysis-status.status-message {
+    text-align: center;
+    margin-top: 10px;
+    font-style: italic;
+    opacity: 0.8;
+    min-height: 1.2em; /* Para evitar saltos de layout */
+}
+
+
+/* Ajustes nos controles de download de imagem (já estavam dentro de .download-image-controls) */
+.download-image-options {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    align-items: flex-start; /* Alinha ao topo se quebrar linha */
+    justify-content: center; /* Centraliza os grupos de opção */
+    width: 100%;
+    margin-bottom: 10px;
+}
+.download-image-options .option-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+.download-image-options .option-group > label { /* Label principal do grupo */
+    font-weight: 500;
+    margin-bottom: 3px;
+}
+.download-image-options .radio-group {
+    display: flex;
+    gap: 10px;
+}
+.download-image-options .radio-group label { /* Label para cada radio button */
+    display: inline-flex;
+    align-items: center;
+    margin-right: 10px;
+    font-weight: normal;
+    cursor: pointer;
+}
+.download-image-options .radio-group input[type="radio"] {
+    margin-right: 5px;
+    cursor: pointer;
+}
+.download-image-button-container {
+    text-align: center;
+    margin-top: auto; /* Empurra o botão para baixo se houver espaço extra */
+    padding-top: 10px;
+}
 
 /* Ajustes internos do Padrão de Feixe */
 .beam-pattern-container { 
@@ -355,6 +566,19 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
         justify-content: center; /* Centraliza os botões dentro do div */
         width: auto; /* Largura automática baseada nos botões */
     }
+    .psf-analysis-section, .download-image-section {
+        flex-basis: 100%; /* Ocupa largura total quando quebrado */
+        min-width: unset;
+    }
+    .psf-analysis-section {
+        border-right: none; /* Remove borda direita na quebra */
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 15px;
+        padding-bottom: 15px;
+    }
+    .download-image-section {
+        padding-top: 15px;
+    }
 }
 
 @media (max-width: 768px) { 
@@ -390,5 +614,31 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
      .beam-controls .view-mode-buttons button {
         flex-grow: 0; /* Não força crescimento, largura baseada no conteúdo */
         min-width: 120px; /* Largura mínima para cada botão */
+    }
+    .psf-table {
+        font-size: 0.8em;
+        table-layout: auto;
+    }
+    .psf-table th:nth-child(1), .psf-table td:nth-child(1),
+    .psf-table th:nth-child(2), .psf-table td:nth-child(2),
+    .psf-table th:nth-child(3), .psf-table td:nth-child(3),
+    .psf-table th:nth-child(4), .psf-table td:nth-child(4) {
+        width: auto; /* Deixa o navegador decidir */
+        white-space: normal; /* Permite quebra de linha se necessário */
+    }
+
+    .psf-table th, .psf-table td {
+        padding: 5px;
+    }
+    .psf-table td input[type="number"] {
+        width: 50px;
+    }
+    .psf-table td .input-with-unit {
+        flex-wrap: wrap; /* Permite quebra se necessário em telas muito pequenas */
+        gap: 3px;
+    }
+    .psf-table td .input-with-unit span:first-child { /* Ex: ΘSLL: */
+        flex-basis: 100%; /* Faz o label ocupar a linha toda se quebrar */
+        margin-bottom: 2px;
     }
 }

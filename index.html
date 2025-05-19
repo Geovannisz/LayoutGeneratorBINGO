@@ -4,38 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerador de Layouts de Antenas BINGO</title>
-
-    <!-- CSS principal -->
     <link rel="stylesheet" href="css/styles.css">
-
-    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-
-    <!-- Font Awesome para ícones -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
-
- 
-    <!-- =========================================================== -->
-    <!--                  LINK PARA O FAVICON                      -->
-    <!-- =========================================================== -->
-    <!-- Link padrão para o favicon.ico.
-         O navegador procura automaticamente /favicon.ico na raiz,
-         mas é uma boa prática incluir esta tag.
-         O atributo 'type="image/x-icon"' é o MIME type para arquivos .ico.
-    -->
     <link rel="icon" href="favicon.ico" type="image/x-icon">
-    <!-- Link 'shortcut icon' para compatibilidade com navegadores mais antigos,
-         especialmente versões mais antigas do Internet Explorer.
-         Também aponta para o mesmo arquivo favicon.ico.
-    -->
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-    <!-- =========================================================== -->
-    <!--                FIM DO LINK PARA O FAVICON                 -->
-    <!-- =========================================================== -->
-
-    <!-- Plotly.js CDN -->
     <script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
-    <!-- O <style> inline foi movido para styles.css -->
 </head>
 <body>
     <header>
@@ -47,17 +21,10 @@
     </header>
 
     <div class="container">
-
-        <!-- =========================================================== -->
-        <!-- NOVA ESTRUTURA: Container para Gerador e Padrão de Feixe   -->
-        <!-- Este div usará flexbox para colocar os dois blocos lado a lado -->
-        <!-- =========================================================== -->
         <div class="generator-beam-row">
-
-            <!-- Seção: Gerador de Layout (Agora como item flex à esquerda) -->
             <section class="layout-generator">
                  <h2>Gerador de Layout</h2>
-                <div class="layout-controls"> <!-- Container para painel e visualização -->
+                <div class="layout-controls">
                     <div class="control-panel">
                         <div class="form-group">
                             <label for="layout-type">Tipo de Layout:</label>
@@ -88,40 +55,99 @@
                             <div>Tiles: <span id="tile-count">0</span></div>
                             <div>Antenas: <span id="antenna-count">0</span></div>
                         </div>
-                        <!-- Div para informações de colisão (gerado via JS) -->
-                    </div>
-                </div> <!-- Fim .layout-controls -->
-
-                <!-- Download Imagem Layout (permanece dentro do gerador) -->
-                <div class="download-image-controls">
-                    <h3>Baixar Imagem do Layout</h3>
-                    <div class="download-image-options">
-                         <div class="option-group">
-                            <label>Tema da Imagem:</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="imageTheme" value="light" checked> Claro</label>
-                                <label><input type="radio" name="imageTheme" value="dark"> Dracula</label>
-                            </div>
-                        </div>
-                        <div class="option-group">
-                            <label>Incluir Eixos:</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="imageAxes" value="yes" checked> Sim</label>
-                                <label><input type="radio" name="imageAxes" value="no"> Não</label>
-                            </div>
-                        </div>
-                    </div>
-                     <div class="download-image-button-container">
-                        <button id="download-image-btn" class="primary"><i class="fas fa-camera"></i> Baixar Imagem (PNG)</button>
                     </div>
                 </div>
-            </section> <!-- Fim .layout-generator -->
 
-            <!-- Seção: Padrão de Feixe (Agora como item flex à direita) -->
+                <div class="analysis-download-row">
+                    <div class="psf-analysis-section">
+                        <h3>Análise da PSF (Point Spread Function)</h3>
+                        <div class="psf-controls">
+                            <button id="calculate-psf-area-btn" class="primary small-btn">Calcular Área da PSF</button>
+                            <span id="psf-total-area-display" class="psf-value-display" style="display: none;">Área Total: <span id="psf-total-area-value">--</span></span>
+                        </div>
+                        <table class="psf-table">
+                            <thead>
+                                <tr>
+                                    <th>Métrica</th>
+                                    <th>Input</th>
+                                    <th>Área</th>
+                                    <th>Resultado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>SLL (Side Lobe Level)</td>
+                                    <td>
+                                        <div class="input-with-unit">
+                                            <span>Θ<sub>SLL</sub>:</span>
+                                            <input type="number" id="sll-theta-input" value="3" min="0.1" max="90" step="0.1" title="Theta para cálculo do SLL">
+                                            <span>°</span>
+                                        </div>
+                                    </td>
+                                    <td><span id="sll-cone-area" class="psf-value-display">--</span></td>
+                                    <td><span id="sll-percentage" class="psf-value-display">--</span> %</td>
+                                </tr>
+                                <tr>
+                                    <td>EE (Encircled Energy)</td>
+                                    <td>
+                                        <div class="input-with-unit">
+                                            <span>EE:</span>
+                                            <input type="number" id="ee-percentage-input" value="60" min="1" max="99" step="1" title="Porcentagem de Energia Circunscrita">
+                                            <span>%</span>
+                                        </div>
+                                    </td>
+                                    <td><span id="ee-fractional-area" class="psf-value-display">--</span></td>
+                                    <td>Θ<sub>EE</sub>: <span id="ee-theta-result" class="psf-value-display">--</span> °</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div id="psf-analysis-status" class="status-message">Aguardando cálculo da área da PSF...</div>
+                    </div>
+
+                    <div class="download-image-section">
+                        <h3>Baixar Imagem do Layout</h3>
+                        <div class="download-image-options">
+                             <div class="option-group">
+                                <label>Tema da Imagem:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="imageTheme" value="light" checked> Claro</label>
+                                    <label><input type="radio" name="imageTheme" value="dark"> Dracula</label>
+                                </div>
+                            </div>
+                            <div class="option-group">
+                                <label>Incluir Eixos:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="imageAxes" value="yes" checked> Sim</label>
+                                    <label><input type="radio" name="imageAxes" value="no"> Não</label>
+                                </div>
+                            </div>
+                            <!-- NOVAS OPÇÕES DE FORMATO E QUALIDADE -->
+                            <div class="option-group">
+                                <label>Formato:</label>
+                                <div class="radio-group" id="image-format-group">
+                                    <label><input type="radio" name="imageFormat" value="png" checked> PNG</label>
+                                    <label><input type="radio" name="imageFormat" value="jpeg"> JPEG</label>
+                                </div>
+                            </div>
+                            <div class="option-group" id="jpeg-quality-group" style="display: none;"> <!-- Visível apenas para JPEG -->
+                                <label for="jpeg-quality-slider">Qualidade JPEG:</label>
+                                <div class="slider-group download-slider-group"> <!-- Classe específica para estilização se necessário -->
+                                    <input type="range" id="jpeg-quality-slider" name="jpegQualitySlider" min="10" max="100" value="92" step="1">
+                                    <input type="number" id="jpeg-quality-input" name="jpegQualityInput" min="10" max="100" value="92" step="1">
+                                    <span>%</span>
+                                </div>
+                            </div>
+                        </div>
+                         <div class="download-image-button-container">
+                            <button id="download-image-btn" class="primary small-btn"><i class="fas fa-camera"></i> Baixar Imagem</button> <!-- Removido (PNG) do texto do botão -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             <section class="beam-pattern-container">
                 <h2>Padrão de Feixe Simulado</h2>
                 <div class="beam-controls">
-                    <!-- Grupo para Seleção de Phi -->
                     <div class="control-group">
                         <label for="beam-phi-input">Ângulo Phi (0°-90°):</label>
                         <div class="slider-group"> 
@@ -129,19 +155,13 @@
                             <input type="number" id="beam-phi-input" name="beamPhiInput" min="0" max="90" value="90" step="1">
                         </div>
                     </div>
-                    <!-- Grupo para Seleção de Escala -->
                     <div class="control-group">
-                        <label>Escala Y (2D/3D):</label> <!-- Label unificado -->
+                        <label>Escala Y (2D/3D):</label>
                         <div class="radio-group">
-                            <label>
-                                <input type="radio" name="beamScale" value="dB" checked> dB
-                            </label>
-                            <label>
-                                <input type="radio" name="beamScale" value="linear"> Linear
-                            </label>
+                            <label><input type="radio" name="beamScale" value="dB" checked> dB</label>
+                            <label><input type="radio" name="beamScale" value="linear"> Linear</label>
                         </div>
                     </div>
-                    <!-- Grupo de botões para alternar 2D/3D -->
                     <div class="control-group button-group-2d-3d">
                         <label>Modo de Visualização:</label>
                         <div class="view-mode-buttons">
@@ -150,19 +170,11 @@
                         </div>
                     </div>
                 </div>
-                <div id="beam-pattern-plot" class="plot-area"> <!-- Adicionada classe plot-area -->
-                     <!-- Gráfico Plotly será inserido aqui -->
-                </div>
-                 <div id="beam-status">Aguardando geração do layout inicial...</div>
-            </section> <!-- Fim .beam-pattern-container -->
+                <div id="beam-pattern-plot" class="plot-area"></div>
+                <div id="beam-status">Aguardando geração do layout inicial...</div>
+            </section>
+        </div>
 
-        </div> <!-- Fim .generator-beam-row -->
-        <!-- =========================================================== -->
-        <!-- FIM DA NOVA ESTRUTURA LADO-A-LADO                        -->
-        <!-- =========================================================== -->
-
-
-        <!-- Seção: Mapa Interativo (Estrutura interna inalterada, mas CSS ajustará largura) -->
         <section class="map-container">
              <h2>Mapa Interativo</h2>
              <div class="map-content">
@@ -175,20 +187,15 @@
                      <p>Clique no mapa ou escolha um arranjo:</p>
                      <div class="form-group">
                          <label for="arranjo-select">Arranjo:</label>
-                         <select id="arranjo-select">
-                             <option value="0">Selecione um arranjo</option>
-                         </select>
+                         <select id="arranjo-select"><option value="0">Selecione um arranjo</option></select>
                      </div>
                      <div id="coordinates-list" class="coordinates-list"></div>
                  </div>
              </div>
-         </section> <!-- Fim .map-container -->
+         </section>
 
-
-        <!-- Seção: Exportação (Estrutura interna inalterada, mas CSS ajustará layout dos campos) -->
         <section class="export-container">
             <h2>Exportação (Estrutura OSKAR)</h2>
-            <!-- O div .export-fields terá seu layout ajustado via CSS para 4 colunas -->
             <div class="export-fields">
                  <div class="export-field">
                     <label for="export-layout-wgs84">layout_wgs84.txt:</label>
@@ -207,20 +214,17 @@
                     <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas no tile"></textarea>
                 </div>
             </div>
-            <!-- Grupo de download ZIP (inalterado estruturalmente) -->
             <div class="download-zip-group">
                 <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)">
                 <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive"></i> Baixar Layout (ZIP)</button>
             </div>
-        </section> <!-- Fim .export-container -->
-
-    </div> <!-- Fim .container -->
+        </section>
+    </div>
 
     <footer>
         <p>Gerador de Layouts de Antenas BINGO</p>
     </footer>
 
-    <!-- Scripts JS (ordem inalterada) -->
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
@@ -228,7 +232,8 @@
     <script src="js/generator.js"></script>
     <script src="js/map.js"></script>
     <script src="js/export.js"></script>
-    <script src="js/beam_pattern.js"></script> 
+    <script src="js/beam_pattern.js"></script>
+    <script src="js/psf_analyzer.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

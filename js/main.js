@@ -1,137 +1,161 @@
 /**
  * main.js
- *
- * Arquivo principal para inicialização e coordenação dos componentes da aplicação
- * Gerador de Layouts de Antenas BINGO.
- *
- * Responsabilidades:
- * - Inicializar a aplicação após o carregamento do DOM.
- * - Verificar a disponibilidade de todos os módulos JS necessários.
- * - Configurar a comunicação e listeners de eventos globais (mudança de tema, redimensionamento).
- * - Gerenciar o modo escuro/claro.
- * - Disparar a geração do layout inicial.
+ * (Comentários anteriores mantidos)
  */
 
-// Timer para debounce de eventos de redimensionamento da janela.
 let resizeDebounceTimer;
 
-/**
- * Função principal de inicialização da aplicação.
- * Chamada quando o DOM está completamente carregado.
- */
 function initApp() {
     console.log('Aplicação BINGO Layout Generator: Inicializando...');
-
-    // Pequeno atraso para garantir que todos os scripts (especialmente os de bibliotecas externas)
-    // tenham tido tempo de carregar e executar completamente antes de tentarmos usá-los.
     setTimeout(() => {
         checkComponentsAndSetup();
-    }, 150); // Aumentado ligeiramente para maior robustez em conexões lentas.
+    }, 250); // Aumentado ligeiramente para garantir que psfAnalyzer também seja registrado
 }
 
-/**
- * Verifica a disponibilidade dos componentes principais da aplicação
- * e, se todos estiverem prontos, configura a comunicação e listeners.
- */
 function checkComponentsAndSetup() {
      let allComponentsReady = true;
      const missingComponents = [];
 
-     // Verifica cada módulo/componente essencial.
-     if (!window.BingoLayouts) { missingComponents.push('BingoLayouts (bingo_layouts.js)'); allComponentsReady = false; }
-     if (!window.antennaGenerator) { missingComponents.push('AntennaLayoutGenerator (generator.js)'); allComponentsReady = false; }
-     if (!window.interactiveMap) { missingComponents.push('InteractiveMap (map.js)'); allComponentsReady = false; }
-     if (!window.oskarExporter) { missingComponents.push('OskarLayoutExporter (export.js)'); allComponentsReady = false; }
-     // O módulo beam_pattern.js é inicializado via 'DOMContentLoaded' e não expõe um objeto global principal,
-     // mas suas funções são chamadas por eventos ou por outros módulos. Sua ausência seria notada
-     // por erros quando suas funcionalidades fossem invocadas.
+     if (!window.BingoLayouts) { missingComponents.push('BingoLayouts'); allComponentsReady = false; }
+     if (!window.antennaGenerator) { missingComponents.push('AntennaLayoutGenerator'); allComponentsReady = false; }
+     if (!window.interactiveMap) { missingComponents.push('InteractiveMap'); allComponentsReady = false; }
+     if (!window.oskarExporter) { missingComponents.push('OskarLayoutExporter'); allComponentsReady = false; }
+     // beam_pattern.js é inicializado por DOMContentLoaded
+     if (!window.psfAnalyzer) { missingComponents.push('PSFAnalyzer'); allComponentsReady = false; }
+
 
      if (allComponentsReady) {
          console.log('Todos os componentes principais foram carregados com sucesso!');
-         // Configura listeners de eventos globais e outras funcionalidades.
          setupGlobalEventListeners();
          setupDarkMode();
-         
-         // Gera o layout inicial e dispara o primeiro cálculo de padrão de feixe.
-         // O próprio antennaGenerator.generateLayout() agora dispara o evento 'layoutGenerated'.
+
+         // A geração do layout inicial e o disparo do 'layoutGenerated' são feitos por antennaGenerator
          if (window.antennaGenerator) {
             console.log("Chamando geração de layout inicial a partir de main.js...");
-            window.antennaGenerator.resizeCanvas(); // Garante que o canvas tenha o tamanho correto.
-            window.antennaGenerator.generateLayout(); // Gera o layout e dispara 'layoutGenerated'.
+            window.antennaGenerator.resizeCanvas();
+            window.antennaGenerator.generateLayout(); // Isso disparará 'layoutGenerated'
         }
      } else {
-          console.error("Falha na inicialização: Um ou mais componentes essenciais não foram carregados:", missingComponents);
-          // Poderia exibir uma mensagem mais proeminente para o usuário aqui.
-          alert(`Erro crítico: Falha ao carregar componentes essenciais da aplicação (${missingComponents.join(', ')}). Algumas funcionalidades podem não estar disponíveis. Verifique o console para mais detalhes.`);
+          console.error("Falha na inicialização: Componentes ausentes:", missingComponents);
+          alert(`Erro crítico: Falha ao carregar componentes (${missingComponents.join(', ')}).`);
      }
 }
 
 /**
- * Configura listeners de eventos globais, como mudança de tema e redimensionamento da janela.
+ * Atualiza o PSFAnalyzer com os dados necessários do arranjo e do campo do elemento.
+ * Esta função será chamada após a geração de um layout e após os dados 3D do campo do elemento serem carregados.
  */
+async function updatePSFAnalyzerData() {
+    if (!window.psfAnalyzer || typeof window.psfAnalyzer.updateData !== 'function') {
+        console.warn("PSFAnalyzer não está pronto para receber dados.");
+        return;
+    }
+
+    const antennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
+
+    // Tenta obter dados do módulo beam_pattern
+    let beamData = null;
+    if (typeof getBeamPatternModuleData === 'function') { // Verifica se a função existe
+        beamData = getBeamPatternModuleData();
+    } else if (window.beamPattern && typeof window.beamPattern.getModuleData === 'function') { // Alternativa se exposto no window
+        beamData = window.beamPattern.getModuleData();
+    }
+
+
+    let elementFieldData3D = beamData ? beamData.parsedEFieldData3D : null;
+    const K_CONST = beamData ? beamData.K_CONST : null;
+
+    // Se os dados 3D não estiverem carregados ainda, tenta carregá-los.
+    // A função fetchAndParseEFieldData3D é de beam_pattern.js
+    if ((!elementFieldData3D || elementFieldData3D.length === 0) && typeof fetchAndParseEFieldData3D === 'function') {
+        console.log("Main.js: Dados 3D não carregados, tentando buscar...");
+        try {
+            // Garante que o statusDiv de beam_pattern seja atualizado
+            const statusDivBeam = document.getElementById('beam-status');
+            if (statusDivBeam && (eField3DLoadingState === 'idle' || eField3DLoadingState === 'error')) { // eField3DLoadingState é de beam_pattern.js
+                 statusDivBeam.textContent = 'Carregando dados E-field 3D para análise PSF...';
+            }
+
+            elementFieldData3D = await fetchAndParseEFieldData3D(); // Esta função é de beam_pattern.js
+
+            // Atualiza novamente beamData após o fetch, caso getBeamPatternModuleData precise ser chamado
+            if (typeof getBeamPatternModuleData === 'function') {
+                beamData = getBeamPatternModuleData();
+                elementFieldData3D = beamData.parsedEFieldData3D; // Pega o valor atualizado
+            }
+
+            if (statusDivBeam && statusDivBeam.textContent.includes('para análise PSF...')) {
+                if (elementFieldData3D && elementFieldData3D.length > 0) {
+                    statusDivBeam.textContent = 'Dados E-field 3D carregados.';
+                } else {
+                    statusDivBeam.textContent = 'Falha ao carregar dados E-field 3D para análise.';
+                }
+            }
+        } catch (error) {
+            console.error("Main.js: Erro ao buscar dados 3D para PSFAnalyzer:", error);
+            // psfAnalyzer.updateData lidará com dados nulos
+        }
+    }
+
+    // Envia os dados (mesmo que nulos, para que o psfAnalyzer possa desabilitar a UI)
+    window.psfAnalyzer.updateData(antennaCoords, elementFieldData3D, K_CONST);
+}
+
+
 function setupGlobalEventListeners() {
-    // Listener para mudança de tema (claro/escuro)
-    // Disparado pelo toggle de modo escuro.
     window.addEventListener('themeChanged', () => {
         console.log('Evento global "themeChanged" recebido em main.js.');
-        // O módulo `generator.js` já tem seu próprio listener para `themeChanged`
-        // para redesenhar o canvas do layout.
-        // O módulo `beam_pattern.js` também escuta `themeChanged` para redesenhar o gráfico.
+        // Os módulos generator, beam_pattern e psf_analyzer (implicitamente pelo tema do navegador)
+        // já devem lidar com a mudança de tema.
     });
-    console.log('Listener global para "themeChanged" configurado (outros módulos podem escutá-lo).');
 
-    // Listener para redimensionamento da janela (com debounce)
     window.addEventListener('resize', () => {
         clearTimeout(resizeDebounceTimer);
         resizeDebounceTimer = setTimeout(() => {
-             console.log('Janela redimensionada. Atualizando componentes sensíveis ao tamanho.');
-             // O gerador de layout (canvas) precisa ser redimensionado e redesenhado.
+             console.log('Janela redimensionada.');
              if (window.antennaGenerator?.resizeCanvas) {
                 window.antennaGenerator.resizeCanvas();
              }
-             // Plotly geralmente lida com responsividade, mas um `Plotly.Plots.resize(plotDivId)`
-             // poderia ser chamado aqui se necessário, dentro do módulo beam_pattern.js
-             // ou via um evento 'windowResized' se múltiplos componentes precisassem reagir.
-             // Por ora, o `autosize: true` do Plotly e o `responsive: true` na config devem ser suficientes.
-        }, 250); // Atraso de 250ms para debounce.
+             // Plotly deve redimensionar automaticamente.
+        }, 250);
     });
-    console.log('Listener global para "resize" com debounce configurado.');
+
+    // Listener para quando um novo layout é gerado por generator.js
+    window.addEventListener('layoutGenerated', () => {
+        console.log("Main.js: Evento 'layoutGenerated' recebido.");
+        // Quando um novo layout é gerado, precisamos atualizar o PSFAnalyzer com
+        // as novas coordenadas das antenas e potencialmente recarregar/revalidar os dados 3D.
+        // A função handleNewLayout do psfAnalyzer já é chamada internamente por ele escutar o evento.
+        // Mas precisamos garantir que ele tenha os dados mais recentes.
+        updatePSFAnalyzerData();
+    });
+
+    console.log('Listeners globais configurados.');
 }
 
-/**
- * Configura a funcionalidade de modo escuro/claro.
- * Lê a preferência do localStorage e adiciona listener ao toggle.
- */
 function setupDarkMode() {
+    // ... (código existente de setupDarkMode - sem alterações)
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     if (!darkModeToggle) {
         console.warn("Toggle de modo escuro não encontrado no DOM.");
         return;
     }
-
-    // Verifica se há um tema salvo no localStorage.
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme === 'dark') {
         document.documentElement.setAttribute('data-theme', 'dark');
         darkModeToggle.checked = true;
     } else {
-         // Default para tema claro se nada salvo ou se 'light'.
          document.documentElement.removeAttribute('data-theme');
          darkModeToggle.checked = false;
     }
-
-    // Adiciona listener para o evento 'change' do toggle.
     darkModeToggle.addEventListener('change', function() {
         const newTheme = this.checked ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme); // Salva a preferência.
+        localStorage.setItem('theme', newTheme);
         console.log(`Tema alterado para: ${newTheme}`);
-        // Dispara um evento global para que outros componentes possam reagir.
         window.dispatchEvent(new CustomEvent('themeChanged'));
     });
     console.log('Funcionalidade de Modo Escuro configurada.');
 }
 
-// --- Ponto de Entrada da Aplicação ---
-// Adiciona listener para iniciar `initApp` quando o DOM estiver completamente carregado.
 document.addEventListener('DOMContentLoaded', initApp);
