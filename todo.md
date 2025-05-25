@@ -181,8 +181,6 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
 
 ## 🔮 Futuras Melhorias e Adições
 
-(Seção de Futuras Melhorias permanece a mesma do README anterior, pois não foi alterada nesta etapa)
-
 ### Funcionalidades Avançadas de Layout
 *   [ ] **Mais Algoritmos de Layout**:
     *   [ ] Implementar layouts otimizados para baixa redundância.
