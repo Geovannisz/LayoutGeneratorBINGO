@@ -45,6 +45,9 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
         *   [x] Remover opções de formato JPEG e qualidade.
     *   [x] Adicionar responsividade ao canvas.
     *   [x] Disparar evento `layoutGenerated` após geração.
+*   [x] **Reorganização da UI na Seção do Gerador:** *(Nova tarefa referente às mudanças recentes)*
+    *   [x] Trocar a posição da sub-seção "Baixar Imagem do Layout" com "Análise da PSF (Point Spread Function)".
+    *   [x] Ajustar as proporções horizontais e CSS correspondentes (flex, bordas).
 
 ## 🔬 Fase 3: Análise da Point Spread Function (PSF)
 
@@ -58,16 +61,18 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
     *   [x] Implementar integração numérica 2D da PSF para obter o volume.
     *   [x] Implementar cálculo do Volume Total da PSF e Theta_pico.
     *   [x] Implementar cálculo de SLL (Side Lobe Level):
-        *   Input para `Θ_SLL`.
-        *   Cálculo do volume do cone e percentual SLL.
+        *   [x] Input para `Θ_SLL`.
+        *   [x] Cálculo do volume do cone e percentual SLL.
     *   [x] Implementar cálculo de EE (Encircled Energy):
-        *   Input para porcentagem de EE.
-        *   Cálculo do `Θ_EE` e volume fracionário.
+        *   [x] Input para porcentagem de EE.
+        *   [x] Cálculo do `Θ_EE` e volume fracionário.
     *   [x] Atualizar UI com resultados e status.
     *   [x] Lidar com reset da análise quando um novo layout é gerado.
     *   [x] Gerenciar estado de "calculando" para desabilitar inputs.
+    *   [x] Modificar `triggerFullPSFVolumeCalculation` em `psf_analyzer.js` para retornar uma Promise.
+    *   [x] Fazer `psf_analyzer.js` disparar um evento `psfTotalVolumeCalculated` após o cálculo bem-sucedido do volume total e Theta_pico.
 
-## 📡 Fase 4: Simulação do Padrão de Feixe
+## 📡 Fase 4: Simulação do Padrão de Feixe e Curva EE(Θ) da PSF
 
 *   [x] **Desenvolvimento do Módulo `beam_pattern.js`, `beam_worker.js` e `beam_worker_3d.js`:**
     *   [x] Criar interface HTML para controles do padrão de feixe (Phi, escala, botões 2D/3D).
@@ -88,6 +93,31 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
     *   [x] Atualizar plotagem quando o layout ou parâmetros mudam.
     *   [x] Adicionar downsampling para plots 2D com muitos pontos.
     *   [x] Disparar evento `beamData3DLoaded` após carregamento dos dados 3D.
+    *   [x] **Remover títulos dos gráficos** do padrão de feixe 2D e 3D para otimizar espaço vertical.
+*   [x] **Implementação da Visualização da Curva EE(Θ) da PSF:** *(Nova seção principal referente às mudanças recentes)*
+    *   [x] **Estrutura HTML e CSS**:
+        *   [x] Adicionar nova sub-seção no HTML dentro do contêiner do "Padrão de Feixe Simulado" para o gráfico da Curva EE(Θ).
+        *   [x] Implementar um divisor visual (borda CSS) entre a área do gráfico do Padrão de Feixe e a nova área do gráfico da Curva EE(Θ).
+        *   [x] Ajustar CSS para que a área do Padrão de Feixe seja significativamente maior verticalmente (ex: proporção 6:1) que a área da Curva EE(Θ).
+        *   [x] Remover o título "Curva de Energia Circunscrita (EE vs. Θ)" e o botão "Gerar Curva" da UI.
+    *   [x] **Desenvolvimento do Módulo `psf_ee_theta_plot.js`:**
+        *   [x] Criar classe `PSFEeThetaPlotter`.
+        *   [x] Inicializar e gerenciar elementos DOM (área do plot, status).
+    *   [x] **Lógica de Geração da Curva no `psf_analysis_worker.js`:**
+        *   [x] Adicionar novo comando `calculateEECurve` ao worker.
+        *   [x] Reutilizar a `psfGrid` calculada.
+        *   [x] Calcular pontos (Theta, EE) para a curva, com maior densidade de amostragem (precisão ~3x maior) em ângulos Theta menores.
+        *   [x] Enviar dados da curva (`eeCurveData`) de volta para a thread principal.
+    *   [x] **Integração e Plotagem no `psf_ee_theta_plot.js`:**
+        *   [x] **Geração Automática**: Acionar o cálculo e plotagem da curva EE(Θ) automaticamente assim que o "Volume Total da PSF" for calculado com sucesso pelo `PSFAnalyzer`.
+        *   [x] Comunicar-se com `psf_analysis_worker.js` (via referência do worker do `PSFAnalyzer`) para solicitar os dados da curva.
+        *   [x] Plotar os dados recebidos usando Plotly.js.
+        *   [x] **Zoom Horizontal**: Configurar o gráfico Plotly para permitir zoom apenas no eixo X (Theta), mantendo o eixo Y (EE) fixo entre 0-100%.
+        *   [x] Atualizar mensagens de status.
+        *   [x] Limpar o gráfico quando os dados base da PSF forem invalidados (ex: novo layout).
+    *   [x] **Coordenação em `main.js`:**
+        *   [x] Inicializar `PSFEeThetaPlotter`.
+        *   [x] Garantir que `PSFEeThetaPlotter` receba os dados (`antennaCoords`, `elementFieldData3D`, `K_CONST`) e seja notificado quando o volume da PSF estiver pronto.
 
 ## 🗺️ Fase 5: Mapa Interativo
 
@@ -132,7 +162,7 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
 
 *   [x] **Desenvolvimento do Módulo `main.js`:**
     *   [x] Implementar lógica de inicialização da aplicação.
-    *   [x] Coordenar comunicação entre módulos através de eventos globais (ex: `layoutGenerated`, `themeChanged`, `beamData3DLoaded`).
+    *   [x] Coordenar comunicação entre módulos através de eventos globais (ex: `layoutGenerated`, `themeChanged`, `beamData3DLoaded`, `psfTotalVolumeCalculated`).
     *   [x] Configurar listeners de eventos globais (resize, etc.).
 *   [x] **CSS e Estilização:**
     *   [x] Aplicar estilos consistentes em toda a aplicação.
@@ -150,6 +180,8 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
 ---
 
 ## 🔮 Futuras Melhorias e Adições
+
+(Seção de Futuras Melhorias permanece a mesma do README anterior, pois não foi alterada nesta etapa)
 
 ### Funcionalidades Avançadas de Layout
 *   [ ] **Mais Algoritmos de Layout**:
