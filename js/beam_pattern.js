@@ -315,7 +315,6 @@ function downsampleData(xData, yData, maxPoints) {
 }
 
 // === 2D Plotting Function ===
-// ... (sem alterações) ...
 function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
     const plotDiv = document.getElementById(plotDivId);
     if (!plotDiv) { console.error(`Div de plot 2D "${plotDivId}" não encontrada.`); return; }
@@ -354,7 +353,7 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
         name: `Phi = ${phiValue}°`, line: { color: plotColors.lineColor, width: 1.5 }
     };
     const layout = {
-        title: `Padrão de Feixe 2D (Phi = ${phiValue}°, Escala ${scaleType === 'dB' ? 'dB' : 'Linear'})`,
+        // title: `Padrão de Feixe 2D (Phi = ${phiValue}°, Escala ${scaleType === 'dB' ? 'dB' : 'Linear'})`, // REMOVIDO TÍTULO
         xaxis: { title: 'Theta (graus)', gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, tickcolor: plotColors.textColor, titlefont: { color: plotColors.textColor }, tickfont: { color: plotColors.textColor }, automargin: true },
         yaxis: {
             title: yAxisTitle,
@@ -370,6 +369,7 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
         plot_bgcolor: plotColors.plotBgColor, paper_bgcolor: plotColors.paperBgColor,
         font: { color: plotColors.textColor }, showlegend: false,
         autosize: true,
+        margin: { t: 20, b: 50, l: 60, r: 20 } // Ajusta margens se necessário após remover título
     };
     const config = {responsive: true, scrollZoom: true };
 
@@ -385,7 +385,6 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
 }
 
 // === 3D Plotting Function ===
-// ... (sem alterações) ...
 function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, scaleType) {
     const plotDiv = document.getElementById(plotDivId);
     if (!plotDiv) {
@@ -430,14 +429,16 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
     let initialCamera = { eye: { x: 1.5, y: 1.5, z: 1.5 }, up: { x: 0, y: 0, z: 1 }, center: { x: 0, y: 0, z: (scaleType === 'dB' ? -50 : 0.4) } };
     if (scaleType === 'dB') { initialCamera.eye = { x: 1.5, y: 1.5, z: 1.8 }; initialCamera.center = { x: 0, y: 0, z: -50 }; }
     const layout = {
-        title: `Padrão de Feixe 3D (Projeção Polar, Escala ${scaleType})`, autosize: true,
+        // title: `Padrão de Feixe 3D (Projeção Polar, Escala ${scaleType})`, // REMOVIDO TÍTULO
+        autosize: true,
         scene: {
-            xaxis: { title: 'X = Θ · cos(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
-            yaxis: { title: 'Y = Θ · sin(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
-            zaxis: { title: z_axis_title, range: z_axis_range_plot, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor },
+            xaxis: { title: 'X = Θ·cos(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor, titlefont: {size: 10}, tickfont: {size: 9} },
+            yaxis: { title: 'Y = Θ·sin(Φ)', autorange: true, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor, titlefont: {size: 10}, tickfont: {size: 9} },
+            zaxis: { title: z_axis_title, range: z_axis_range_plot, color: plotColors.textColor, gridcolor: plotColors.gridColor, zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor, backgroundcolor: plotColors.plotBgColor, titlefont: {size: 10}, tickfont: {size: 9} },
             camera: initialCamera, aspectmode: 'manual', aspectratio: { x: 1, y: 1, z: zScaleFactor }, dragmode: 'turntable'
         },
-        plot_bgcolor: plotColors.plotBgColor, paper_bgcolor: plotColors.paperBgColor, font: { color: plotColors.textColor }, margin: { l: 5, r: 5, b: 5, t: 40, pad: 2 }
+        plot_bgcolor: plotColors.plotBgColor, paper_bgcolor: plotColors.paperBgColor, font: { color: plotColors.textColor },
+        margin: { l: 5, r: 5, b: 5, t: 5, pad: 2 } // Reduzida margem superior (t)
     };
     const config = { responsive: true, scrollZoom: true };
 
@@ -895,7 +896,10 @@ function initBeamPatternControls() {
     });
 
     window.addEventListener('layoutGenerated', () => {
-        trigger2DPlotUpdate(); 
+        // Apenas aciona o plot 2D se o botão 2D estiver "ativo" (classe primary)
+        if(visualize2DBtn && visualize2DBtn.classList.contains('primary')) {
+            trigger2DPlotUpdate(); 
+        }
     });
 
     window.addEventListener('themeChanged', () => {
@@ -905,13 +909,13 @@ function initBeamPatternControls() {
         const is3DPlotDisplayed = isPlotDisplayed && plotDivCurrent.data[0].type === 'surface';
         if (is3DPlotDisplayed) {
             if (hasAntennas) {
-                process3DPlotRequest();
+                process3DPlotRequest(); // Redesenha 3D
             } else {
                  if (isPlotDisplayed) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible');}
             }
-        } else if (isPlotDisplayed && hasAntennas) {
-            schedulePlotUpdate();
-        } else {
+        } else if (isPlotDisplayed && hasAntennas) { // Era 2D e tinha antenas
+            schedulePlotUpdate(); // Redesenha 2D
+        } else { // Não tinha plot ou não tinha antenas
             if (isPlotDisplayed) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible');}
         }
     });

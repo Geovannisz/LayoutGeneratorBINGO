@@ -11,7 +11,7 @@ function initApp() {
     console.log('Aplicação BINGO Layout Generator: Inicializando...');
     setTimeout(() => {
         checkComponentsAndSetup();
-    }, 250);
+    }, 250); // Aumenta um pouco o timeout para garantir que todos os scripts carreguem
 }
 
 function checkComponentsAndSetup() {
@@ -23,6 +23,8 @@ function checkComponentsAndSetup() {
      if (!window.interactiveMap) { missingComponents.push('InteractiveMap'); allComponentsReady = false; }
      if (!window.oskarExporter) { missingComponents.push('OskarLayoutExporter'); allComponentsReady = false; }
      if (!window.psfAnalyzer) { missingComponents.push('PSFAnalyzer'); allComponentsReady = false; }
+     // Adiciona verificação para o novo plotter
+     if (!window.psfEeThetaPlotter) { missingComponents.push('PSFEeThetaPlotter'); allComponentsReady = false; }
 
 
      if (allComponentsReady) {
@@ -32,73 +34,70 @@ function checkComponentsAndSetup() {
 
          if (window.antennaGenerator) {
             console.log("Chamando geração de layout inicial a partir de main.js...");
-            window.antennaGenerator.resizeCanvas();
-            window.antennaGenerator.generateLayout();
+            window.antennaGenerator.resizeCanvas(); // Garante que o canvas tenha o tamanho certo
+            window.antennaGenerator.generateLayout(); // Gera o layout inicial
         }
      } else {
           console.error("Falha na inicialização: Componentes ausentes:", missingComponents);
-          alert(`Erro crítico: Falha ao carregar componentes (${missingComponents.join(', ')}).`);
+          alert(`Erro crítico: Falha ao carregar componentes (${missingComponents.join(', ')}). A página pode não funcionar corretamente.`);
      }
 }
 
 /**
- * Atualiza o PSFAnalyzer com os dados necessários do arranjo e do campo do elemento.
- * Esta função será chamada após a geração de um layout e após os dados 3D do campo do elemento serem carregados.
+ * Atualiza o PSFAnalyzer e o novo PSFEeThetaPlotter com os dados necessários.
  */
-async function updatePSFAnalyzerData() { // Tornada async para aguardar o carregamento dos dados 3D
-    if (!window.psfAnalyzer || typeof window.psfAnalyzer.updateData !== 'function') {
-        console.warn("PSFAnalyzer não está pronto para receber dados.");
-        return;
-    }
-
+async function updatePSFModulesData() {
     const antennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
-    let K_CONST_val = null; // Renomeado para evitar conflito com K_CONST de beam_pattern
-    let eFieldData3D_val = null; // Renomeado para evitar conflito
+    let K_CONST_val = null;
+    let eFieldData3D_val = null;
 
-    // Tenta obter dados do módulo beam_pattern
-    // Primeiro, tenta pegar K_CONST, que não depende de fetch
+    // Tenta obter K_CONST e eFieldData3D cacheados do beam_pattern.js
     if (typeof getBeamPatternModuleData === 'function') {
-        const beamDataInitial = getBeamPatternModuleData();
-        K_CONST_val = beamDataInitial.K_CONST;
-        eFieldData3D_val = beamDataInitial.parsedEFieldData3D; // Pega o cache atual
-    } else if (window.beamPattern && typeof window.beamPattern.getModuleData === 'function') {
-        const beamDataInitial = window.beamPattern.getModuleData();
-        K_CONST_val = beamDataInitial.K_CONST;
-        eFieldData3D_val = beamDataInitial.parsedEFieldData3D;
+        const beamData = getBeamPatternModuleData();
+        K_CONST_val = beamData.K_CONST;
+        eFieldData3D_val = beamData.parsedEFieldData3D;
     }
 
-    // Se os dados 3D não estiverem carregados ainda (eFieldData3D_val é null ou vazio),
-    // ou se o estado de carregamento indicar que não foi carregado ou deu erro, tenta carregar.
+    // Se eFieldData3D não estiver carregado, tenta carregar
     let needsToLoad3DData = !eFieldData3D_val || eFieldData3D_val.length === 0;
-    if (typeof fullEFieldDataLoadingState !== 'undefined') { // fullEFieldDataLoadingState é de beam_pattern.js
+    if (typeof fullEFieldDataLoadingState !== 'undefined') { // de beam_pattern.js
         needsToLoad3DData = needsToLoad3DData || (fullEFieldDataLoadingState !== 'loaded');
     }
 
-
-    if (needsToLoad3DData && typeof ensureFullEFieldData3DLoaded === 'function') { // ensureFullEFieldData3DLoaded é de beam_pattern.js
-        console.log("Main.js: Dados 3D não carregados ou estado não 'loaded', tentando buscar/garantir para análise PSF...");
+    if (needsToLoad3DData && typeof ensureFullEFieldData3DLoaded === 'function') {
+        console.log("Main.js: Dados E-Field 3D não carregados/prontos. Buscando...");
         try {
-            // ensureFullEFieldData3DLoaded já atualiza o statusDiv em beam_pattern.js
-            eFieldData3D_val = await ensureFullEFieldData3DLoaded(); // Aguarda o carregamento
-            console.log("Main.js: Dados 3D carregados/garantidos para PSFAnalyzer.");
+            eFieldData3D_val = await ensureFullEFieldData3DLoaded();
+            console.log("Main.js: Dados E-Field 3D carregados/garantidos.");
         } catch (error) {
-            console.error("Main.js: Erro ao buscar/garantir dados 3D para PSFAnalyzer:", error);
-            // eFieldData3D_val permanecerá null ou com o valor anterior (se houver)
-            // O psfAnalyzer.updateData lidará com dados nulos
+            console.error("Main.js: Erro ao buscar/garantir dados E-Field 3D:", error);
+            // Os módulos de PSF lidarão com eFieldData3D_val sendo null
         }
-    } else if (eFieldData3D_val && eFieldData3D_val.length > 0) {
-        console.log("Main.js: Usando dados 3D já cacheados para PSFAnalyzer.");
     }
 
+    // Atualiza PSFAnalyzer
+    if (window.psfAnalyzer && typeof window.psfAnalyzer.updateData === 'function') {
+        window.psfAnalyzer.updateData(antennaCoords, eFieldData3D_val, K_CONST_val);
+    } else {
+        console.warn("PSFAnalyzer ou sua função updateData não está pronta.");
+    }
 
-    // Envia os dados (mesmo que eFieldData3D_val seja null após uma falha de fetch)
-    window.psfAnalyzer.updateData(antennaCoords, eFieldData3D_val, K_CONST_val);
+    // Atualiza PSFEeThetaPlotter
+    if (window.psfEeThetaPlotter && typeof window.psfEeThetaPlotter.updateCoreData === 'function') {
+        window.psfEeThetaPlotter.updateCoreData(antennaCoords, eFieldData3D_val, K_CONST_val);
+    } else {
+        console.warn("PSFEeThetaPlotter ou sua função updateCoreData não está pronta.");
+    }
 }
 
 
 function setupGlobalEventListeners() {
     window.addEventListener('themeChanged', () => {
         console.log('Evento global "themeChanged" recebido em main.js.');
+        // Outros módulos podem ouvir isso diretamente, se necessário para redesenhar seus próprios plots.
+        // Ex: antennaGenerator já redesenha seu canvas.
+        // Plotly graphs são atualizados por seus respectivos módulos (beam_pattern, psf_ee_theta_plot)
+        // ao receberem o evento ou ao serem redesenhados explicitamente.
     });
 
     window.addEventListener('resize', () => {
@@ -106,24 +105,49 @@ function setupGlobalEventListeners() {
         resizeDebounceTimer = setTimeout(() => {
              console.log('Janela redimensionada.');
              if (window.antennaGenerator?.resizeCanvas) {
-                window.antennaGenerator.resizeCanvas();
+                window.antennaGenerator.resizeCanvas(); // O gerador redesenha seu canvas
              }
+             // Plotly graphs com responsive: true devem se ajustar, mas podemos forçar um resize se necessário
+             // Ex: Plotly.Plots.resize('beam-pattern-plot'); Plotly.Plots.resize('psf-ee-theta-plot');
         }, 250);
     });
 
-    window.addEventListener('layoutGenerated', async () => { // Tornada async
+    // Quando um novo layout é gerado
+    window.addEventListener('layoutGenerated', async () => {
         console.log("Main.js: Evento 'layoutGenerated' recebido.");
-        // Quando um novo layout é gerado, precisamos atualizar o PSFAnalyzer.
-        // A função updatePSFAnalyzerData agora é async e vai aguardar ensureFullEFieldData3DLoaded se necessário.
-        await updatePSFAnalyzerData();
+        // Atualiza os dados para os módulos PSF.
+        // Isso pode acionar o carregamento de dados E-field 3D se ainda não estiverem carregados.
+        await updatePSFModulesData();
     });
 
-    // Adiciona um listener para quando os dados 3D forem carregados com sucesso pelo beam_pattern
-    // Isso pode ser redundante se layoutGenerated sempre acionar updatePSFAnalyzerData corretamente,
-    // mas pode ajudar em cenários onde os dados 3D são carregados independentemente (ex: pelo botão 3D).
+    // Quando os dados 3D do padrão de feixe são carregados com sucesso
     window.addEventListener('beamData3DLoaded', async () => {
         console.log("Main.js: Evento 'beamData3DLoaded' recebido.");
-        await updatePSFAnalyzerData();
+        // Garante que os módulos PSF tenham os dados E-field 3D mais recentes.
+        await updatePSFModulesData();
+    });
+    
+    // Listener para quando o volume total da PSF é calculado pelo PSFAnalyzer
+    window.addEventListener('psfTotalVolumeCalculated', (event) => {
+        console.log("Main.js: Evento 'psfTotalVolumeCalculated' recebido.", event.detail);
+        if (window.psfEeThetaPlotter && typeof window.psfEeThetaPlotter.updateCoreData === 'function') {
+            // Passa todos os dados novamente, incluindo o volume total atualizado.
+            // updatePSFModulesData() já teria sido chamado, mas aqui garantimos que o totalPSFVolume
+            // no psfEeThetaPlotter seja explicitamente atualizado se ele depende desse evento.
+            // No entanto, a lógica atual de psfEeThetaPlotter.triggerPlotGeneration()
+            // já busca o volume de psfAnalyzer.cachedTotalPSFVolume, então
+            // este listener em main.js para este evento específico pode não ser estritamente necessário
+            // para o EE(Theta) plotter, mas é bom para logar.
+            // Apenas para garantir que o plotter tenha o volume mais recente, se ele o armazenar:
+            if (window.psfEeThetaPlotter.currentLayoutData && event.detail && typeof event.detail.totalVolume === 'number') {
+                 window.psfEeThetaPlotter.currentLayoutData.totalPSFVolume = event.detail.totalVolume;
+                 // Reavalia se o botão de gerar curva EE(Theta) deve ser habilitado
+                 if (window.psfEeThetaPlotter._hasRequiredDataForCurve && window.psfEeThetaPlotter._hasRequiredDataForCurve() && !window.psfEeThetaPlotter.isCalculating) {
+                    window.psfEeThetaPlotter.generatePlotBtn.disabled = false;
+                    window.psfEeThetaPlotter._updateStatus('Pronto para gerar curva EE(Θ).');
+                 }
+            }
+        }
     });
 
 

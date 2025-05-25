@@ -59,6 +59,29 @@
                 </div>
 
                 <div class="analysis-download-row">
+                    <div class="download-image-section">
+                        <h3>Baixar Imagem do Layout</h3>
+                        <div class="download-image-options">
+                             <div class="option-group">
+                                <label>Tema da Imagem:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="imageTheme" value="light" checked> Claro</label>
+                                    <label><input type="radio" name="imageTheme" value="dark"> Dracula</label>
+                                </div>
+                            </div>
+                            <div class="option-group">
+                                <label>Incluir Eixos:</label>
+                                <div class="radio-group">
+                                    <label><input type="radio" name="imageAxes" value="yes" checked> Sim</label>
+                                    <label><input type="radio" name="imageAxes" value="no"> Não</label>
+                                </div>
+                            </div>
+                        </div>
+                         <div class="download-image-button-container">
+                            <button id="download-image-btn" class="primary small-btn"><i class="fas fa-camera"></i> Baixar Imagem</button>
+                        </div>
+                    </div>
+
                     <div class="psf-analysis-section">
                         <h3>Análise da PSF (Point Spread Function)</h3>
                         <div class="psf-controls">
@@ -103,60 +126,49 @@
                         </table>
                         <div id="psf-analysis-status" class="status-message">Aguardando cálculo do volume da PSF...</div>
                     </div>
-
-                    <div class="download-image-section">
-                        <h3>Baixar Imagem do Layout</h3>
-                        <div class="download-image-options">
-                             <div class="option-group">
-                                <label>Tema da Imagem:</label>
-                                <div class="radio-group">
-                                    <label><input type="radio" name="imageTheme" value="light" checked> Claro</label>
-                                    <label><input type="radio" name="imageTheme" value="dark"> Dracula</label>
-                                </div>
-                            </div>
-                            <div class="option-group">
-                                <label>Incluir Eixos:</label>
-                                <div class="radio-group">
-                                    <label><input type="radio" name="imageAxes" value="yes" checked> Sim</label>
-                                    <label><input type="radio" name="imageAxes" value="no"> Não</label>
-                                </div>
-                            </div>
-                            <!-- OPÇÕES DE FORMATO E QUALIDADE REMOVIDAS -->
-                        </div>
-                         <div class="download-image-button-container">
-                            <button id="download-image-btn" class="primary small-btn"><i class="fas fa-camera"></i> Baixar Imagem</button>
-                        </div>
-                    </div>
                 </div>
             </section>
 
             <section class="beam-pattern-container">
-                <h2>Padrão de Feixe Simulado</h2>
-                <div class="beam-controls">
-                    <div class="control-group">
-                        <label for="beam-phi-input">Ângulo Phi (0°-90°):</label>
-                        <div class="slider-group"> 
-                            <input type="range" id="beam-phi-slider" name="beamPhiSlider" min="0" max="90" value="90" step="1">
-                            <input type="number" id="beam-phi-input" name="beamPhiInput" min="0" max="90" value="90" step="1">
+                <div class="beam-pattern-main-plot-area">
+                    <h2>Padrão de Feixe Simulado</h2>
+                    <div class="beam-controls">
+                        <div class="control-group">
+                            <label for="beam-phi-input">Ângulo Phi (0°-90°):</label>
+                            <div class="slider-group"> 
+                                <input type="range" id="beam-phi-slider" name="beamPhiSlider" min="0" max="90" value="90" step="1">
+                                <input type="number" id="beam-phi-input" name="beamPhiInput" min="0" max="90" value="90" step="1">
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Escala Y (2D/3D):</label>
+                            <div class="radio-group">
+                                <label><input type="radio" name="beamScale" value="dB" checked> dB</label>
+                                <label><input type="radio" name="beamScale" value="linear"> Linear</label>
+                            </div>
+                        </div>
+                        <div class="control-group button-group-2d-3d">
+                            <label>Modo de Visualização:</label>
+                            <div class="view-mode-buttons">
+                                <button id="visualize-2d-btn" class="primary" title="Visualizar padrão de feixe em 2D para o Phi selecionado."><i class="fas fa-chart-line"></i> Padrão 2D</button>
+                                <button id="visualize-3d-btn" class="secondary" title="Visualizar padrão de feixe em 3D (varredura completa)."><i class="fas fa-cube"></i> Padrão 3D</button>
+                            </div>
                         </div>
                     </div>
-                    <div class="control-group">
-                        <label>Escala Y (2D/3D):</label>
-                        <div class="radio-group">
-                            <label><input type="radio" name="beamScale" value="dB" checked> dB</label>
-                            <label><input type="radio" name="beamScale" value="linear"> Linear</label>
-                        </div>
-                    </div>
-                    <div class="control-group button-group-2d-3d">
-                        <label>Modo de Visualização:</label>
-                        <div class="view-mode-buttons">
-                            <button id="visualize-2d-btn" class="primary" title="Visualizar padrão de feixe em 2D para o Phi selecionado."><i class="fas fa-chart-line"></i> Padrão 2D</button>
-                            <button id="visualize-3d-btn" class="secondary" title="Visualizar padrão de feixe em 3D (varredura completa)."><i class="fas fa-cube"></i> Padrão 3D</button>
-                        </div>
-                    </div>
+                    <div id="beam-pattern-plot" class="plot-area"></div>
+                    <div id="beam-status">Aguardando geração do layout inicial...</div>
                 </div>
-                <div id="beam-pattern-plot" class="plot-area"></div>
-                <div id="beam-status">Aguardando geração do layout inicial...</div>
+
+                <div class="psf-ee-theta-graph-section">
+                    <!-- Título e botão removidos. O gráfico ocupará este espaço. -->
+                    <div id="psf-ee-theta-plot" class="plot-area">
+                        <div class="plot-placeholder">
+                            <!-- Mensagem alterada, pois a geração será automática -->
+                            Aguardando cálculo da PSF para gerar a curva EE(Θ)...
+                        </div>
+                    </div>
+                    <div id="psf-ee-theta-status" class="status-message">Aguardando dados da PSF...</div>
+                </div>
             </section>
         </div>
 
@@ -219,6 +231,7 @@
     <script src="js/export.js"></script>
     <script src="js/beam_pattern.js"></script>
     <script src="js/psf_analyzer.js"></script>
+    <script src="js/psf_ee_theta_plot.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
