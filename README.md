@@ -130,7 +130,7 @@ A seção final permite exportar os dados configurados em formatos compatíveis 
     *   `beam_pattern.js`: Simulação do padrão de feixe.
         *   `beam_worker.js` (2D), `beam_worker_3d.js` (3D).
     *   `psf_analyzer.js`: UI da Análise da PSF.
-    *   `psf_ee_theta_plot.js`: UI e lógica do gráfico EE(Θ) da PSF. *(Novo)*
+    *   `psf_ee_theta_plot.js`: UI e lógica do gráfico EE(Θ) da PSF.
         *   `psf_analysis_worker.js`: Web Worker para cálculos da PSF (Volume, SLL, EE, Θ_pico, e agora também dados para a curva EE(Θ)).
 *   **Scripts de Apoio Python** (`python/`):
     *   `bingo_layouts.py`: Implementação Python dos layouts.
