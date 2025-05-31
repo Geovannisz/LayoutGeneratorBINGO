@@ -576,6 +576,97 @@ button.secondary { background-color: var(--secondary-color); color: var(--card-b
 button:hover { opacity: 0.9; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* Config Management Group */
+.config-management-group {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.file-input-label {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    background-color: var(--secondary-btn-bg); /* Assuming you might want to define these */
+    color: var(--secondary-btn-text);       /* or use existing like --button-secondary-bg */
+    font-size: 0.9em;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+/* Fallback if --secondary-btn-bg/text are not defined, use button.secondary styles */
+.file-input-label {
+    background-color: var(--secondary-color); /* Fallback */
+    color: var(--card-bg-color); /* Fallback */
+}
+[data-theme="dark"] .file-input-label {
+     background-color: var(--secondary-color); /* Fallback for dark */
+    color: #282a36; /* Fallback for dark */
+}
+
+
+.file-input-label:hover {
+    opacity: 0.9; /* Fallback hover */
+}
+/* If you have --secondary-btn-hover-bg defined:
+.file-input-label:hover {
+    background-color: var(--secondary-btn-hover-bg);
+}
+*/
+
+/* Manual Edit Tools */
+.manual-tools-container {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-top: 15px;
+}
+.manual-tools-container h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1em;
+    text-align: center;
+}
+.tool-group {
+    display: flex;
+    gap: 5px; /* Smaller gap for compact tool buttons */
+    margin-bottom: 8px;
+}
+.tool-group:last-child {
+    margin-bottom: 0;
+}
+.tool-group button {
+    flex-grow: 1;
+    padding: 6px 8px;
+    font-size: 0.9em; /* Slightly smaller font for tool buttons */
+    background-color: var(--highlight-hover-color); /* Using a lighter bg for tool buttons */
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+.tool-group button:hover {
+    background-color: var(--border-color); /* Darken on hover */
+    opacity: 1;
+}
+[data-theme="dark"] .tool-group button {
+    background-color: var(--highlight-hover-color);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+[data-theme="dark"] .tool-group button:hover {
+    background-color: var(--border-color);
+}
+
+.tool-group button i {
+    margin-right: 3px;
+}
+/* Ensure icons display correctly, especially rotated ones */
+#align-top-btn i, #align-bottom-btn i {
+    display: inline-block; /* Helps with transform */
+}
+
+
 /* Rodapé */
 footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-color); color: var(--header-text-color); margin-top: 30px; }
 
@@ -679,6 +770,9 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     .export-fields { grid-template-columns: 1fr; gap: 15px; }
     .export-field textarea { height: 150px; }
     .button-group, .download-zip-group { flex-direction: column; align-items: stretch; }
+    .config-management-group { flex-direction: column; align-items: stretch;}
+    .manual-tools-container { margin-left: 0; margin-right: 0;} /* Full width on small screens */
+    .tool-group { flex-direction: column; align-items: stretch; }
     .download-zip-group input[type="text"] { max-width: none; }
     .map { height: 400px; } 
     .coordinates-list { height: 200px; max-height: 200px; } 

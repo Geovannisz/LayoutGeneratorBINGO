@@ -40,7 +40,18 @@ const DEFAULT_PARAMS = {
     hex_grid: { numRingsHex: 3, spacingFactor: 0.8, centerExpScaleFactor: 1.0, addCenterTile: true, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     phyllotaxis: { numTiles: 50, scaleFactor: 0.6, centerOffsetFactor: 0.25, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     manual_circular: { spacingXFactor: 1.0, spacingYFactor: 1.0, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
-    random: { numTiles: 36, maxRadiusM: 4.0, minSeparationFactor: 1.0 } 
+    random: { numTiles: 36, maxRadiusM: 4.0, minSeparationFactor: 1.0 },
+    sparse_random: { numTiles: 30, maxRadiusM: 5.0, minSeparationFactor: 1.5 },
+    density_based: {
+        numTiles: 70,
+        maxRadiusM: 5.0,
+        densityProfile: 'gaussian',
+        densityStrength: 2.0,
+        minSeparationFactor: 1.1
+    },
+    manual_adv: {
+        minSeparationFactor: 1.0
+    }
 };
 
 const PARAM_CONTROLS = {
@@ -51,7 +62,28 @@ const PARAM_CONTROLS = {
     hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 }, { id: 'spacingFactor', label: 'Fator Espaçamento', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } ],
     phyllotaxis: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } ],
     manual_circular: [ { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05 } ]
+    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05 } ],
+    sparse_random: [
+        { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 100, step: 1 },
+        { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 },
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.05 }
+    ],
+    density_based: [
+        { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 },
+        { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 },
+        {
+            id: 'densityProfile', label: 'Perfil de Densidade', type: 'select',
+            options: [
+                { value: 'gaussian', label: 'Gaussiana' },
+                { value: 'linear_falloff', label: 'Linear Decrescente' }
+            ]
+        },
+        { id: 'densityStrength', label: 'Força da Densidade', type: 'number', min: 0.1, max: 10, step: 0.1 },
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.05 }
+    ],
+    manual_adv: [
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín. (Colisão)', type: 'number', min: 0.5, max: 2, step: 0.05 }
+    ]
 };
 
 // === Classe Principal do Gerador ===
@@ -69,7 +101,19 @@ class AntennaLayoutGenerator {
         this.currentLayout = []; 
         this.allAntennas = [];   
         this.collisions = [];    
-        this.showCollisions = true; 
+        this.showCollisions = true;
+
+        // Drag-and-drop state variables
+        this.isDragging = false;
+        this.draggedTileIndex = -1;
+        this.draggedTileOriginalX = 0;
+        this.draggedTileOriginalY = 0;
+        this.mouseDownCanvasX = 0;
+        this.mouseDownCanvasY = 0;
+        this.mouseOffsetX = 0; // Offset of mouse click from tile center (canvas coords)
+        this.mouseOffsetY = 0; // Offset of mouse click from tile center (canvas coords)
+        this.lastDrawParams = null; // To store scale, offsets from drawLayout
+
         const showCollisionsCheckbox = document.getElementById('show-collisions');
         if (showCollisionsCheckbox) {
             showCollisionsCheckbox.checked = this.showCollisions;
@@ -158,6 +202,309 @@ class AntennaLayoutGenerator {
         }
         
         this.updateDynamicControls();
+
+        // Event Listeners for Import/Export Configuration
+        const exportConfigBtn = document.getElementById('export-config-btn');
+        if (exportConfigBtn) {
+            exportConfigBtn.addEventListener('click', () => this.exportLayoutConfiguration());
+        } else {
+            console.warn("Botão #export-config-btn não encontrado.");
+        }
+
+        const importConfigInput = document.getElementById('import-config-input');
+        if (importConfigInput) {
+            importConfigInput.addEventListener('change', (event) => this.importLayoutConfiguration(event));
+        } else {
+            console.warn("Input #import-config-input não encontrado.");
+        }
+
+        // Mouse event listeners for drag-and-drop
+        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+        this.canvas.addEventListener('mouseleave', (e) => this.handleMouseLeave(e));
+        this.canvas.addEventListener('mouseenter', (e) => this.handleMouseEnter(e));
+
+        // Event listeners for manual alignment/distribution tools
+        const toolButtonIds = [
+            'align-left-btn', 'align-center-h-btn', 'align-right-btn',
+            'align-top-btn', 'align-middle-v-btn', 'align-bottom-btn',
+            'distribute-h-btn', 'distribute-v-btn'
+        ];
+        toolButtonIds.forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) {
+                const operationType = id.replace('-btn', '');
+                btn.addEventListener('click', () => {
+                    if (this.layoutType === 'manual_adv') {
+                        this.performTileOperation(operationType);
+                    }
+                });
+            } else {
+                console.warn(`Manual tool button #${id} not found.`);
+            }
+        });
+    }
+
+    performTileOperation(operationType) {
+        if (!this.currentLayout || this.currentLayout.length === 0) return;
+
+        const tiles = this.currentLayout.map(tile => [...tile]); // Work on a copy for calculations if needed, then apply
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+        tiles.forEach(t => {
+            minX = Math.min(minX, t[0]);
+            maxX = Math.max(maxX, t[0]);
+            minY = Math.min(minY, t[1]);
+            maxY = Math.max(maxY, t[1]);
+        });
+
+        const centerX = minX + (maxX - minX) / 2;
+        const centerY = minY + (maxY - minY) / 2;
+
+        switch (operationType) {
+            case 'align-left':   this.currentLayout.forEach(t => t[0] = minX); break;
+            case 'align-center-h': this.currentLayout.forEach(t => t[0] = centerX); break;
+            case 'align-right':  this.currentLayout.forEach(t => t[0] = maxX); break;
+            case 'align-top':    this.currentLayout.forEach(t => t[1] = maxY); break;
+            case 'align-middle-v': this.currentLayout.forEach(t => t[1] = centerY); break;
+            case 'align-bottom': this.currentLayout.forEach(t => t[1] = minY); break;
+            case 'distribute-h':
+                if (this.currentLayout.length > 1) {
+                    this.currentLayout.sort((a, b) => a[0] - b[0]); // Sort by X for horizontal distribution
+                    // Re-calculate minX and maxX based on sorted array to handle potential floating point issues if original min/max were from unsorted.
+                    minX = this.currentLayout[0][0];
+                    maxX = this.currentLayout[this.currentLayout.length - 1][0];
+                    const totalSpanH = maxX - minX;
+                    if (this.currentLayout.length > 1 && totalSpanH > 0) { // Avoid division by zero if all tiles at same x
+                        const spacingH = totalSpanH / (this.currentLayout.length - 1);
+                        this.currentLayout.forEach((t, i) => t[0] = minX + i * spacingH);
+                    } else if (totalSpanH === 0) { // If all tiles are at the same X, spread them around the original center X
+                        // This case might need a more sophisticated handling or be documented as a limitation.
+                        // For now, we'll leave them as they are if totalSpanH is 0.
+                         console.warn("Distribute Horizontal: All tiles have the same X-coordinate. No distribution applied.");
+                    }
+                }
+                break;
+            case 'distribute-v':
+                if (this.currentLayout.length > 1) {
+                    this.currentLayout.sort((a, b) => a[1] - b[1]); // Sort by Y for vertical distribution
+                    minY = this.currentLayout[0][1];
+                    maxY = this.currentLayout[this.currentLayout.length - 1][1];
+                    const totalSpanV = maxY - minY;
+                     if (this.currentLayout.length > 1 && totalSpanV > 0) { // Avoid division by zero
+                        const spacingV = totalSpanV / (this.currentLayout.length - 1);
+                        this.currentLayout.forEach((t, i) => t[1] = minY + i * spacingV);
+                    } else if (totalSpanV === 0) {
+                        console.warn("Distribute Vertical: All tiles have the same Y-coordinate. No distribution applied.");
+                    }
+                }
+                break;
+        }
+
+        // Ensure coordinates are rounded after operation
+        this.currentLayout = this.currentLayout.map(coord => [
+            parseFloat(coord[0].toFixed(6)), // COORD_PRECISION equivalent
+            parseFloat(coord[1].toFixed(6))
+        ]);
+
+        this.generateAllAntennas();
+        this.checkCollisions();
+        this.drawLayout();
+        this.updateStats();
+        if (typeof window.updateExportFields === 'function') {
+            let selectedStations = [];
+            if (window.interactiveMap?.getSelectedCoordinates) {
+                 selectedStations = window.interactiveMap.getSelectedCoordinates();
+            }
+            window.updateExportFields(this.currentLayout, selectedStations);
+        }
+        window.dispatchEvent(new CustomEvent('layoutGenerated'));
+        console.log(`Performed operation: ${operationType}`);
+    }
+
+
+    getMousePos(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+        };
+    }
+
+    handleMouseDown(e) {
+        if (this.layoutType !== 'manual_adv' || !this.currentLayout || this.currentLayout.length === 0) return;
+
+        const mousePos = this.getMousePos(this.canvas, e);
+        this.mouseDownCanvasX = mousePos.x;
+        this.mouseDownCanvasY = mousePos.y;
+
+        if (!this.lastDrawParams) return;
+
+        const { scale, minX, minY, offsetX, offsetY, effectiveHeight } = this.lastDrawParams;
+
+        for (let i = 0; i < this.currentLayout.length; i++) {
+            const tile = this.currentLayout[i];
+            if (!Array.isArray(tile) || tile.length < 2) continue;
+
+            const tileCanvasX = (tile[0] - minX) * scale + offsetX;
+            const tileCanvasY = (effectiveHeight - (tile[1] - minY)) * scale + offsetY;
+
+            const distance = Math.sqrt(Math.pow(mousePos.x - tileCanvasX, 2) + Math.pow(mousePos.y - tileCanvasY, 2));
+            const clickRadius = 10; // pixels
+
+            if (distance < clickRadius) {
+                this.isDragging = true;
+                this.draggedTileIndex = i;
+                this.draggedTileOriginalX = tile[0];
+                this.draggedTileOriginalY = tile[1];
+                this.mouseOffsetX = mousePos.x - tileCanvasX;
+                this.mouseOffsetY = mousePos.y - tileCanvasY;
+
+                this.canvas.style.cursor = 'grabbing';
+                console.log(`Dragging tile ${i} from ${tile[0].toFixed(2)}, ${tile[1].toFixed(2)}`);
+                break;
+            }
+        }
+    }
+
+    handleMouseMove(e) {
+        if (this.layoutType !== 'manual_adv' || !this.isDragging || this.draggedTileIndex === -1) return;
+        if (!this.lastDrawParams) return;
+
+        const mousePos = this.getMousePos(this.canvas, e);
+        const { scale, minX, minY, offsetX, offsetY, effectiveHeight } = this.lastDrawParams;
+
+        const newTileCanvasX = mousePos.x - this.mouseOffsetX;
+        const newTileCanvasY = mousePos.y - this.mouseOffsetY;
+
+        let newWorldX = (newTileCanvasX - offsetX) / scale + minX;
+        let newWorldY = minY - ((newTileCanvasY - offsetY) / scale - effectiveHeight);
+
+        this.currentLayout[this.draggedTileIndex][0] = parseFloat(newWorldX.toFixed(6)); // Using COORD_PRECISION
+        this.currentLayout[this.draggedTileIndex][1] = parseFloat(newWorldY.toFixed(6)); // Using COORD_PRECISION
+
+        this.generateAllAntennas();
+        this.checkCollisions();
+        this.drawLayout();
+        // this.updateStats(); // Debated: update stats on mouseup for performance
+    }
+
+    handleMouseUp(e) {
+        if (this.layoutType !== 'manual_adv' || !this.isDragging) return;
+        this.isDragging = false;
+
+        // Ensure draggedTileIndex is valid before trying to access currentLayout
+        if (this.draggedTileIndex !== -1 && this.currentLayout[this.draggedTileIndex]) {
+            console.log(`Finished dragging tile ${this.draggedTileIndex} to ${this.currentLayout[this.draggedTileIndex][0].toFixed(2)}, ${this.currentLayout[this.draggedTileIndex][1].toFixed(2)}`);
+        } else {
+            console.log('Finished dragging (no specific tile was targeted or index was invalid).');
+        }
+
+        this.draggedTileIndex = -1;
+        this.canvas.style.cursor = 'grab';
+
+        this.updateStats(); // Final update
+        if (typeof window.updateExportFields === 'function') {
+             let selectedStations = [];
+             if (window.interactiveMap?.getSelectedCoordinates) {
+                  selectedStations = window.interactiveMap.getSelectedCoordinates();
+             }
+             window.updateExportFields(this.currentLayout, selectedStations);
+        }
+        window.dispatchEvent(new CustomEvent('layoutGenerated'));
+    }
+
+    handleMouseLeave(e) {
+        if (this.layoutType === 'manual_adv' && this.isDragging) {
+            this.handleMouseUp(e); // Treat mouse leave as mouse up to commit changes
+        }
+        this.canvas.style.cursor = 'default'; // Reset cursor if not dragging
+    }
+
+    handleMouseEnter(e) {
+        if (this.layoutType === 'manual_adv' && !this.isDragging) {
+            this.canvas.style.cursor = 'grab';
+        }
+    }
+
+    exportLayoutConfiguration() {
+        const config = {
+            layoutType: this.layoutType,
+            params: this.params
+        };
+        const jsonString = JSON.stringify(config, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const filename = `bingo_layout_config_${this.layoutType}.json`;
+
+        if (typeof saveAs !== 'undefined') {
+            saveAs(blob, filename);
+        } else {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+        console.log('Layout configuration exported:', filename);
+    }
+
+    importLayoutConfiguration(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                if (config && config.layoutType && config.params) {
+                    const layoutTypeSelect = document.getElementById('layout-type');
+                    const isValidLayoutType = Array.from(layoutTypeSelect.options).some(opt => opt.value === config.layoutType);
+
+                    if (!isValidLayoutType) {
+                        alert('Erro: Tipo de layout inválido no arquivo de configuração.');
+                        return;
+                    }
+
+                    this.layoutType = config.layoutType;
+                    this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType]));
+                    for (const key in config.params) {
+                        if (config.params.hasOwnProperty(key) && this.params.hasOwnProperty(key)) {
+                            const controlDef = (PARAM_CONTROLS[this.layoutType] || []).find(c => c.id === key);
+                            if (controlDef && controlDef.type === 'number') {
+                                this.params[key] = parseFloat(config.params[key]);
+                            } else if (controlDef && controlDef.type === 'checkbox') {
+                                this.params[key] = Boolean(config.params[key]);
+                            } else {
+                                this.params[key] = config.params[key];
+                            }
+                        }
+                    }
+
+                    layoutTypeSelect.value = this.layoutType;
+                    this.updateDynamicControls();
+                    this.generateLayout();
+                    alert('Configuração de layout importada com sucesso!');
+                    console.log('Layout configuration imported:', config);
+                } else {
+                    alert('Erro: Arquivo de configuração inválido. Faltando layoutType ou params.');
+                }
+            } catch (error) {
+                alert('Erro ao processar o arquivo de configuração: ' + error.message);
+                console.error('Erro ao importar configuração:', error);
+            } finally {
+                event.target.value = null;
+            }
+        };
+        reader.onerror = (error) => {
+            alert('Erro ao ler o arquivo: ' + error.message);
+            console.error('Erro ao ler arquivo de configuração:', error);
+            event.target.value = null;
+        };
+        reader.readAsText(file);
     }
 
     updateDynamicControls() {
@@ -167,6 +514,17 @@ class AntennaLayoutGenerator {
             return;
         }
         dynamicParamsDiv.innerHTML = ''; 
+
+        // Show/hide manual edit tools
+        const manualToolsDiv = document.getElementById('manual-edit-tools');
+        if (manualToolsDiv) {
+            if (this.layoutType === 'manual_adv') {
+                manualToolsDiv.style.display = 'block';
+            } else {
+                manualToolsDiv.style.display = 'none';
+            }
+        }
+
         const controls = PARAM_CONTROLS[this.layoutType];
         if (!controls) {
             console.warn(`Nenhuma definição de controle encontrada para o tipo de layout: ${this.layoutType}`);
@@ -369,6 +727,55 @@ class AntennaLayoutGenerator {
                 case 'phyllotaxis': this.currentLayout = window.BingoLayouts.createPhyllotaxisLayout(fullParams.numTiles, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.scaleFactor, fullParams.centerOffsetFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
                 case 'manual_circular': this.currentLayout = window.BingoLayouts.createManualCircularLayout(fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingXFactor, fullParams.spacingYFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
                 case 'random': this.currentLayout = window.BingoLayouts.createRandomLayout(fullParams.numTiles, fullParams.maxRadiusM, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
+                case 'sparse_random':
+                    this.currentLayout = window.BingoLayouts.createRandomLayout(
+                        fullParams.numTiles,
+                        fullParams.maxRadiusM,
+                        fullParams.tileWidthM,
+                        fullParams.tileHeightM,
+                        fullParams.minSeparationFactor,
+                        undefined, // maxPlacementAttempts (uses default in bingo_layouts.js)
+                        fullParams.centerLayout
+                    );
+                    break;
+                case 'density_based':
+                    this.currentLayout = window.BingoLayouts.createDensityBasedLayout(
+                        fullParams.numTiles,
+                        fullParams.maxRadiusM,
+                        fullParams.tileWidthM,
+                        fullParams.tileHeightM,
+                        fullParams.densityProfile,
+                        fullParams.densityStrength,
+                        fullParams.minSeparationFactor,
+                        undefined, // maxPlacementAttemptsPerTile (uses default in bingo_layouts.js)
+                        fullParams.centerLayout
+                    );
+                    break;
+                case 'manual_adv':
+                    if (!this.currentLayout || this.currentLayout.length === 0) {
+                        console.log("Modo Manual Avançado: Layout vazio, criando grid padrão 2x2 para edição.");
+                        const defaultGridParams = { ...DEFAULT_PARAMS.grid, numCols: 2, numRows: 2, tileWidthM: TILE_WIDTH, tileHeightM: TILE_HEIGHT, centerLayout: true };
+                        this.currentLayout = window.BingoLayouts.createGridLayout(
+                            defaultGridParams.numCols, defaultGridParams.numRows, defaultGridParams.tileWidthM, defaultGridParams.tileHeightM,
+                            defaultGridParams.spacingXFactor, defaultGridParams.spacingYFactor, defaultGridParams.centerExpScaleFactor,
+                            defaultGridParams.randomOffsetStddevM, defaultGridParams.minSeparationFactor, undefined, defaultGridParams.centerLayout
+                        );
+                    }
+                    // Proceed with existing or newly created default layout
+                    this.generateAllAntennas();
+                    this.checkCollisions();
+                    this.drawLayout();
+                    this.updateStats();
+                    if (typeof window.updateExportFields === 'function') {
+                        let selectedStations = [];
+                        if (window.interactiveMap?.getSelectedCoordinates) {
+                             selectedStations = window.interactiveMap.getSelectedCoordinates();
+                        }
+                        window.updateExportFields(this.currentLayout, selectedStations);
+                    }
+                    console.log("Dispatching 'layoutGenerated' event from generator.js for manual_adv mode");
+                    window.dispatchEvent(new CustomEvent('layoutGenerated'));
+                    break;
                 default:
                     console.warn(`Tipo de layout não reconhecido: ${this.layoutType}. Gerando layout vazio.`);
                     this.currentLayout = [];
@@ -547,16 +954,29 @@ class AntennaLayoutGenerator {
         const contentWidth = (maxX - minX);
         const contentHeight = (maxY - minY);
         const effectiveWidth = Math.max(contentWidth, 1e-6);
-        const effectiveHeight = Math.max(contentHeight, 1e-6);
+        const effectiveHeight = Math.max(contentHeight, 1e-6); // Ensure positive for calculations
         const availableWidth = canvas.width - 2 * margin;
         const availableHeight = canvas.height - 2 * margin;
+
         if (availableWidth <= 0 || availableHeight <= 0) {
              console.warn("Área disponível no canvas para desenho é zero ou negativa. Canvas pode estar muito pequeno.");
+             if (this.layoutType === 'manual_adv') { // Ensure lastDrawParams is cleared or set to null
+                this.lastDrawParams = null;
+             }
              return; 
         }
+
         const scale = Math.min(availableWidth / effectiveWidth, availableHeight / effectiveHeight);
         const offsetX = margin + (availableWidth - effectiveWidth * scale) / 2;
         const offsetY = margin + (availableHeight - effectiveHeight * scale) / 2;
+
+        // Store these for use in mouse handlers if in manual_adv mode
+        if (this.layoutType === 'manual_adv') {
+            this.lastDrawParams = { scale, minX, minY, maxX, maxY, offsetX, offsetY, effectiveHeight, contentWidth, contentHeight, canvasWidth: canvas.width, canvasHeight: canvas.height, margin };
+        } else {
+            this.lastDrawParams = null; // Clear if not in manual mode
+        }
+
         const transformCoord = (coordX, coordY) => {
             const relativeX = coordX - minX; 
             const relativeY = coordY - minY;

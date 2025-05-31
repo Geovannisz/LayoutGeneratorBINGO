@@ -777,6 +777,99 @@ function createRandomLayout(
     return finalCoords;
 }
 
+/**
+ * Cria um layout onde a densidade de tiles varia radialmente.
+ * @param {number} numTiles Número de tiles a serem posicionados.
+ * @param {number} maxRadiusM Raio máximo do círculo onde os tiles serão distribuídos.
+ * @param {number} tileWidthM Largura do tile.
+ * @param {number} tileHeightM Altura do tile.
+ * @param {string} densityProfile Perfil de densidade ('gaussian', 'linear_falloff').
+ * @param {number} densityStrength Força/Inclinação da densidade.
+ * @param {number} minSeparationFactor Fator de separação mínima entre tiles.
+ * @param {number} maxPlacementAttemptsPerTile Máximo de tentativas por tile para encontrar uma posição.
+ * @param {boolean} centerLayout Se true, centraliza o layout final.
+ * @returns {Array<Array<number>>} Coordenadas dos centros dos tiles.
+ */
+function createDensityBasedLayout(
+    numTiles, maxRadiusM, tileWidthM, tileHeightM,
+    densityProfile = 'gaussian',
+    densityStrength = 2.0,
+    minSeparationFactor = 1.1,
+    maxPlacementAttemptsPerTile = DEFAULT_MAX_PLACEMENT_ATTEMPTS, // Usando o default global
+    centerLayout = true
+) {
+    if (numTiles <= 0 || maxRadiusM <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const coords = [];
+    const minRequiredDistX = tileWidthM * minSeparationFactor;
+    const minRequiredDistY = tileHeightM * minSeparationFactor;
+    let skippedCount = 0;
+    let totalAttemptsForAllTiles = 0;
+
+    console.log(`Layout Baseado em Densidade: Tentando posicionar ${numTiles} tiles (Raio=${maxRadiusM.toFixed(2)}m, Perfil=${densityProfile}, Força=${densityStrength})...`);
+
+    for (let i = 0; i < numTiles; i++) {
+        let tilePlaced = false;
+        for (let attempt = 0; attempt < maxPlacementAttemptsPerTile; attempt++) {
+            totalAttemptsForAllTiles++;
+            const r_candidate = Math.sqrt(Math.random()) * maxRadiusM; // Distribuição uniforme na área
+            const theta_candidate = Math.random() * 2 * Math.PI;
+            const x_candidate = r_candidate * Math.cos(theta_candidate);
+            const y_candidate = r_candidate * Math.sin(theta_candidate);
+
+            let P = 0; // Probabilidade de posicionamento
+            const normalizedRadius = r_candidate / maxRadiusM;
+
+            if (densityProfile === 'gaussian') {
+                P = Math.exp(-densityStrength * Math.pow(normalizedRadius, 2));
+            } else if (densityProfile === 'linear_falloff') {
+                P = Math.max(0, 1 - densityStrength * normalizedRadius);
+            } else { // Perfil desconhecido, default para uniforme (P=1)
+                P = 1.0;
+                if (attempt === 0 && i === 0) { // Loga apenas uma vez
+                    console.warn(`Layout Baseado em Densidade: Perfil '${densityProfile}' desconhecido. Usando distribuição uniforme.`);
+                }
+            }
+            P = Math.max(0, Math.min(1, P)); // Garante que P está entre 0 e 1
+
+            if (Math.random() < P) {
+                let collision = false;
+                for (const existing_coord of coords) {
+                    const deltaX = Math.abs(x_candidate - existing_coord[0]);
+                    const deltaY = Math.abs(y_candidate - existing_coord[1]);
+                    if (deltaX < minRequiredDistX && deltaY < minRequiredDistY) {
+                        collision = true;
+                        break;
+                    }
+                }
+
+                if (!collision) {
+                    coords.push([
+                        parseFloat(x_candidate.toFixed(COORD_PRECISION)),
+                        parseFloat(y_candidate.toFixed(COORD_PRECISION))
+                    ]);
+                    tilePlaced = true;
+                    break; // Sai do loop de tentativas para este tile
+                }
+            }
+        } // Fim das tentativas para este tile
+
+        if (!tilePlaced) {
+            skippedCount++;
+            // console.warn(`Layout Baseado em Densidade: Tile ${i + 1} não pôde ser posicionado após ${maxPlacementAttemptsPerTile} tentativas.`);
+        }
+    } // Fim do loop de tiles
+
+    if (skippedCount > 0) {
+        console.warn(`Layout Baseado em Densidade: ${skippedCount}/${numTiles} tiles não puderam ser posicionados.`);
+    }
+
+    const finalCoords = centerLayout ? centerCoords(coords) : coords;
+    console.log(`Layout Baseado em Densidade: Gerou ${finalCoords.length} centros. Tentativas totais: ${totalAttemptsForAllTiles}.`);
+    return finalCoords;
+}
+
+
 // Exporta as funções para uso global no objeto window, se estiver em um ambiente de navegador.
 if (typeof window !== 'undefined') {
     window.BingoLayouts = {
@@ -788,6 +881,7 @@ if (typeof window !== 'undefined') {
         createPhyllotaxisLayout,
         createManualCircularLayout,
         createRandomLayout,
+        createDensityBasedLayout, // Adiciona a nova função aqui
         centerCoords, // Exporta a função auxiliar também, pode ser útil.
         applyCenterExponentialScaling // Exporta função de scaling.
     };

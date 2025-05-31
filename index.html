@@ -37,6 +37,9 @@
                                 <option value="phyllotaxis">Phyllotaxis</option>
                                 <option value="manual_circular">Circular Manual</option>
                                 <option value="random">Aleatório</option>
+                                <option value="sparse_random">Aleatório Esparso</option>
+                                <option value="density_based">Baseado em Densidade</option>
+                                <option value="manual_adv">Editor Manual Avançado</option>
                             </select>
                         </div>
                         <div id="dynamic-params" class="dynamic-params-container"></div>
@@ -47,6 +50,30 @@
                         <div class="button-group">
                             <button id="generate-btn" class="primary">Gerar Layout</button>
                             <button id="random-btn" class="secondary">Gerar Aleatório</button>
+                        </div>
+                        <div class="config-management-group">
+                            <button id="export-config-btn" class="secondary small-btn"><i class="fas fa-download"></i> Exportar Config</button>
+                            <label for="import-config-input" class="secondary small-btn file-input-label">
+                                <i class="fas fa-upload"></i> Importar Config
+                            </label>
+                            <input type="file" id="import-config-input" accept=".json" style="display: none;">
+                        </div>
+                        <div id="manual-edit-tools" class="manual-tools-container" style="display: none;">
+                            <h4>Ferramentas de Alinhamento e Distribuição</h4>
+                            <div class="tool-group">
+                                <button id="align-left-btn" title="Alinhar à Esquerda"><i class="fas fa-align-left"></i></button>
+                                <button id="align-center-h-btn" title="Centralizar Horizontalmente"><i class="fas fa-align-center"></i></button>
+                                <button id="align-right-btn" title="Alinhar à Direita"><i class="fas fa-align-right"></i></button>
+                            </div>
+                            <div class="tool-group">
+                                <button id="align-top-btn" title="Alinhar Acima"><i class="fas fa-grip-lines" style="transform: rotate(90deg);"></i> A</button>
+                                <button id="align-middle-v-btn" title="Centralizar Verticalmente"><i class="fas fa-grip-lines"></i> M</button>
+                                <button id="align-bottom-btn" title="Alinhar Abaixo"><i class="fas fa-grip-lines" style="transform: rotate(90deg);"></i> B</button>
+                            </div>
+                            <div class="tool-group">
+                                <button id="distribute-h-btn" title="Distribuir Horizontalmente"><i class="fas fa-arrows-alt-h"></i></button>
+                                <button id="distribute-v-btn" title="Distribuir Verticalmente"><i class="fas fa-arrows-alt-v"></i></button>
+                            </div>
                         </div>
                     </div>
                     <div class="visualization">
