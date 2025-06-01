@@ -42,7 +42,7 @@ O núcleo desta seção permite a criação de diversos tipos de arranjos de ant
     *   **Estatísticas**: Número total de `Tiles` e `Antenas` no arranjo atual.
     *   **Mostrar Colisões**: Caixa de seleção para ativar/desativar a visualização de colisões retangulares entre tiles. Se ativa e colisões são detectadas, são indicadas no canvas e listadas.
 *   **Importação/Exportação de Configurações**:
-    *   Botões `(ícone) Importar` e `(ícone) Exportar` permitem carregar e salvar configurações de layout.
+    *   Botões `Importar` e `Exportar` permitem carregar e salvar configurações de layout.
     *   O formato JSON é utilizado, armazenando o tipo de layout, seus parâmetros de geração e, crucialmente, as **posições exatas dos tiles (`currentTileLayout`)**. Isso garante que quaisquer modificações manuais feitas via drag-and-drop sejam preservadas e restauradas.
 
 ### 🖼️ Baixar Imagem do Layout (Sub-seção)
