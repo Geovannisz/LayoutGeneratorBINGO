@@ -2,14 +2,32 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
+    <meta name="description" content="Ferramenta online para design, simulação e análise de layouts de antenas para o projeto BINGO. Gere arranjos, visualize padrões de feixe, analise PSF e exporte configurações.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Layouts de Antenas BINGO</title>
+    <title>Gerador de Layouts de Antenas BINGO | Design e Simulação de Arranjos</title>
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Gerador de Layouts de Antenas BINGO",
+  "description": "Ferramenta online interativa para design, simulação e análise de layouts de antenas (tiles) para o projeto de rádio astronomia BINGO. Gere diversos tipos de arranjos, visualize padrões de feixe 2D/3D, analise a PSF (Point Spread Function), explore em mapa interativo e exporte configurações para OSKAR.",
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Web-based",
+  "url": "https://geovannisz.github.io/LayoutGeneratorBINGO/",
+  "author": {
+    "@type": "Person",
+    "name": "Geovanni Santos",
+    "url": "https://github.com/geovannisz"
+  },
+  "keywords": "BINGO, antenas, layout, design de antenas, simulação de antenas, rádio astronomia, PSF, padrão de feixe, OSKAR, BAO"
+}
+</script>
 </head>
 <body>
     <header>
@@ -60,7 +78,7 @@
                         </div>
                     </div>
                     <div class="visualization">
-                        <canvas id="layout-canvas"></canvas>
+                        <canvas id="layout-canvas" role="img" aria-label="Visualização do layout de antenas gerado"></canvas>
                         <div class="stats">
                             <div>Tiles: <span id="tile-count">0</span></div>
                             <div>Antenas: <span id="antenna-count">0</span></div>
@@ -229,7 +247,7 @@
     </div>
 
     <footer>
-        <p>Gerador de Layouts de Antenas BINGO</p>
+        <p>Gerador de Layouts de Antenas BINGO - Ferramenta para design e simulação no projeto de rádio astronomia BINGO.</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
