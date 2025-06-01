@@ -777,67 +777,106 @@ function createRandomLayout(
     return finalCoords;
 }
 
+
 /**
- * Cria um layout onde a densidade de tiles varia radialmente.
- * @param {number} numTiles Número de tiles a serem posicionados.
- * @param {number} maxRadiusM Raio máximo do círculo onde os tiles serão distribuídos.
- * @param {number} tileWidthM Largura do tile.
- * @param {number} tileHeightM Altura do tile.
- * @param {string} densityProfile Perfil de densidade ('gaussian', 'linear_falloff').
- * @param {number} densityStrength Força/Inclinação da densidade.
- * @param {number} minSeparationFactor Fator de separação mínima entre tiles.
- * @param {number} maxPlacementAttemptsPerTile Máximo de tentativas por tile para encontrar uma posição.
- * @param {boolean} centerLayout Se true, centraliza o layout final.
- * @returns {Array<Array<number>>} Coordenadas dos centros dos tiles.
+ * Creates a tile layout based on a specified radial density profile.
+ * Tiles are placed randomly, with a higher probability of placement in denser areas
+ * as defined by the profile. Collision detection ensures tiles do not overlap.
+ *
+ * @param {number} numTiles The total number of tiles to attempt to place.
+ * @param {number} maxRadiusM The maximum radius from the center within which tiles can be placed.
+ * @param {number} tileWidthM The width of each tile in meters, used for collision detection.
+ * @param {number} tileHeightM The height of each tile in meters, used for collision detection.
+ * @param {string} [profileName='gaussian'] The name of the density profile to use.
+ *                                          Supported: 'gaussian', 'exponential', 'linear_falloff', 'logNormal', 'cauchy', 'weibull'.
+ * @param {object} [profileParams={}] Parameters specific to the chosen density profile.
+ *                                    These control the shape and strength of the density distribution.
+ *                                    Example for 'gaussian': { mean: 0.0, stddev: 0.5, strength: 1.0 }
+ * @param {number} [minSeparationFactor=1.1] Factor to multiply tile dimensions for minimum separation.
+ *                                           1.0 means tiles can touch; >1.0 creates space.
+ * @param {number} [maxPlacementAttemptsPerTile=2000] Maximum attempts to place each individual tile
+ *                                                    before giving up on that tile.
+ * @param {boolean} [centerLayout=true] Whether to center the final layout of placed tiles around (0,0).
+ * @returns {Array<Array<number>>} An array of [x, y] coordinates for the center of each placed tile.
  */
-function createDensityBasedLayout(
+function createAdvancedDensityLayout(
     numTiles, maxRadiusM, tileWidthM, tileHeightM,
-    densityProfile = 'gaussian',
-    densityStrength = 2.0,
+    profileName = 'gaussian',
+    profileParams = { mean: 0.0, stddev: 0.5, strength: 1.0 },
     minSeparationFactor = 1.1,
-    maxPlacementAttemptsPerTile = DEFAULT_MAX_PLACEMENT_ATTEMPTS, // Usando o default global
+    maxPlacementAttemptsPerTile = 2000,
     centerLayout = true
 ) {
     if (numTiles <= 0 || maxRadiusM <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
 
     const coords = [];
-    const minRequiredDistX = tileWidthM * minSeparationFactor;
-    const minRequiredDistY = tileHeightM * minSeparationFactor;
-    let skippedCount = 0;
-    let totalAttemptsForAllTiles = 0;
+    const minDx = tileWidthM * minSeparationFactor;
+    const minDy = tileHeightM * minSeparationFactor;
+    let skippedTiles = 0;
 
-    console.log(`Layout Baseado em Densidade: Tentando posicionar ${numTiles} tiles (Raio=${maxRadiusM.toFixed(2)}m, Perfil=${densityProfile}, Força=${densityStrength})...`);
+    console.log(`Creating Advanced Density Layout: ${numTiles} tiles, Profile: ${profileName}, Max Radius: ${maxRadiusM}m`);
+    console.log("Profile Params:", profileParams);
 
     for (let i = 0; i < numTiles; i++) {
         let tilePlaced = false;
         for (let attempt = 0; attempt < maxPlacementAttemptsPerTile; attempt++) {
-            totalAttemptsForAllTiles++;
-            const r_candidate = Math.sqrt(Math.random()) * maxRadiusM; // Distribuição uniforme na área
+            // Generate candidate point in polar coordinates, then convert to Cartesian
+            // Using Math.random() for r_norm_candidate for direct use with PDF-like functions (0 to 1)
+            const r_norm_candidate = Math.random();
+            const r_candidate = r_norm_candidate * maxRadiusM;
             const theta_candidate = Math.random() * 2 * Math.PI;
-            const x_candidate = r_candidate * Math.cos(theta_candidate);
-            const y_candidate = r_candidate * Math.sin(theta_candidate);
+            const x_cand = r_candidate * Math.cos(theta_candidate);
+            const y_cand = r_candidate * Math.sin(theta_candidate);
 
-            let P = 0; // Probabilidade de posicionamento
-            const normalizedRadius = r_candidate / maxRadiusM;
+            let P = 0; // Placement probability
+            const strength = profileParams.strength !== undefined ? profileParams.strength : 1.0;
 
-            if (densityProfile === 'gaussian') {
-                P = Math.exp(-densityStrength * Math.pow(normalizedRadius, 2));
-            } else if (densityProfile === 'linear_falloff') {
-                P = Math.max(0, 1 - densityStrength * normalizedRadius);
-            } else { // Perfil desconhecido, default para uniforme (P=1)
-                P = 1.0;
-                if (attempt === 0 && i === 0) { // Loga apenas uma vez
-                    console.warn(`Layout Baseado em Densidade: Perfil '${densityProfile}' desconhecido. Usando distribuição uniforme.`);
-                }
+            switch (profileName) {
+                case 'gaussian':
+                    P = strength * Math.exp(-0.5 * Math.pow((r_norm_candidate - profileParams.mean) / profileParams.stddev, 2));
+                    break;
+                case 'exponential':
+                    P = strength * Math.exp(-profileParams.lambda * r_norm_candidate);
+                    break;
+                case 'linear_falloff':
+                    P = strength * Math.max(0, 1 - profileParams.slope * r_norm_candidate);
+                    break;
+                case 'logNormal':
+                    if (r_norm_candidate <= 1e-9) { P = 0; }
+                    else {
+                        P = strength * (1 / (r_norm_candidate * profileParams.stddev * Math.sqrt(2 * Math.PI))) *
+                            Math.exp(-Math.pow(Math.log(r_norm_candidate) - profileParams.mean, 2) / (2 * profileParams.stddev * profileParams.stddev));
+                    }
+                    break;
+                case 'cauchy':
+                    P = strength * (1 / (Math.PI * profileParams.scale * (1 + Math.pow((r_norm_candidate - profileParams.location) / profileParams.scale, 2))));
+                    break;
+                case 'weibull':
+                    if (r_norm_candidate < 1e-9) { // Handle r_norm_candidate = 0 case
+                        if (profileParams.shape < 1) P = strength * 100; // Simulating very high probability for shape < 1 at r=0
+                        else if (profileParams.shape === 1) P = strength * (1 / profileParams.scale); // Exponential case
+                        else P = 0; // For shape > 1, P(0) is 0
+                    } else {
+                        P = strength * (profileParams.shape / profileParams.scale) *
+                            Math.pow(r_norm_candidate / profileParams.scale, profileParams.shape - 1) *
+                            Math.exp(-Math.pow(r_norm_candidate / profileParams.scale, profileParams.shape));
+                    }
+                    break;
+                default:
+                    console.warn(`Unknown density profile: ${profileName}. Defaulting to uniform probability.`);
+                    P = 1.0 * strength; // Uniform probability if profile is unknown
             }
-            P = Math.max(0, Math.min(1, P)); // Garante que P está entre 0 e 1
+
+            // Normalize P to be at most 1 for random check, but allow P > 1 to always pass if strength is high
+            // The Math.random() < P check effectively handles this. If P > 1, it's always true.
+            // If P is very small, it's rarely true.
 
             if (Math.random() < P) {
                 let collision = false;
                 for (const existing_coord of coords) {
-                    const deltaX = Math.abs(x_candidate - existing_coord[0]);
-                    const deltaY = Math.abs(y_candidate - existing_coord[1]);
-                    if (deltaX < minRequiredDistX && deltaY < minRequiredDistY) {
+                    const dx_coll = Math.abs(x_cand - existing_coord[0]);
+                    const dy_coll = Math.abs(y_cand - existing_coord[1]);
+                    if (dx_coll < minDx && dy_coll < minDy) {
                         collision = true;
                         break;
                     }
@@ -845,28 +884,26 @@ function createDensityBasedLayout(
 
                 if (!collision) {
                     coords.push([
-                        parseFloat(x_candidate.toFixed(COORD_PRECISION)),
-                        parseFloat(y_candidate.toFixed(COORD_PRECISION))
+                        parseFloat(x_cand.toFixed(COORD_PRECISION)),
+                        parseFloat(y_cand.toFixed(COORD_PRECISION))
                     ]);
                     tilePlaced = true;
-                    break; // Sai do loop de tentativas para este tile
+                    break;
                 }
             }
-        } // Fim das tentativas para este tile
+        } // End placement attempts for this tile
 
         if (!tilePlaced) {
-            skippedCount++;
-            // console.warn(`Layout Baseado em Densidade: Tile ${i + 1} não pôde ser posicionado após ${maxPlacementAttemptsPerTile} tentativas.`);
+            skippedTiles++;
         }
-    } // Fim do loop de tiles
+    } // End loop for all tiles
 
-    if (skippedCount > 0) {
-        console.warn(`Layout Baseado em Densidade: ${skippedCount}/${numTiles} tiles não puderam ser posicionados.`);
+    if (skippedTiles > 0) {
+        console.warn(`Advanced Density Layout: Skipped ${skippedTiles} out of ${numTiles} tiles due to placement conflicts.`);
     }
 
-    const finalCoords = centerLayout ? centerCoords(coords) : coords;
-    console.log(`Layout Baseado em Densidade: Gerou ${finalCoords.length} centros. Tentativas totais: ${totalAttemptsForAllTiles}.`);
-    return finalCoords;
+    console.log(`Advanced Density Layout: Placed ${coords.length} tiles.`);
+    return centerLayout ? centerCoords(coords) : coords;
 }
 
 
@@ -881,7 +918,7 @@ if (typeof window !== 'undefined') {
         createPhyllotaxisLayout,
         createManualCircularLayout,
         createRandomLayout,
-        createDensityBasedLayout, // Adiciona a nova função aqui
+        createAdvancedDensityLayout,
         centerCoords, // Exporta a função auxiliar também, pode ser útil.
         applyCenterExponentialScaling // Exporta função de scaling.
     };
