@@ -341,12 +341,14 @@ class AntennaLayoutGenerator {
     exportLayoutConfiguration() {
         const config = {
             layoutType: this.layoutType,
-            params: this.params
+            params: this.params, // this.params should already contain profileParams if layoutType is advanced_density
+            currentTileLayout: JSON.parse(JSON.stringify(this.currentLayout || [])) // Add this line
         };
         // If advanced_density, ensure profileParams is part of the params to be saved
-        if (this.layoutType === 'advanced_density') {
-            config.params.profileParams = this.params.profileParams;
-        }
+        // Note: The previous check for advanced_density and profileParams is implicitly handled
+        // because this.params should already have profileParams correctly set if that's the active type.
+        // However, explicitly ensuring it or documenting this assumption is good.
+        // For this specific change, we are only adding currentTileLayout. The params object is assumed to be correct.
 
         const jsonString = JSON.stringify(config, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
@@ -363,13 +365,14 @@ class AntennaLayoutGenerator {
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
         }
-        console.log('Layout configuration exported:', filename);
+        console.log('Layout configuration exported, including currentTileLayout:', filename);
     }
 
     importLayoutConfiguration(event) {
         const file = event.target.files[0];
-        if (!file) return;
-
+        if (!file) {
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (e) => {
             try {
@@ -380,18 +383,19 @@ class AntennaLayoutGenerator {
 
                     if (!isValidLayoutType) {
                         alert('Erro: Tipo de layout inválido no arquivo de configuração.');
+                        event.target.value = null; // Reset file input
                         return;
                     }
 
                     this.layoutType = config.layoutType;
-                    // Start with default params for the *imported* layout type
+                    // Start with default params for the imported layout type
                     this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType]));
 
-                    // Overwrite with imported params
+                    // Overwrite with imported params (main ones)
                     for (const key in config.params) {
-                        if (config.params.hasOwnProperty(key)) {
-                            // If the key exists in our default structure for this layout type
+                        if (config.params.hasOwnProperty(key) && key !== 'profileParams') { // Exclude profileParams for now
                             if (this.params.hasOwnProperty(key)) {
+                                // Basic type conversion based on control type if available
                                 const controlDef = (PARAM_CONTROLS[this.layoutType] || []).find(c => c.id === key);
                                 if (controlDef && controlDef.type === 'number') {
                                     this.params[key] = parseFloat(config.params[key]);
@@ -400,26 +404,66 @@ class AntennaLayoutGenerator {
                                 } else {
                                     this.params[key] = config.params[key];
                                 }
-                            } else if (key === 'profileParams' && this.layoutType === 'advanced_density') {
-                                // Special handling for profileParams
-                                this.params.profileParams = { ...getProfileDefaults(this.params.densityProfile || 'gaussian') }; // Ensure defaults for current/new profile
-                                for (const pKey in config.params.profileParams) {
-                                     if (this.params.profileParams.hasOwnProperty(pKey) && config.params.profileParams.hasOwnProperty(pKey)) {
-                                        this.params.profileParams[pKey] = parseFloat(config.params.profileParams[pKey]); // Assuming all profile params are numbers for now
-                                     }
+                            }
+                        }
+                    }
+
+                    // Special handling for profileParams if layoutType is advanced_density
+                    if (this.layoutType === 'advanced_density') {
+                        // Ensure densityProfile is set from config.params before getting defaults
+                        if (config.params.densityProfile) {
+                            this.params.densityProfile = config.params.densityProfile;
+                        }
+                        // Initialize profileParams with defaults for the (potentially new) profile
+                        this.params.profileParams = { ...getProfileDefaults(this.params.densityProfile) };
+                        if (config.params.profileParams) { // If profileParams exist in imported config
+                            for (const pKey in config.params.profileParams) {
+                                if (this.params.profileParams.hasOwnProperty(pKey) && config.params.profileParams.hasOwnProperty(pKey)) {
+                                    // Assuming all profile params are numbers, parse them
+                                    this.params.profileParams[pKey] = parseFloat(config.params.profileParams[pKey]);
                                 }
                             }
                         }
                     }
-                     // If importing advanced_density and profileParams is missing, initialize it
-                    if (this.layoutType === 'advanced_density' && (!this.params.profileParams || Object.keys(this.params.profileParams).length === 0)) {
-                        this.params.profileParams = getProfileDefaults(this.params.densityProfile || 'gaussian');
-                    }
 
+                    // Update the layout type dropdown UI
                     layoutTypeSelect.value = this.layoutType;
+                    // Update all dynamic controls based on the new this.params
                     this.updateDynamicControls();
-                    this.generateLayout();
-                    alert('Configuração de layout importada com sucesso!');
+
+                    // Check for and apply currentTileLayout override
+                    if (config.currentTileLayout && Array.isArray(config.currentTileLayout)) {
+                        // Basic validation for array of arrays of numbers
+                        const isValidLayoutArray = config.currentTileLayout.every(
+                            tile => Array.isArray(tile) && tile.length >= 2 && typeof tile[0] === 'number' && typeof tile[1] === 'number'
+                        );
+
+                        if (isValidLayoutArray) {
+                            console.log("Aplicando currentTileLayout do arquivo importado.");
+                            this.currentLayout = JSON.parse(JSON.stringify(config.currentTileLayout));
+
+                            // Directly update layout dependent parts
+                            this.generateAllAntennas();
+                            this.checkCollisions();
+                            this.drawLayout(); // This will also update lastDrawParams
+                            this.updateStats();
+                            if (typeof window.updateExportFields === 'function') {
+                                let selectedStations = window.interactiveMap?.getSelectedCoordinates() || [];
+                                window.updateExportFields(this.currentLayout, selectedStations);
+                            }
+                            window.dispatchEvent(new CustomEvent('layoutGenerated'));
+                            alert('Configuração de layout (com posições de tiles customizadas) importada com sucesso!');
+                        } else {
+                            console.warn("currentTileLayout encontrado no arquivo, mas formato inválido. Gerando layout a partir dos parâmetros.");
+                            this.generateLayout(); // Fallback to generating from params
+                            alert('Configuração de layout importada (parâmetros aplicados, mas posições de tiles customizadas inválidas/ignoradas).');
+                        }
+                    } else {
+                        // No currentTileLayout or invalid, so generate layout from params
+                        console.log("Gerando layout a partir dos parâmetros do arquivo importado (sem currentTileLayout).");
+                        this.generateLayout();
+                        alert('Configuração de layout (parâmetros) importada com sucesso!');
+                    }
                     console.log('Layout configuration imported:', config);
                 } else {
                     alert('Erro: Arquivo de configuração inválido. Faltando layoutType ou params.');
@@ -428,7 +472,7 @@ class AntennaLayoutGenerator {
                 alert('Erro ao processar o arquivo de configuração: ' + error.message);
                 console.error('Erro ao importar configuração:', error);
             } finally {
-                event.target.value = null;
+                event.target.value = null; // Reset file input
             }
         };
         reader.onerror = (error) => {
