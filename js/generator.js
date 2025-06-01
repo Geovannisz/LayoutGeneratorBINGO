@@ -7,19 +7,6 @@
  * Permite ajustar parâmetros dinamicamente via interface, visualizar colisões
  * entre tiles e baixar a imagem do layout gerado.
  * Redesenha automaticamente ao mudar o tipo de layout, parâmetros ou tema da página.
- *
- * Principais funcionalidades:
- * - Define parâmetros padrão para diferentes tipos de layout.
- * - Cria dinamicamente controles na UI com base no tipo de layout selecionado.
- * - Utiliza `BingoLayouts` para calcular as posições dos centros dos tiles.
- * - Gera as posições das 64 antenas dentro de cada tile.
- * - Verifica e visualiza colisões retangulares entre tiles.
- * - Desenha o layout (tiles, antenas, colisões, eixos/escala) no canvas.
- * - Atualiza estatísticas (contagem de tiles/antenas).
- * - Dispara um evento global ('layoutGenerated') após a conclusão da geração
- *   e atualização de dados, notificando outros módulos (ex: beam_pattern, export)
- *   para que reajam ao novo layout.
- * - Permite baixar a imagem do layout (PNG) com opções de tema e inclusão de eixos.
  */
 
 // === Constantes Globais ===
@@ -32,6 +19,50 @@ const SUBGROUP_DX = 0.1760695885;
 const SUBGROUP_DY = 0.1675843071; 
 const DIAMOND_OFFSET = 0.05;
 
+const PROFILE_PARAM_SCHEMAS = {
+    gaussian: [
+        { key: 'mean', label: 'Média (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.2 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
+    ],
+    exponential: [
+        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, max: 10, step: 0.01, defaultValue: 4.0 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
+    ],
+    linear_falloff: [
+        { key: 'slope', label: 'Inclinação (>0)', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
+    ],
+    logNormal: [
+        { key: 'mean', label: 'Média (escala log)', type: 'number', min: -5, max: 2, step: 0.1, defaultValue: Math.log(0.25) },
+        { key: 'stddev', label: 'Desvio Padrão (escala log, >0)', type: 'number', min: 0.01, max: 3, step: 0.01, defaultValue: 0.5 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 2.0 }
+    ],
+    cauchy: [
+        { key: 'location', label: 'Localização (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.05 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
+    ],
+    weibull: [
+        { key: 'shape', label: 'Forma (k >0)', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 2.0 },
+        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, max: 5, step: 0.01, defaultValue: 0.45 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
+    ]
+};
+
+function getProfileDefaults(profileName) {
+    const schema = PROFILE_PARAM_SCHEMAS[profileName];
+    if (!schema) {
+        console.error(`Schema not found for profile: ${profileName}`);
+        return {};
+    }
+    const defaults = {};
+    schema.forEach(param => {
+        defaults[param.key] = param.defaultValue;
+    });
+    return defaults;
+}
+
 const DEFAULT_PARAMS = {
     grid: { numCols: 12, numRows: 3, spacingXFactor: 1.0, spacingYFactor: 1.0, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     spiral: { numArms: 3, tilesPerArm: 12, radiusStartFactor: 0.7, radiusStepFactor: 0.3, centerExpScaleFactor: 1.0, angleStepRad: Math.PI / 9, armOffsetRad: 0.0, rotationPerArmRad: 0.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0, includeCenterTile: false },
@@ -40,7 +71,15 @@ const DEFAULT_PARAMS = {
     hex_grid: { numRingsHex: 3, spacingFactor: 0.8, centerExpScaleFactor: 1.0, addCenterTile: true, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     phyllotaxis: { numTiles: 50, scaleFactor: 0.6, centerOffsetFactor: 0.25, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     manual_circular: { spacingXFactor: 1.0, spacingYFactor: 1.0, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
-    random: { numTiles: 36, maxRadiusM: 4.0, minSeparationFactor: 1.0 } 
+    random: { numTiles: 36, maxRadiusM: 4.0, minSeparationFactor: 1.0 },
+    advanced_density: {
+        numTiles: 70,
+        maxRadiusM: 6.0,
+        densityProfile: 'gaussian',
+        profileParams: getProfileDefaults('gaussian'),
+        densityInfluenceFactor: 0.75,
+        minSeparationFactor: 1.05
+    }
 };
 
 const PARAM_CONTROLS = {
@@ -51,7 +90,31 @@ const PARAM_CONTROLS = {
     hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 }, { id: 'spacingFactor', label: 'Fator Espaçamento', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } ],
     phyllotaxis: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } ],
     manual_circular: [ { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.1 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.05 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05 } ]
+    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.05 } ],
+    advanced_density: [
+        { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 300, step: 1 },
+        { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 },
+        {
+            id: 'densityProfile', label: 'Perfil de Densidade', type: 'select',
+            options: [
+                { value: 'gaussian', label: 'Gaussiana' },
+                { value: 'exponential', label: 'Exponencial' },
+                { value: 'linear_falloff', label: 'Linear Decrescente' },
+                { value: 'logNormal', label: 'Log-Normal' },
+                { value: 'cauchy', label: 'Cauchy' },
+                { value: 'weibull', label: 'Weibull' }
+            ]
+        },
+        {
+            id: 'densityInfluenceFactor',
+            label: 'Fator Influência Densidade',
+            type: 'number',
+            min: 0, max: 1, step: 0.01,
+            defaultValue: 0.75
+        },
+        // Profile-specific parameters will be inserted here by updateDynamicControls
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.05 }
+    ]
 };
 
 // === Classe Principal do Gerador ===
@@ -69,7 +132,16 @@ class AntennaLayoutGenerator {
         this.currentLayout = []; 
         this.allAntennas = [];   
         this.collisions = [];    
-        this.showCollisions = true; 
+        this.showCollisions = true;
+        this.lastProfile = null; // For advanced_density
+
+        // Universal Drag-and-drop state variables
+        this.isDragging = false;
+        this.draggedTileIndex = -1;
+        this.mouseOffsetX = 0;
+        this.mouseOffsetY = 0;
+        this.lastDrawParams = null;
+
         const showCollisionsCheckbox = document.getElementById('show-collisions');
         if (showCollisionsCheckbox) {
             showCollisionsCheckbox.checked = this.showCollisions;
@@ -80,7 +152,6 @@ class AntennaLayoutGenerator {
         this.downloadImageBtn = null;
         this.imageThemeRadios = null;
         this.imageAxesRadios = null;
-        // Format e Quality removidos
 
         this.resizeCanvas();
         this.initControls();
@@ -125,6 +196,12 @@ class AntennaLayoutGenerator {
             layoutTypeSelect.addEventListener('change', () => {
                 this.layoutType = layoutTypeSelect.value;
                 this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType]));
+                 if (this.layoutType === 'advanced_density' && this.params.densityProfile) {
+                    // Ensure profileParams is initialized if not present (e.g. if DEFAULT_PARAMS was minimal)
+                    if (!this.params.profileParams) {
+                        this.params.profileParams = getProfileDefaults(this.params.densityProfile);
+                    }
+                }
                 this.updateDynamicControls();
                 this.generateLayout();
             });
@@ -149,8 +226,6 @@ class AntennaLayoutGenerator {
         this.imageThemeRadios = document.querySelectorAll('input[name="imageTheme"]');
         this.imageAxesRadios = document.querySelectorAll('input[name="imageAxes"]');
         
-        // Controles de formato e qualidade JPEG foram removidos.
-
         if (this.downloadImageBtn) {
             this.downloadImageBtn.addEventListener('click', () => this.downloadLayoutImage());
         } else {
@@ -158,6 +233,254 @@ class AntennaLayoutGenerator {
         }
         
         this.updateDynamicControls();
+
+        const exportConfigBtn = document.getElementById('export-config-btn');
+        if (exportConfigBtn) {
+            exportConfigBtn.addEventListener('click', () => this.exportLayoutConfiguration());
+        } else {
+            console.warn("Botão #export-config-btn não encontrado.");
+        }
+
+        const importConfigInput = document.getElementById('import-config-input');
+        if (importConfigInput) {
+            importConfigInput.addEventListener('change', (event) => this.importLayoutConfiguration(event));
+        } else {
+            console.warn("Input #import-config-input não encontrado.");
+        }
+
+        // Attach universal drag-and-drop listeners
+        this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+        this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+        window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+        this.canvas.addEventListener('mouseleave', (e) => this.handleMouseLeave(e));
+        this.canvas.addEventListener('mouseenter', (e) => this.handleMouseEnter(e));
+    }
+
+    getMousePos(canvas, evt) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+            x: evt.clientX - rect.left,
+            y: evt.clientY - rect.top
+        };
+    }
+
+    handleMouseDown(e) {
+        if (!this.currentLayout || this.currentLayout.length === 0 || !this.lastDrawParams) return;
+
+        const mousePos = this.getMousePos(this.canvas, e);
+        const { scale, minX, minY, offsetX, offsetY, effectiveHeight } = this.lastDrawParams;
+        const clickRadius = 10; // pixels
+
+        for (let i = 0; i < this.currentLayout.length; i++) {
+            const tile = this.currentLayout[i];
+            if (!Array.isArray(tile) || tile.length < 2) continue;
+
+            const tileCanvasX = (tile[0] - minX) * scale + offsetX;
+            const tileCanvasY = (effectiveHeight - (tile[1] - minY)) * scale + offsetY;
+
+            const distance = Math.sqrt(Math.pow(mousePos.x - tileCanvasX, 2) + Math.pow(mousePos.y - tileCanvasY, 2));
+
+            if (distance < clickRadius) {
+                this.isDragging = true;
+                this.draggedTileIndex = i;
+                this.mouseOffsetX = mousePos.x - tileCanvasX;
+                this.mouseOffsetY = mousePos.y - tileCanvasY;
+                this.canvas.style.cursor = 'grabbing';
+                break;
+            }
+        }
+    }
+
+    handleMouseMove(e) {
+        if (!this.isDragging || this.draggedTileIndex === -1 || !this.lastDrawParams) return;
+
+        const mousePos = this.getMousePos(this.canvas, e);
+        const { scale, minX, minY, offsetX, offsetY, effectiveHeight } = this.lastDrawParams;
+
+        const newTileCanvasX = mousePos.x - this.mouseOffsetX;
+        const newTileCanvasY = mousePos.y - this.mouseOffsetY;
+
+        let newWorldX = (newTileCanvasX - offsetX) / scale + minX;
+        let newWorldY = minY - ((newTileCanvasY - offsetY) / scale - effectiveHeight);
+
+        this.currentLayout[this.draggedTileIndex][0] = newWorldX;
+        this.currentLayout[this.draggedTileIndex][1] = newWorldY;
+
+        this.generateAllAntennas();
+        this.checkCollisions();
+        this.drawLayout();
+    }
+
+    handleMouseUp(e) {
+        if (!this.isDragging) return;
+        this.isDragging = false;
+        this.draggedTileIndex = -1;
+        this.canvas.style.cursor = (this.currentLayout && this.currentLayout.length > 0) ? 'grab' : 'default';
+
+        this.updateStats();
+        if (typeof window.updateExportFields === 'function') {
+            let selectedStations = window.interactiveMap?.getSelectedCoordinates() || [];
+            window.updateExportFields(this.currentLayout, selectedStations);
+        }
+        window.dispatchEvent(new CustomEvent('layoutGenerated'));
+    }
+
+    handleMouseLeave(e) {
+        if (this.isDragging) {
+            this.handleMouseUp(e);
+        }
+        this.canvas.style.cursor = 'default';
+    }
+
+    handleMouseEnter(e) {
+        if (!this.isDragging && this.currentLayout && this.currentLayout.length > 0) {
+            this.canvas.style.cursor = 'grab';
+        }
+    }
+
+    exportLayoutConfiguration() {
+        const config = {
+            layoutType: this.layoutType,
+            params: this.params, // this.params should already contain profileParams if layoutType is advanced_density
+            currentTileLayout: JSON.parse(JSON.stringify(this.currentLayout || [])) // Add this line
+        };
+        // If advanced_density, ensure profileParams is part of the params to be saved
+        // Note: The previous check for advanced_density and profileParams is implicitly handled
+        // because this.params should already have profileParams correctly set if that's the active type.
+        // However, explicitly ensuring it or documenting this assumption is good.
+        // For this specific change, we are only adding currentTileLayout. The params object is assumed to be correct.
+
+        const jsonString = JSON.stringify(config, null, 2);
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const filename = `bingo_layout_config_${this.layoutType}.json`;
+
+        if (typeof saveAs !== 'undefined') {
+            saveAs(blob, filename);
+        } else {
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
+        }
+        console.log('Layout configuration exported, including currentTileLayout:', filename);
+    }
+
+    importLayoutConfiguration(event) {
+        const file = event.target.files[0];
+        if (!file) {
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const config = JSON.parse(e.target.result);
+                if (config && config.layoutType && config.params) {
+                    const layoutTypeSelect = document.getElementById('layout-type');
+                    const isValidLayoutType = Array.from(layoutTypeSelect.options).some(opt => opt.value === config.layoutType);
+
+                    if (!isValidLayoutType) {
+                        alert('Erro: Tipo de layout inválido no arquivo de configuração.');
+                        event.target.value = null; // Reset file input
+                        return;
+                    }
+
+                    this.layoutType = config.layoutType;
+                    // Start with default params for the imported layout type
+                    this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType]));
+
+                    // Overwrite with imported params (main ones)
+                    for (const key in config.params) {
+                        if (config.params.hasOwnProperty(key) && key !== 'profileParams') { // Exclude profileParams for now
+                            if (this.params.hasOwnProperty(key)) {
+                                // Basic type conversion based on control type if available
+                                const controlDef = (PARAM_CONTROLS[this.layoutType] || []).find(c => c.id === key);
+                                if (controlDef && controlDef.type === 'number') {
+                                    this.params[key] = parseFloat(config.params[key]);
+                                } else if (controlDef && controlDef.type === 'checkbox') {
+                                    this.params[key] = Boolean(config.params[key]);
+                                } else {
+                                    this.params[key] = config.params[key];
+                                }
+                            }
+                        }
+                    }
+
+                    // Special handling for profileParams if layoutType is advanced_density
+                    if (this.layoutType === 'advanced_density') {
+                        // Ensure densityProfile is set from config.params before getting defaults
+                        if (config.params.densityProfile) {
+                            this.params.densityProfile = config.params.densityProfile;
+                        }
+                        // Initialize profileParams with defaults for the (potentially new) profile
+                        this.params.profileParams = { ...getProfileDefaults(this.params.densityProfile) };
+                        if (config.params.profileParams) { // If profileParams exist in imported config
+                            for (const pKey in config.params.profileParams) {
+                                if (this.params.profileParams.hasOwnProperty(pKey) && config.params.profileParams.hasOwnProperty(pKey)) {
+                                    // Assuming all profile params are numbers, parse them
+                                    this.params.profileParams[pKey] = parseFloat(config.params.profileParams[pKey]);
+                                }
+                            }
+                        }
+                    }
+
+                    // Update the layout type dropdown UI
+                    layoutTypeSelect.value = this.layoutType;
+                    // Update all dynamic controls based on the new this.params
+                    this.updateDynamicControls();
+
+                    // Check for and apply currentTileLayout override
+                    if (config.currentTileLayout && Array.isArray(config.currentTileLayout)) {
+                        // Basic validation for array of arrays of numbers
+                        const isValidLayoutArray = config.currentTileLayout.every(
+                            tile => Array.isArray(tile) && tile.length >= 2 && typeof tile[0] === 'number' && typeof tile[1] === 'number'
+                        );
+
+                        if (isValidLayoutArray) {
+                            console.log("Aplicando currentTileLayout do arquivo importado.");
+                            this.currentLayout = JSON.parse(JSON.stringify(config.currentTileLayout));
+
+                            // Directly update layout dependent parts
+                            this.generateAllAntennas();
+                            this.checkCollisions();
+                            this.drawLayout(); // This will also update lastDrawParams
+                            this.updateStats();
+                            if (typeof window.updateExportFields === 'function') {
+                                let selectedStations = window.interactiveMap?.getSelectedCoordinates() || [];
+                                window.updateExportFields(this.currentLayout, selectedStations);
+                            }
+                            window.dispatchEvent(new CustomEvent('layoutGenerated'));
+                            alert('Configuração de layout (com posições de tiles customizadas) importada com sucesso!');
+                        } else {
+                            console.warn("currentTileLayout encontrado no arquivo, mas formato inválido. Gerando layout a partir dos parâmetros.");
+                            this.generateLayout(); // Fallback to generating from params
+                            alert('Configuração de layout importada (parâmetros aplicados, mas posições de tiles customizadas inválidas/ignoradas).');
+                        }
+                    } else {
+                        // No currentTileLayout or invalid, so generate layout from params
+                        console.log("Gerando layout a partir dos parâmetros do arquivo importado (sem currentTileLayout).");
+                        this.generateLayout();
+                        alert('Configuração de layout (parâmetros) importada com sucesso!');
+                    }
+                    console.log('Layout configuration imported:', config);
+                } else {
+                    alert('Erro: Arquivo de configuração inválido. Faltando layoutType ou params.');
+                }
+            } catch (error) {
+                alert('Erro ao processar o arquivo de configuração: ' + error.message);
+                console.error('Erro ao importar configuração:', error);
+            } finally {
+                event.target.value = null; // Reset file input
+            }
+        };
+        reader.onerror = (error) => {
+            alert('Erro ao ler o arquivo: ' + error.message);
+            console.error('Erro ao ler arquivo de configuração:', error);
+            event.target.value = null;
+        };
+        reader.readAsText(file);
     }
 
     updateDynamicControls() {
@@ -167,6 +490,20 @@ class AntennaLayoutGenerator {
             return;
         }
         dynamicParamsDiv.innerHTML = ''; 
+
+        const manualToolsDiv = document.getElementById('manual-edit-tools');
+        if (manualToolsDiv) {
+            manualToolsDiv.style.display = 'none';
+        }
+
+        const profileSpecificParamsContainer = document.getElementById('profile-specific-params-container');
+        if (!profileSpecificParamsContainer) {
+            console.error("Div #profile-specific-params-container não encontrada.");
+        } else {
+            profileSpecificParamsContainer.innerHTML = '';
+            profileSpecificParamsContainer.style.display = 'none';
+        }
+
         const controls = PARAM_CONTROLS[this.layoutType];
         if (!controls) {
             console.warn(`Nenhuma definição de controle encontrada para o tipo de layout: ${this.layoutType}`);
@@ -187,7 +524,15 @@ class AntennaLayoutGenerator {
                     case 'select': 
                         inputElement = document.createElement('select'); inputElement.id = control.id; inputElement.name = control.id;
                         control.options.forEach(option => { const opt = document.createElement('option'); opt.value = option.value; opt.textContent = option.label; if (String(this.params[control.id]) === String(option.value)) opt.selected = true; inputElement.appendChild(opt); });
-                        inputElement.addEventListener('change', () => { this.params[control.id] = inputElement.value; this.updateDynamicControls(); this.generateLayout(); });
+                        inputElement.addEventListener('change', () => {
+                            this.params[control.id] = inputElement.value;
+                            if (control.id === 'densityProfile' && this.layoutType === 'advanced_density') {
+                                this.params.profileParams = getProfileDefaults(inputElement.value);
+                                this.lastProfile = inputElement.value; // Update lastProfile here
+                            }
+                            this.updateDynamicControls();
+                            this.generateLayout();
+                        });
                         formGroup.appendChild(inputElement);
                         break;
                     case 'checkbox':
@@ -258,6 +603,78 @@ class AntennaLayoutGenerator {
             }
         });
 
+        if (this.layoutType === 'advanced_density' && profileSpecificParamsContainer) {
+            profileSpecificParamsContainer.style.display = 'block';
+            const currentProfile = this.params.densityProfile || 'gaussian';
+
+            if (this.lastProfile !== currentProfile || !this.params.profileParams || Object.keys(this.params.profileParams).length === 0) {
+                 this.params.profileParams = { ...getProfileDefaults(currentProfile) };
+            }
+            this.lastProfile = currentProfile;
+
+            const selectedSchema = PROFILE_PARAM_SCHEMAS[currentProfile];
+            if (selectedSchema) {
+                selectedSchema.forEach(paramSchema => {
+                    const formGroup = document.createElement('div'); formGroup.className = 'form-group';
+                    const label = document.createElement('label');
+                    label.setAttribute('for', `profile_param_input_${paramSchema.key}`);
+                    label.textContent = paramSchema.label + ':';
+                    formGroup.appendChild(label);
+
+                    const sliderGroup = document.createElement('div'); sliderGroup.className = 'slider-group';
+                    const sliderInput = document.createElement('input'); sliderInput.type = 'range';
+                    sliderInput.id = `profile_param_slider_${paramSchema.key}`;
+                    sliderInput.min = paramSchema.min; sliderInput.max = paramSchema.max; sliderInput.step = paramSchema.step;
+                    sliderInput.value = this.params.profileParams[paramSchema.key];
+
+                    const numberInput = document.createElement('input'); numberInput.type = 'number';
+                    numberInput.id = `profile_param_input_${paramSchema.key}`;
+                    numberInput.min = paramSchema.min; numberInput.max = paramSchema.max; numberInput.step = paramSchema.step;
+                    numberInput.value = this.params.profileParams[paramSchema.key];
+
+                    sliderInput.addEventListener('input', () => {
+                        const val = parseFloat(sliderInput.value);
+                        this.params.profileParams[paramSchema.key] = val;
+                        numberInput.value = val;
+                        this.generateLayout();
+                    });
+                    numberInput.addEventListener('input', () => {
+                        let val = parseFloat(numberInput.value);
+                        if (!isNaN(val)) {
+                            if (paramSchema.min !== undefined) val = Math.max(paramSchema.min, val);
+                            if (paramSchema.max !== undefined) val = Math.min(paramSchema.max, val);
+                            this.params.profileParams[paramSchema.key] = val;
+                            sliderInput.value = val;
+                            this.generateLayout();
+                        }
+                    });
+                     numberInput.addEventListener('change', () => {
+                        let val = parseFloat(numberInput.value);
+                        if (isNaN(val)) { val = parseFloat(sliderInput.value); }
+                        if (paramSchema.min !== undefined) val = Math.max(paramSchema.min, val);
+                        if (paramSchema.max !== undefined) val = Math.min(paramSchema.max, val);
+                        if (paramSchema.step !== undefined && paramSchema.step !== 0) {
+                            const dp = (String(paramSchema.step).split('.')[1] || '').length;
+                            val = parseFloat((Math.round(val / paramSchema.step) * control.step).toFixed(dp));
+                        }
+                        numberInput.value = val;
+                        sliderInput.value = val;
+                        if(this.params.profileParams[paramSchema.key] !== val) {
+                             this.params.profileParams[paramSchema.key] = val;
+                             this.generateLayout();
+                        }
+                    });
+
+                    sliderGroup.appendChild(sliderInput); sliderGroup.appendChild(numberInput);
+                    formGroup.appendChild(sliderGroup);
+                    profileSpecificParamsContainer.appendChild(formGroup);
+                });
+            }
+        } else if (profileSpecificParamsContainer) {
+            profileSpecificParamsContainer.style.display = 'none';
+        }
+
+
         if (this.layoutType === 'ring') {
              const numRingsControl = controls.find(c => c.id === 'numRings');
              const numRings = numRingsControl ? parseInt(this.params.numRings) : 0;
@@ -327,7 +744,10 @@ class AntennaLayoutGenerator {
         const currentParamsSanitized = {};
         const controlsForType = PARAM_CONTROLS[this.layoutType] || [];
 
+        // Sanitize main parameters
         for (const key in this.params) {
+            if (key === 'profileParams' && this.layoutType === 'advanced_density') continue; // Handle profileParams separately
+
             const controlDef = controlsForType.find(c => c.id === key);
             if (controlDef) {
                 if (controlDef.type === 'number') {
@@ -339,9 +759,25 @@ class AntennaLayoutGenerator {
                     currentParamsSanitized[key] = this.params[key];
                 }
             } else {
-                 currentParamsSanitized[key] = this.params[key];
+                 currentParamsSanitized[key] = this.params[key]; // Pass through if no specific control (e.g. profileParams object itself)
             }
         }
+         // Sanitize profileParams for advanced_density
+        if (this.layoutType === 'advanced_density') {
+            currentParamsSanitized.profileParams = {};
+            const profileSchema = PROFILE_PARAM_SCHEMAS[this.params.densityProfile] || [];
+            for (const paramDef of profileSchema) {
+                const key = paramDef.key;
+                if (this.params.profileParams && this.params.profileParams.hasOwnProperty(key)) {
+                    const parsedValue = parseFloat(this.params.profileParams[key]);
+                    currentParamsSanitized.profileParams[key] = isNaN(parsedValue) ? paramDef.defaultValue : parsedValue;
+                } else {
+                    currentParamsSanitized.profileParams[key] = paramDef.defaultValue;
+                }
+            }
+        }
+
+
         const fullParams = { ...currentParamsSanitized, ...commonParams };
 
         if (this.layoutType === 'ring') {
@@ -350,16 +786,25 @@ class AntennaLayoutGenerator {
              if (!Array.isArray(tilesPerRingArray) || tilesPerRingArray.length !== numRings) {
                  tilesPerRingArray = Array.from({ length: numRings }, (_, i) => Math.max(1, 8 * (i + 1)));
                  console.warn(`Gerador: 'tilesPerRing' inválido ou tamanho incorreto (${tilesPerRingArray.length} vs ${numRings}). Recriado.`);
-                 this.params.tilesPerRing = [...tilesPerRingArray];
+                 this.params.tilesPerRing = [...tilesPerRingArray]; // Update main params if sanitized
+                 fullParams.tilesPerRing = [...tilesPerRingArray]; // Ensure fullParams also has the corrected one
+             } else {
+                fullParams.tilesPerRing = tilesPerRingArray.map(n => Math.max(1, parseInt(n) || 8));
              }
-             fullParams.tilesPerRing = tilesPerRingArray.map(n => Math.max(1, parseInt(n) || 8));
         }
+
 
         try {
             if (!window.BingoLayouts) {
                 throw new Error("Biblioteca 'BingoLayouts' (bingo_layouts.js) não carregada.");
             }
-            console.log(`Chamando BingoLayouts para tipo: ${this.layoutType} com parâmetros:`, fullParams);
+            console.log(`Chamando BingoLayouts para tipo: ${this.layoutType} com parâmetros:`, JSON.parse(JSON.stringify(fullParams))); // Log a deep copy for safety
+
+            // Clear previous layout results before generating new ones
+            this.currentLayout = [];
+            this.allAntennas = [];
+            this.collisions = [];
+
             switch (this.layoutType) {
                 case 'grid': this.currentLayout = window.BingoLayouts.createGridLayout(fullParams.numCols, fullParams.numRows, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingXFactor, fullParams.spacingYFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
                 case 'spiral': this.currentLayout = window.BingoLayouts.createSpiralLayout(fullParams.numArms, fullParams.tilesPerArm, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.radiusStartFactor, fullParams.radiusStepFactor, fullParams.centerExpScaleFactor, fullParams.angleStepRad, fullParams.armOffsetRad, fullParams.rotationPerArmRad, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout, fullParams.includeCenterTile); break;
@@ -369,6 +814,20 @@ class AntennaLayoutGenerator {
                 case 'phyllotaxis': this.currentLayout = window.BingoLayouts.createPhyllotaxisLayout(fullParams.numTiles, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.scaleFactor, fullParams.centerOffsetFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
                 case 'manual_circular': this.currentLayout = window.BingoLayouts.createManualCircularLayout(fullParams.tileWidthM, fullParams.tileHeightM, fullParams.spacingXFactor, fullParams.spacingYFactor, fullParams.centerExpScaleFactor, fullParams.randomOffsetStddevM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
                 case 'random': this.currentLayout = window.BingoLayouts.createRandomLayout(fullParams.numTiles, fullParams.maxRadiusM, fullParams.tileWidthM, fullParams.tileHeightM, fullParams.minSeparationFactor, undefined, fullParams.centerLayout); break;
+                case 'advanced_density':
+                    this.currentLayout = window.BingoLayouts.createAdvancedDensityLayout(
+                        fullParams.numTiles,
+                        fullParams.maxRadiusM,
+                        fullParams.tileWidthM,
+                        fullParams.tileHeightM,
+                        fullParams.densityProfile,
+                        fullParams.profileParams, // Pass the whole object
+                        fullParams.densityInfluenceFactor,
+                        fullParams.minSeparationFactor,
+                        undefined, // maxPlacementAttemptsPerTile (uses default in bingo_layouts.js)
+                        fullParams.centerLayout
+                    );
+                    break;
                 default:
                     console.warn(`Tipo de layout não reconhecido: ${this.layoutType}. Gerando layout vazio.`);
                     this.currentLayout = [];
@@ -490,6 +949,27 @@ class AntennaLayoutGenerator {
                     break;
             }
         });
+
+        if (this.layoutType === 'advanced_density') {
+            const currentProfile = this.params.densityProfile || 'gaussian';
+            this.params.profileParams = { ...getProfileDefaults(currentProfile) }; // Reset to defaults
+            const schema = PROFILE_PARAM_SCHEMAS[currentProfile];
+            if(schema){
+                schema.forEach(paramDef => {
+                    if (paramDef.type === 'number' && paramDef.min !== undefined && paramDef.max !== undefined) {
+                         let rVal = Math.random() * (paramDef.max - paramDef.min) + paramDef.min;
+                         if (paramDef.step !== undefined && paramDef.step !== 0) {
+                            const dp = (String(paramDef.step).split('.')[1] || '').length;
+                            rVal = parseFloat((Math.round(rVal / paramDef.step) * paramDef.step).toFixed(dp));
+                        }
+                        this.params.profileParams[paramDef.key] = Math.max(paramDef.min, Math.min(paramDef.max, rVal));
+                    }
+                });
+            }
+            this.params.densityInfluenceFactor = parseFloat(Math.random().toFixed(2));
+        }
+
+
         if (this.layoutType === 'ring') {
              const numRings = parseInt(this.params.numRings);
              this.params.tilesPerRing = Array.from({ length: numRings }, (_, i) => Math.max(1, Math.floor(Math.random() * 20 + 5) * (i + 1))); 
@@ -512,6 +992,7 @@ class AntennaLayoutGenerator {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText("Gere um layout ou ajuste os parâmetros.", canvas.width / 2, canvas.height / 2);
+            this.lastDrawParams = null; // Ensure params are null if nothing to draw
             return;
         }
 
@@ -541,6 +1022,7 @@ class AntennaLayoutGenerator {
         }
         if (minX === Infinity) {
             console.warn("Não foi possível determinar os limites do layout para desenho.");
+            this.lastDrawParams = null;
             return; 
         }
         const margin = drawAxes ? 50 : 20; 
@@ -550,13 +1032,19 @@ class AntennaLayoutGenerator {
         const effectiveHeight = Math.max(contentHeight, 1e-6);
         const availableWidth = canvas.width - 2 * margin;
         const availableHeight = canvas.height - 2 * margin;
+
         if (availableWidth <= 0 || availableHeight <= 0) {
              console.warn("Área disponível no canvas para desenho é zero ou negativa. Canvas pode estar muito pequeno.");
+             this.lastDrawParams = null;
              return; 
         }
+
         const scale = Math.min(availableWidth / effectiveWidth, availableHeight / effectiveHeight);
         const offsetX = margin + (availableWidth - effectiveWidth * scale) / 2;
         const offsetY = margin + (availableHeight - effectiveHeight * scale) / 2;
+
+        this.lastDrawParams = { scale, minX, minY, maxX, maxY, offsetX, offsetY, effectiveHeight, contentWidth, contentHeight, canvasWidth: canvas.width, canvasHeight: canvas.height, margin };
+
         const transformCoord = (coordX, coordY) => {
             const relativeX = coordX - minX; 
             const relativeY = coordY - minY;
@@ -704,7 +1192,7 @@ class AntennaLayoutGenerator {
              ctx.moveTo(leftX, zeroY);
              ctx.lineTo(rightX, zeroY);
              ctx.stroke();
-             const axisXIsVisible = minY <= epsilon && maxY >= -axisEpsilon;
+             const axisXIsVisible = minY <= epsilon && maxY >= -epsilon;
              const axisYIsVisible = minX <= epsilon && maxX >= -epsilon;
              if (!axisYIsVisible || (axisXIsVisible && Math.abs(transformCoord(0,0).y - (canvas.height - margin)) < textMargin)) {
                 ctx.fillStyle = scaleColor;
@@ -815,7 +1303,7 @@ class AntennaLayoutGenerator {
 
     downloadLayoutImage() {
         console.log("Iniciando processo de download da imagem do layout (PNG)...");
-        if (!this.canvas || !this.imageThemeRadios || !this.imageAxesRadios ) { // FormatRadios removido
+        if (!this.canvas || !this.imageThemeRadios || !this.imageAxesRadios ) {
              console.error("Componentes essenciais para download da imagem não encontrados.");
              alert("Erro: Opções de download da imagem não configuradas corretamente.");
              return;
@@ -827,7 +1315,6 @@ class AntennaLayoutGenerator {
         let includeAxes = true;
         try { includeAxes = document.querySelector('input[name="imageAxes"]:checked')?.value === 'yes'; } catch (e) { console.warn("Não foi possível ler a opção de eixos.", e); }
 
-        // Formato e qualidade JPEG removidos. Sempre PNG.
         const selectedFormat = 'png';
         const fileExtension = 'png';
         const mimeType = 'image/png';
@@ -861,7 +1348,7 @@ class AntennaLayoutGenerator {
 
                 setTimeout(() => {
                     try {
-                        const dataURL = this.canvas.toDataURL(mimeType); // Sempre PNG
+                        const dataURL = this.canvas.toDataURL(mimeType);
                         const link = document.createElement('a');
                         link.href = dataURL;
                         link.download = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}.${fileExtension}`;

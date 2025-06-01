@@ -576,6 +576,69 @@ button.secondary { background-color: var(--secondary-color); color: var(--card-b
 button:hover { opacity: 0.9; }
 button:disabled { opacity: 0.6; cursor: not-allowed; }
 
+/* Config Management Group */
+.profile-params-subcontainer {
+    margin-top: 10px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.config-management-group {
+    margin-top: 15px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Import/Export Buttons Styling */
+#export-config-btn,
+label.file-input-label[for="import-config-input"] {
+    background-color: #f0f0f0;
+    color: #2c3e50;
+    border: 1px solid #bdc3c7;
+    padding: 8px 14px;
+    font-size: 0.95em;
+    line-height: 1.5; /* Adjusted for better vertical centering with text/icons */
+    border-radius: 4px; /* Consistent with other buttons */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+#export-config-btn:hover,
+label.file-input-label[for="import-config-input"]:hover {
+    background-color: #e0e0e0;
+    opacity: 1; /* Ensure hover is not less opaque than base */
+}
+
+/* Dark Theme Adjustments for Import/Export Buttons */
+html[data-theme='dark'] #export-config-btn,
+html[data-theme='dark'] label.file-input-label[for="import-config-input"] {
+    background-color: #3a3f44;
+    color: #e0e0e0;
+    border: 1px solid #565f66;
+}
+
+html[data-theme='dark'] #export-config-btn:hover,
+html[data-theme='dark'] label.file-input-label[for="import-config-input"]:hover {
+    background-color: #4b5157;
+}
+
+/* Ensure .secondary class is not overriding desired import/export styles if applied directly */
+/* This is important if the button/label still has .secondary class */
+#export-config-btn.secondary,
+label.file-input-label[for="import-config-input"].secondary {
+    /* Override general .secondary if necessary, or rely on specificity of ID/attribute selector */
+    /* For now, the ID and attribute selectors above should be specific enough */
+}
+
+
 /* Rodapé */
 footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-color); color: var(--header-text-color); margin-top: 30px; }
 
@@ -679,6 +742,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     .export-fields { grid-template-columns: 1fr; gap: 15px; }
     .export-field textarea { height: 150px; }
     .button-group, .download-zip-group { flex-direction: column; align-items: stretch; }
+    .config-management-group { flex-direction: column; align-items: stretch;}
     .download-zip-group input[type="text"] { max-width: none; }
     .map { height: 400px; } 
     .coordinates-list { height: 200px; max-height: 200px; } 

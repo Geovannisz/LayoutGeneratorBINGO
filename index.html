@@ -37,9 +37,12 @@
                                 <option value="phyllotaxis">Phyllotaxis</option>
                                 <option value="manual_circular">Circular Manual</option>
                                 <option value="random">Aleatório</option>
+                                <option value="advanced_density">Densidade Avançada</option>
                             </select>
                         </div>
-                        <div id="dynamic-params" class="dynamic-params-container"></div>
+                        <div id="dynamic-params" class="dynamic-params-container">
+                            <div id="profile-specific-params-container" class="profile-params-subcontainer dynamic-params-container" style="display: none;"></div>
+                        </div>
                         <div class="form-group">
                             <label for="show-collisions">Mostrar Colisões:</label>
                             <input type="checkbox" id="show-collisions">
@@ -47,6 +50,13 @@
                         <div class="button-group">
                             <button id="generate-btn" class="primary">Gerar Layout</button>
                             <button id="random-btn" class="secondary">Gerar Aleatório</button>
+                        </div>
+                        <div class="config-management-group">
+                            <button id="export-config-btn" class="secondary"><i class="fas fa-download"></i> Exportar</button>
+                            <label for="import-config-input" class="secondary file-input-label">
+                                <i class="fas fa-upload"></i> Importar
+                            </label>
+                            <input type="file" id="import-config-input" accept=".json" style="display: none;">
                         </div>
                     </div>
                     <div class="visualization">

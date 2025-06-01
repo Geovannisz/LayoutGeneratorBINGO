@@ -32,13 +32,18 @@ O núcleo desta seção permite a criação de diversos tipos de arranjos de ant
     *   `Phyllotaxis`: Padrão inspirado na natureza (como sementes de girassol).
     *   `Circular Manual`: Um layout circular específico e pré-definido.
     *   `Aleatório`: Distribuição aleatória de tiles dentro de um raio.
-*   **Parâmetros Dinâmicos**: Ao selecionar um tipo de layout, um conjunto de controles específicos aparece, permitindo ajustar finamente propriedades como número de elementos, espaçamento, fatores de escala, offset aleatório, e outros atributos pertinentes ao algoritmo escolhido.
+    *   `Densidade Avançada`: Permite criar layouts com densidade de tiles variando radialmente usando perfis como Gaussiana, Exponencial, Log-Normal, Weibull, Cauchy e Linear Decrescente. Inclui um "Fator de Influência da Densidade" para balancear o perfil com aleatoriedade.
+*   **Parâmetros Dinâmicos**: Ao selecionar um tipo de layout, um conjunto de controles específicos aparece, permitindo ajustar finamente propriedades como número de elementos, espaçamento, fatores de escala, offset aleatório, e outros atributos pertinentes ao algoritmo escolhido. Para o layout de "Densidade Avançada", parâmetros específicos do perfil selecionado são exibidos dinamicamente.
 *   **Controles de Geração**:
     *   `Gerar Layout`: Cria o arranjo com os parâmetros atuais.
     *   `Gerar Aleatório`: Randomiza os parâmetros do tipo de layout selecionado e gera um novo arranjo.
+*   **Edição Manual Universal**: Todos os layouts gerados podem ser manualmente ajustados arrastando e soltando os tiles individuais diretamente na tela de visualização (canvas).
 *   **Visualização em Canvas**: O layout resultante é renderizado dinamicamente em uma área de canvas. Centros de tiles e as antenas individuais (64 por tile) são exibidos.
     *   **Estatísticas**: Número total de `Tiles` e `Antenas` no arranjo atual.
     *   **Mostrar Colisões**: Caixa de seleção para ativar/desativar a visualização de colisões retangulares entre tiles. Se ativa e colisões são detectadas, são indicadas no canvas e listadas.
+*   **Importação/Exportação de Configurações**:
+    *   Botões `Importar` e `Exportar` permitem carregar e salvar configurações de layout.
+    *   O formato JSON é utilizado, armazenando o tipo de layout, seus parâmetros de geração e, crucialmente, as **posições exatas dos tiles (`currentTileLayout`)**. Isso garante que quaisquer modificações manuais feitas via drag-and-drop sejam preservadas e restauradas.
 
 ### 🖼️ Baixar Imagem do Layout (Sub-seção)
 

@@ -777,6 +777,136 @@ function createRandomLayout(
     return finalCoords;
 }
 
+
+/**
+ * Creates a tile layout based on a specified radial density profile.
+ * Tiles are placed randomly, with a higher probability of placement in denser areas
+ * as defined by the profile. Collision detection ensures tiles do not overlap.
+ *
+ * @param {number} numTiles The total number of tiles to attempt to place.
+ * @param {number} maxRadiusM The maximum radius from the center within which tiles can be placed.
+ * @param {number} tileWidthM The width of each tile in meters, used for collision detection.
+ * @param {number} tileHeightM The height of each tile in meters, used for collision detection.
+ * @param {string} [profileName='gaussian'] The name of the density profile to use.
+ *                                          Supported: 'gaussian', 'exponential', 'linear_falloff', 'logNormal', 'cauchy', 'weibull'.
+ * @param {object} [profileParams={}] Parameters specific to the chosen density profile.
+ *                                    These control the shape and strength of the density distribution.
+ *                                    Example for 'gaussian': { mean: 0.0, stddev: 0.5, strength: 1.0 }
+ * @param {number} [minSeparationFactor=1.1] Factor to multiply tile dimensions for minimum separation.
+ *                                           1.0 means tiles can touch; >1.0 creates space.
+ * @param {number} [maxPlacementAttemptsPerTile=2000] Maximum attempts to place each individual tile
+ *                                                    before giving up on that tile.
+ * @param {boolean} [centerLayout=true] Whether to center the final layout of placed tiles around (0,0).
+ * @returns {Array<Array<number>>} An array of [x, y] coordinates for the center of each placed tile.
+ */
+function createAdvancedDensityLayout(
+    numTiles, maxRadiusM, tileWidthM, tileHeightM,
+    profileName = 'gaussian',
+    profileParams = { mean: 0.0, stddev: 0.5, strength: 1.0 },
+    densityInfluenceFactor = 0.75,
+    minSeparationFactor = 1.1,
+    maxPlacementAttemptsPerTile = 2000,
+    centerLayout = true
+) {
+    if (numTiles <= 0 || maxRadiusM <= 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
+
+    const coords = [];
+    const minDx = tileWidthM * minSeparationFactor;
+    const minDy = tileHeightM * minSeparationFactor;
+    let skippedTiles = 0;
+
+    console.log(`Creating Advanced Density Layout: ${numTiles} tiles, Profile: ${profileName}, Max Radius: ${maxRadiusM}m`);
+    console.log("Profile Params:", profileParams);
+
+    for (let i = 0; i < numTiles; i++) {
+        let tilePlaced = false;
+        for (let attempt = 0; attempt < maxPlacementAttemptsPerTile; attempt++) {
+            // Generate candidate point in polar coordinates, then convert to Cartesian
+            // Using Math.random() for r_norm_candidate for direct use with PDF-like functions (0 to 1)
+            const r_norm_candidate = Math.random();
+            const r_candidate = r_norm_candidate * maxRadiusM;
+            const theta_candidate = Math.random() * 2 * Math.PI;
+            const x_cand = r_candidate * Math.cos(theta_candidate);
+            const y_cand = r_candidate * Math.sin(theta_candidate);
+
+            let P_profile = 0; // Placement probability from profile
+            const strength = profileParams.strength !== undefined ? profileParams.strength : 1.0;
+
+            switch (profileName) {
+                case 'gaussian':
+                    P_profile = strength * Math.exp(-0.5 * Math.pow((r_norm_candidate - profileParams.mean) / profileParams.stddev, 2));
+                    break;
+                case 'exponential':
+                    P_profile = strength * Math.exp(-profileParams.lambda * r_norm_candidate);
+                    break;
+                case 'linear_falloff':
+                    P_profile = strength * Math.max(0, 1 - profileParams.slope * r_norm_candidate);
+                    break;
+                case 'logNormal':
+                    if (r_norm_candidate <= 1e-9) { P_profile = 0; }
+                    else {
+                        P_profile = strength * (1 / (r_norm_candidate * profileParams.stddev * Math.sqrt(2 * Math.PI))) *
+                            Math.exp(-Math.pow(Math.log(r_norm_candidate) - profileParams.mean, 2) / (2 * profileParams.stddev * profileParams.stddev));
+                    }
+                    break;
+                case 'cauchy':
+                    P_profile = strength * (1 / (Math.PI * profileParams.scale * (1 + Math.pow((r_norm_candidate - profileParams.location) / profileParams.scale, 2))));
+                    break;
+                case 'weibull':
+                    if (r_norm_candidate < 1e-9) { // Handle r_norm_candidate = 0 case
+                        if (profileParams.shape < 1) P_profile = strength * 100; // Simulating very high probability for shape < 1 at r=0
+                        else if (profileParams.shape === 1) P_profile = strength * (1 / profileParams.scale); // Exponential case
+                        else P_profile = 0; // For shape > 1, P(0) is 0
+                    } else {
+                        P_profile = strength * (profileParams.shape / profileParams.scale) *
+                            Math.pow(r_norm_candidate / profileParams.scale, profileParams.shape - 1) *
+                            Math.exp(-Math.pow(r_norm_candidate / profileParams.scale, profileParams.shape));
+                    }
+                    break;
+                default:
+                    console.warn(`Unknown density profile: ${profileName}. Defaulting to uniform probability.`);
+                    P_profile = 1.0 * strength; // Uniform probability if profile is unknown
+            }
+
+            const P_uniform = 1.0; // Uniform component always has high chance to attempt placement
+            const P_effective = (P_profile * densityInfluenceFactor) + (P_uniform * (1 - densityInfluenceFactor));
+
+            if (Math.random() < P_effective) {
+                let collision = false;
+                for (const existing_coord of coords) {
+                    const dx_coll = Math.abs(x_cand - existing_coord[0]);
+                    const dy_coll = Math.abs(y_cand - existing_coord[1]);
+                    if (dx_coll < minDx && dy_coll < minDy) {
+                        collision = true;
+                        break;
+                    }
+                }
+
+                if (!collision) {
+                    coords.push([
+                        parseFloat(x_cand.toFixed(COORD_PRECISION)),
+                        parseFloat(y_cand.toFixed(COORD_PRECISION))
+                    ]);
+                    tilePlaced = true;
+                    break;
+                }
+            }
+        } // End placement attempts for this tile
+
+        if (!tilePlaced) {
+            skippedTiles++;
+        }
+    } // End loop for all tiles
+
+    if (skippedTiles > 0) {
+        console.warn(`Advanced Density Layout: Skipped ${skippedTiles} out of ${numTiles} tiles due to placement conflicts.`);
+    }
+
+    console.log(`Advanced Density Layout: Placed ${coords.length} tiles.`);
+    return centerLayout ? centerCoords(coords) : coords;
+}
+
+
 // Exporta as funções para uso global no objeto window, se estiver em um ambiente de navegador.
 if (typeof window !== 'undefined') {
     window.BingoLayouts = {
@@ -788,6 +918,7 @@ if (typeof window !== 'undefined') {
         createPhyllotaxisLayout,
         createManualCircularLayout,
         createRandomLayout,
+        createAdvancedDensityLayout,
         centerCoords, // Exporta a função auxiliar também, pode ser útil.
         applyCenterExponentialScaling // Exporta função de scaling.
     };
