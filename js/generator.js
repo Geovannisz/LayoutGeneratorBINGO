@@ -21,12 +21,12 @@ const DIAMOND_OFFSET = 0.05;
 
 const PROFILE_PARAM_SCHEMAS = {
     gaussian: [
-        { key: 'mean', label: 'Média (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.0 },
-        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.4 },
+        { key: 'mean', label: 'Média (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.2 },
         { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
     ],
     exponential: [
-        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, max: 10, step: 0.01, defaultValue: 2.0 },
+        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, max: 10, step: 0.01, defaultValue: 4.0 },
         { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
     ],
     linear_falloff: [
@@ -34,18 +34,18 @@ const PROFILE_PARAM_SCHEMAS = {
         { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
     ],
     logNormal: [
-        { key: 'mean', label: 'Média (escala log)', type: 'number', min: -5, max: 2, step: 0.1, defaultValue: Math.log(0.2) },
+        { key: 'mean', label: 'Média (escala log)', type: 'number', min: -5, max: 2, step: 0.1, defaultValue: Math.log(0.25) },
         { key: 'stddev', label: 'Desvio Padrão (escala log, >0)', type: 'number', min: 0.01, max: 3, step: 0.01, defaultValue: 0.5 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 1.0 }
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 2.0 }
     ],
     cauchy: [
-        { key: 'location', label: 'Localização (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.0 },
-        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.2 },
+        { key: 'location', label: 'Localização (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.05 },
         { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
     ],
     weibull: [
         { key: 'shape', label: 'Forma (k >0)', type: 'number', min: 0.1, max: 10, step: 0.1, defaultValue: 2.0 },
-        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, max: 5, step: 0.01, defaultValue: 0.5 },
+        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, max: 5, step: 0.01, defaultValue: 0.45 },
         { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.1, defaultValue: 1.0 }
     ]
 };
@@ -77,6 +77,7 @@ const DEFAULT_PARAMS = {
         maxRadiusM: 6.0,
         densityProfile: 'gaussian',
         profileParams: getProfileDefaults('gaussian'),
+        densityInfluenceFactor: 0.75,
         minSeparationFactor: 1.05
     }
 };
@@ -103,6 +104,13 @@ const PARAM_CONTROLS = {
                 { value: 'cauchy', label: 'Cauchy' },
                 { value: 'weibull', label: 'Weibull' }
             ]
+        },
+        {
+            id: 'densityInfluenceFactor',
+            label: 'Fator Influência Densidade',
+            type: 'number',
+            min: 0, max: 1, step: 0.01,
+            defaultValue: 0.75
         },
         // Profile-specific parameters will be inserted here by updateDynamicControls
         { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.05 }
@@ -144,7 +152,6 @@ class AntennaLayoutGenerator {
         this.downloadImageBtn = null;
         this.imageThemeRadios = null;
         this.imageAxesRadios = null;
-        // Format e Quality removidos
 
         this.resizeCanvas();
         this.initControls();
@@ -190,7 +197,10 @@ class AntennaLayoutGenerator {
                 this.layoutType = layoutTypeSelect.value;
                 this.params = JSON.parse(JSON.stringify(DEFAULT_PARAMS[this.layoutType]));
                  if (this.layoutType === 'advanced_density' && this.params.densityProfile) {
-                    this.params.profileParams = getProfileDefaults(this.params.densityProfile);
+                    // Ensure profileParams is initialized if not present (e.g. if DEFAULT_PARAMS was minimal)
+                    if (!this.params.profileParams) {
+                        this.params.profileParams = getProfileDefaults(this.params.densityProfile);
+                    }
                 }
                 this.updateDynamicControls();
                 this.generateLayout();
@@ -241,7 +251,7 @@ class AntennaLayoutGenerator {
         // Attach universal drag-and-drop listeners
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
         this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-        window.addEventListener('mouseup', (e) => this.handleMouseUp(e)); // Listen on window for mouseup
+        window.addEventListener('mouseup', (e) => this.handleMouseUp(e));
         this.canvas.addEventListener('mouseleave', (e) => this.handleMouseLeave(e));
         this.canvas.addEventListener('mouseenter', (e) => this.handleMouseEnter(e));
     }
@@ -601,7 +611,7 @@ class AntennaLayoutGenerator {
                         if (paramSchema.max !== undefined) val = Math.min(paramSchema.max, val);
                         if (paramSchema.step !== undefined && paramSchema.step !== 0) {
                             const dp = (String(paramSchema.step).split('.')[1] || '').length;
-                            val = parseFloat((Math.round(val / paramSchema.step) * paramSchema.step).toFixed(dp));
+                            val = parseFloat((Math.round(val / paramSchema.step) * control.step).toFixed(dp));
                         }
                         numberInput.value = val;
                         sliderInput.value = val;
@@ -768,6 +778,7 @@ class AntennaLayoutGenerator {
                         fullParams.tileHeightM,
                         fullParams.densityProfile,
                         fullParams.profileParams, // Pass the whole object
+                        fullParams.densityInfluenceFactor,
                         fullParams.minSeparationFactor,
                         undefined, // maxPlacementAttemptsPerTile (uses default in bingo_layouts.js)
                         fullParams.centerLayout
@@ -911,6 +922,7 @@ class AntennaLayoutGenerator {
                     }
                 });
             }
+            this.params.densityInfluenceFactor = parseFloat(Math.random().toFixed(2));
         }
 
 
@@ -936,6 +948,7 @@ class AntennaLayoutGenerator {
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText("Gere um layout ou ajuste os parâmetros.", canvas.width / 2, canvas.height / 2);
+            this.lastDrawParams = null; // Ensure params are null if nothing to draw
             return;
         }
 
@@ -978,7 +991,7 @@ class AntennaLayoutGenerator {
 
         if (availableWidth <= 0 || availableHeight <= 0) {
              console.warn("Área disponível no canvas para desenho é zero ou negativa. Canvas pode estar muito pequeno.");
-             this.lastDrawParams = null; // Clear lastDrawParams if canvas is unusable
+             this.lastDrawParams = null;
              return; 
         }
 
@@ -986,7 +999,6 @@ class AntennaLayoutGenerator {
         const offsetX = margin + (availableWidth - effectiveWidth * scale) / 2;
         const offsetY = margin + (availableHeight - effectiveHeight * scale) / 2;
 
-        // Unconditionally store transformation parameters
         this.lastDrawParams = { scale, minX, minY, maxX, maxY, offsetX, offsetY, effectiveHeight, contentWidth, contentHeight, canvasWidth: canvas.width, canvasHeight: canvas.height, margin };
 
         const transformCoord = (coordX, coordY) => {
@@ -1136,7 +1148,7 @@ class AntennaLayoutGenerator {
              ctx.moveTo(leftX, zeroY);
              ctx.lineTo(rightX, zeroY);
              ctx.stroke();
-             const axisXIsVisible = minY <= epsilon && maxY >= -axisEpsilon;
+             const axisXIsVisible = minY <= epsilon && maxY >= -epsilon;
              const axisYIsVisible = minX <= epsilon && maxX >= -epsilon;
              if (!axisYIsVisible || (axisXIsVisible && Math.abs(transformCoord(0,0).y - (canvas.height - margin)) < textMargin)) {
                 ctx.fillStyle = scaleColor;

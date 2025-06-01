@@ -803,6 +803,7 @@ function createAdvancedDensityLayout(
     numTiles, maxRadiusM, tileWidthM, tileHeightM,
     profileName = 'gaussian',
     profileParams = { mean: 0.0, stddev: 0.5, strength: 1.0 },
+    densityInfluenceFactor = 0.75,
     minSeparationFactor = 1.1,
     maxPlacementAttemptsPerTile = 2000,
     centerLayout = true
@@ -828,50 +829,49 @@ function createAdvancedDensityLayout(
             const x_cand = r_candidate * Math.cos(theta_candidate);
             const y_cand = r_candidate * Math.sin(theta_candidate);
 
-            let P = 0; // Placement probability
+            let P_profile = 0; // Placement probability from profile
             const strength = profileParams.strength !== undefined ? profileParams.strength : 1.0;
 
             switch (profileName) {
                 case 'gaussian':
-                    P = strength * Math.exp(-0.5 * Math.pow((r_norm_candidate - profileParams.mean) / profileParams.stddev, 2));
+                    P_profile = strength * Math.exp(-0.5 * Math.pow((r_norm_candidate - profileParams.mean) / profileParams.stddev, 2));
                     break;
                 case 'exponential':
-                    P = strength * Math.exp(-profileParams.lambda * r_norm_candidate);
+                    P_profile = strength * Math.exp(-profileParams.lambda * r_norm_candidate);
                     break;
                 case 'linear_falloff':
-                    P = strength * Math.max(0, 1 - profileParams.slope * r_norm_candidate);
+                    P_profile = strength * Math.max(0, 1 - profileParams.slope * r_norm_candidate);
                     break;
                 case 'logNormal':
-                    if (r_norm_candidate <= 1e-9) { P = 0; }
+                    if (r_norm_candidate <= 1e-9) { P_profile = 0; }
                     else {
-                        P = strength * (1 / (r_norm_candidate * profileParams.stddev * Math.sqrt(2 * Math.PI))) *
+                        P_profile = strength * (1 / (r_norm_candidate * profileParams.stddev * Math.sqrt(2 * Math.PI))) *
                             Math.exp(-Math.pow(Math.log(r_norm_candidate) - profileParams.mean, 2) / (2 * profileParams.stddev * profileParams.stddev));
                     }
                     break;
                 case 'cauchy':
-                    P = strength * (1 / (Math.PI * profileParams.scale * (1 + Math.pow((r_norm_candidate - profileParams.location) / profileParams.scale, 2))));
+                    P_profile = strength * (1 / (Math.PI * profileParams.scale * (1 + Math.pow((r_norm_candidate - profileParams.location) / profileParams.scale, 2))));
                     break;
                 case 'weibull':
                     if (r_norm_candidate < 1e-9) { // Handle r_norm_candidate = 0 case
-                        if (profileParams.shape < 1) P = strength * 100; // Simulating very high probability for shape < 1 at r=0
-                        else if (profileParams.shape === 1) P = strength * (1 / profileParams.scale); // Exponential case
-                        else P = 0; // For shape > 1, P(0) is 0
+                        if (profileParams.shape < 1) P_profile = strength * 100; // Simulating very high probability for shape < 1 at r=0
+                        else if (profileParams.shape === 1) P_profile = strength * (1 / profileParams.scale); // Exponential case
+                        else P_profile = 0; // For shape > 1, P(0) is 0
                     } else {
-                        P = strength * (profileParams.shape / profileParams.scale) *
+                        P_profile = strength * (profileParams.shape / profileParams.scale) *
                             Math.pow(r_norm_candidate / profileParams.scale, profileParams.shape - 1) *
                             Math.exp(-Math.pow(r_norm_candidate / profileParams.scale, profileParams.shape));
                     }
                     break;
                 default:
                     console.warn(`Unknown density profile: ${profileName}. Defaulting to uniform probability.`);
-                    P = 1.0 * strength; // Uniform probability if profile is unknown
+                    P_profile = 1.0 * strength; // Uniform probability if profile is unknown
             }
 
-            // Normalize P to be at most 1 for random check, but allow P > 1 to always pass if strength is high
-            // The Math.random() < P check effectively handles this. If P > 1, it's always true.
-            // If P is very small, it's rarely true.
+            const P_uniform = 1.0; // Uniform component always has high chance to attempt placement
+            const P_effective = (P_profile * densityInfluenceFactor) + (P_uniform * (1 - densityInfluenceFactor));
 
-            if (Math.random() < P) {
+            if (Math.random() < P_effective) {
                 let collision = false;
                 for (const existing_coord of coords) {
                     const dx_coll = Math.abs(x_cand - existing_coord[0]);
