@@ -801,3 +801,33 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
         margin-top: 5px; 
     }
 }
+
+/* Footer Links */
+.footer-links {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.footer-links a {
+    color: var(--text-color);
+    margin: 0 10px;
+    font-size: 1.5em;
+    transition: color 0.3s ease;
+}
+
+.footer-links a:hover {
+    color: var(--primary-color);
+}
+
+/* Screen-reader only text */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border-width: 0;
+}
