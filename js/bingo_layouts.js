@@ -495,14 +495,12 @@ function createRhombusLayout(
  * @param {boolean} centerLayout Se true, centraliza o layout.
  * @returns {Array<Array<number>>} Coordenadas dos centros dos tiles.
  */
-function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor = 1.0, centerExpScaleFactor = 1.1, addCenterTile = true, randomOffsetStddevM = 0.0, minSeparationFactor = 1.05, maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true) {
+function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactorX = 1.0, spacingFactorY = 1.0, centerExpScaleFactor = 1.1, addCenterTile = true, randomOffsetStddevM = 0.0, minSeparationFactor = 1.05, maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true) {
     if (numRingsHex < 0 || tileWidthM <= 0 || tileHeightM <= 0) {
         console.warn("Aviso (createHexGridLayout): num_rings_hex >= 0 e dimensões > 0.");
         return [];
     }
 
-    const tileDiagonalM = Math.sqrt(tileWidthM ** 2 + tileHeightM ** 2);
-    const baseSpacing = spacingFactor * tileDiagonalM;
     const baseCoords = [];
     const seenCoords = new Set();
 
@@ -511,9 +509,11 @@ function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor
         if (seenCoords.has(key)) return;
         seenCoords.add(key);
 
-        // Convert axial to cartesian for "flat-top" hexagons
-        const x = baseSpacing * (3.0 / 2.0 * q);
-        const y = baseSpacing * (Math.sqrt(3) / 2.0 * q + Math.sqrt(3) * r);
+        // Convert axial to cartesian for "flat-top" hexagons, with anisotropic spacing.
+        // `spacingFactor = 1.0` corresponds to tightest packing.
+        const x = tileWidthM * spacingFactorX * (q + r / 2.0);
+        const y = tileHeightM * spacingFactorY * (3.0 / 4.0 * r);
+
         baseCoords.push([x, y]);
     };
 
@@ -522,28 +522,27 @@ function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor
     }
 
     for (let ring = 1; ring <= numRingsHex; ring++) {
-        // Start at one of the 6 corners of the ring
         let q = ring;
-        let r = 0;
-        let s = -ring;
+        let r = -ring;
+        let s = 0;
 
-        // Define the 6 directions for walking around the hex ring, in order
         const cube_directions = [
-            { q: 0, r: -1, s: 1 },  // up-right
-            { q: -1, r: 0, s: 1 },  // up-left
-            { q: -1, r: 1, s: 0 },  // left
-            { q: 0, r: 1, s: -1 },  // down-left
-            { q: 1, r: 0, s: -1 },  // down-right
-            { q: 1, r: -1, s: 0 }   // right
+            { q: 0, r: 1, s: -1 },  // Down-Left
+            { q: -1, r: 1, s: 0 },  // Left
+            { q: -1, r: 0, s: 1 },  // Up-Left
+            { q: 0, r: -1, s: 1 },  // Up-Right
+            { q: 1, r: -1, s: 0 },  // Right
+            { q: 1, r: 0, s: -1 },  // Down-Right
         ];
 
-        // Start at (q,r,s) = (ring, 0, -ring) and walk the perimeter
+        let current_hex = {q: ring, r: -ring, s: 0};
+
         for (let i = 0; i < 6; i++) {
             for (let j = 0; j < ring; j++) {
-                addHexCoord(q, r);
-                q += cube_directions[i].q;
-                r += cube_directions[i].r;
-                s += cube_directions[i].s;
+                addHexCoord(current_hex.q, current_hex.r);
+                current_hex.q += cube_directions[i].q;
+                current_hex.r += cube_directions[i].r;
+                current_hex.s += cube_directions[i].s;
             }
         }
     }
