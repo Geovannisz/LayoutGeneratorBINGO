@@ -64,7 +64,7 @@ TILE_DIAGONAL_M = math.sqrt(TILE_WIDTH**2 + TILE_HEIGHT**2) # Diagonal para esca
 # --- Configurações de Entrada/Saída ---
 # Caminho para o arquivo CSV com posições dos outriggers (WGS84)
 # Formato esperado: ArrangementName,StationID,Latitude,Longitude,Altitude
-CSV_INPUT_FILE = r'C:\Users\gefer\Documents\particular\OSKAR\posicoes_outriggers.csv'
+CSV_INPUT_FILE = 'data/posicoes_outriggers.csv'
 
 # Diretório base ONDE as pastas dos telescópios serão geradas
 # Ex: Se OUTPUT_BASE_DIR = '.../layouts', as saídas serão '.../layouts/circulo_padrao_50km_a', etc.
