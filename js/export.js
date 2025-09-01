@@ -35,42 +35,39 @@ class OskarLayoutExporter {
 
     /**
      * Gera o layout das 64 antenas de um único tile, centrado em (0,0).
-     * As antenas são dispostas em uma grade uniforme de 4x16.
+     * Esta versão utiliza um conjunto de coordenadas fixas e pré-calculadas.
      * Este layout é usado para o arquivo station/tile/layout.txt.
      */
     generateSingleTileLayout() {
-        const Nx = 4; // Número de antenas na direção da largura do tile
-        const Ny = 16; // Número de antenas na direção da altura do tile
+        // Coordenadas pré-calculadas e CORRIGIDAS das 64 antenas.
+        // Os valores já estão centralizados na origem (0,0) e convertidos para METROS.
+        const baseAntennaCoords = [
+            [-0.11890, 0.64080], [-0.05655, 0.64080], [0.05655, 0.64080], [0.11890, 0.64080],
+            [-0.11890, 0.53155], [-0.05655, 0.53155], [0.05655, 0.53155], [0.11890, 0.53155],
+            [-0.11890, 0.47332], [-0.05655, 0.47332], [0.05655, 0.47332], [0.11890, 0.47332],
+            [-0.11890, 0.36407], [-0.05655, 0.36407], [0.05655, 0.36407], [0.11890, 0.36407],
+            [-0.11890, 0.30584], [-0.05655, 0.30584], [0.05655, 0.30584], [0.11890, 0.30584],
+            [-0.11890, 0.19659], [-0.05655, 0.19659], [0.05655, 0.19659], [0.11890, 0.19659],
+            [-0.11890, 0.13836], [-0.05655, 0.13836], [0.05655, 0.13836], [0.11890, 0.13836],
+            [-0.11890, 0.02911], [-0.05655, 0.02911], [0.05655, 0.02911], [0.11890, 0.02911],
+            [-0.11890, -0.02911], [-0.05655, -0.02911], [0.05655, -0.02911], [0.11890, -0.02911],
+            [-0.11890, -0.13836], [-0.05655, -0.13836], [0.05655, -0.13836], [0.11890, -0.13836],
+            [-0.11890, -0.19659], [-0.05655, -0.19659], [0.05655, -0.19659], [0.11890, -0.19659],
+            [-0.11890, -0.30584], [-0.05655, -0.30584], [0.05655, -0.30584], [0.11890, -0.30584],
+            [-0.11890, -0.36407], [-0.05655, -0.36407], [0.05655, -0.36407], [0.11890, -0.36407],
+            [-0.11890, -0.47332], [-0.05655, -0.47332], [0.05655, -0.47332], [0.11890, -0.47332],
+            [-0.11890, -0.53155], [-0.05655, -0.53155], [0.05655, -0.53155], [0.11890, -0.53155],
+            [-0.11890, -0.64080], [-0.05655, -0.64080], [0.05655, -0.64080], [0.11890, -0.64080]
+        ];
 
-        // Dimensões do tile BINGO (mesmas que em generator.js)
-        const TILE_WIDTH_EXPORT = 0.35;  // Largura do tile em metros
-        const TILE_HEIGHT_EXPORT = 1.34; // Altura do tile em metros
-
-        // Calcula o espaçamento entre antenas em cada direção
-        const spacingX = TILE_WIDTH_EXPORT / Nx;
-        const spacingY = TILE_HEIGHT_EXPORT / Ny;
-
-        const tileAntennasRelative = [];
-        for (let i = 0; i < Nx; i++) {
-            // Posição X relativa ao centro (0,0) do tile
-            const posX_relative = (i - (Nx - 1) / 2.0) * spacingX;
-            for (let j = 0; j < Ny; j++) {
-                // Posição Y relativa ao centro (0,0) do tile
-                const posY_relative = (j - (Ny - 1) / 2.0) * spacingY;
-                tileAntennasRelative.push([posX_relative, posY_relative]);
-            }
-        }
-
-        // A formulação (k - (N-1)/2.0) * spacing já centraliza o layout em (0,0).
-        // As coordenadas são arredondadas para 6 casas decimais para a exportação.
-        this.singleTileAntennaLayout = tileAntennasRelative.map(ant => [
+        // A função original arredondava para 6 casas decimais. Vou manter isso.
+        this.singleTileAntennaLayout = baseAntennaCoords.map(ant => [
             parseFloat(ant[0].toFixed(6)),
             parseFloat(ant[1].toFixed(6))
         ]);
 
-        console.log("Layout interno do tile (64 antenas - grade 4x16) gerado e centrado para exportação.");
+        console.log("Layout interno do tile (64 antenas - Coordenadas Corretas) gerado e centrado para exportação.");
         // Atualiza o campo de exportação do layout do tile imediatamente.
-        // Esta chamada já existia e deve ser mantida.
         this.updateTileLayoutField();
     }
 
