@@ -68,7 +68,7 @@ const DEFAULT_PARAMS = {
     spiral: { numArms: 3, tilesPerArm: 12, radiusStartFactor: 0.7, radiusStepFactor: 0.3, centerExpScaleFactor: 1.0, angleStepRad: Math.PI / 9, armOffsetRad: 0.0, rotationPerArmRad: 0.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0, includeCenterTile: false },
     ring: { numRings: 3, tilesPerRing: [8, 16, 24], radiusStartFactor: 1.0, radiusStepFactor: 1.0, centerExpScaleFactor: 1.0, angleOffsetRad: 0.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0, addCenterTile: false },
     rhombus: { numRowsHalf: 6, sideLengthFactor: 0.65, hCompressFactor: 0.778, vCompressFactor: 0.86, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
-    hex_grid: { numRingsHex: 3, spacingFactorX: 1.0, spacingFactorY: 1.0, centerExpScaleFactor: 1.0, addCenterTile: true, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
+    hex_grid: { numRingsHex: 3, spacingFactorX: 2.0, spacingFactorY: 0.5777, centerExpScaleFactor: 1.0, addCenterTile: true, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     phyllotaxis: { numTiles: 50, scaleFactor: 0.6, centerOffsetFactor: 0.25, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     manual_circular: { spacingXFactor: 1.0, spacingYFactor: 1.0, centerExpScaleFactor: 1.0, randomOffsetStddevM: 0.0, minSeparationFactor: 1.0 },
     random: { numTiles: 36, maxRadiusM: 4.0, minSeparationFactor: 1.0 },

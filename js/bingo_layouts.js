@@ -513,7 +513,7 @@ function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor
         // This formula is derived from the basis vectors of the hex grid, ensuring that
         // spacingFactor=1.0 results in a tightly packed grid based on tile dimensions.
         const x = tileWidthM * (q + r / 2.0) * spacingFactorX;
-        const y = tileHeightM * (Math.sqrt(3)/2 * r) * spacingFactorY;
+        const y = tileHeightM * (3.0 / 4.0 * r) * spacingFactorY;
 
         baseCoords.push([x, y]);
     };
