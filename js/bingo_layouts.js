@@ -495,59 +495,58 @@ function createRhombusLayout(
  * @param {boolean} centerLayout Se true, centraliza o layout.
  * @returns {Array<Array<number>>} Coordenadas dos centros dos tiles.
  */
-function createHexGridLayout(
-    numRingsHex, tileWidthM, tileHeightM,
-    spacingFactor = 1.5, centerExpScaleFactor = 1.0,
-    addCenterTile = true, randomOffsetStddevM = 0.0, minSeparationFactor = 1.05,
-    maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true
-) {
-    if (numRingsHex < 0 || tileWidthM <= 0 || tileHeightM <= 0) return [];
-
-    // Distância entre centros de tiles adjacentes na grade hexagonal.
-    const baseSpacing = spacingFactor * Math.sqrt(tileWidthM**2 + tileHeightM**2);
-
-    const baseCoords = [];
-    const seenCoordsTuples = new Set(); // Usa axial coordinates (q,r) como string para `seen`
-                                     // ou converte para string XY com precisão.
-                                     // Aqui, optou-se por XY string.
-
-    if (addCenterTile) {
-        baseCoords.push([0.0, 0.0]);
-        seenCoordsTuples.add(`0.000000,0.000000`);
+function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactorX = 1.0, spacingFactorY = 1.0, centerExpScaleFactor = 1.0, addCenterTile = true, randomOffsetStddevM = 0.0, minSeparationFactor = 1.05, maxPlacementAttempts = DEFAULT_MAX_PLACEMENT_ATTEMPTS, centerLayout = true) {
+    if (numRingsHex < 0 || tileWidthM <= 0 || tileHeightM <= 0) {
+        console.warn("Aviso (createHexGridLayout): num_rings_hex >= 0 e dimensões > 0.");
+        return [];
     }
 
-    // Itera sobre cada anel hexagonal.
-    for (let ring = 1; ring <= numRingsHex; ring++) {
-        // Ponto inicial para cada anel (ex: no eixo x positivo).
-        let xBase = ring * baseSpacing;
-        let yBase = 0.0;
-        let coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
-        if (!seenCoordsTuples.has(coordTuple)) {
-            baseCoords.push([xBase, yBase]);
-            seenCoordsTuples.add(coordTuple);
-        }
+    const baseCoords = [];
+    const seenCoords = new Set();
 
-        // Percorre os 6 lados do hexágono.
-        for (let side = 0; side < 6; side++) {
-            const angle = Math.PI / 3.0; // 60 graus.
-            // Em cada lado, há 'ring' número de tiles.
-            for (let i = 0; i < ring; i++) {
-                // Move para o próximo tile no lado atual.
-                // O ângulo do deslocamento é (side + 2) * PI/3 para seguir a forma hexagonal.
-                // side=0: move para noroeste. side=1: move para oeste. etc.
-                const dx = baseSpacing * Math.cos((side + 2) * angle);
-                const dy = baseSpacing * Math.sin((side + 2) * angle);
-                xBase += dx;
-                yBase += dy;
-                coordTuple = `${xBase.toFixed(COORD_PRECISION)},${yBase.toFixed(COORD_PRECISION)}`;
-                if (!seenCoordsTuples.has(coordTuple)) {
-                    baseCoords.push([xBase, yBase]);
-                    seenCoordsTuples.add(coordTuple);
-                }
+    const addHexCoord = (q, r) => {
+        const key = `${q},${r}`;
+        if (seenCoords.has(key)) return;
+        seenCoords.add(key);
+
+        // Convert axial to cartesian for "flat-top" hexagons, with anisotropic spacing.
+        // This formula is derived from the basis vectors of the hex grid, ensuring that
+        // spacingFactor=1.0 results in a tightly packed grid based on tile dimensions.
+        const x = tileWidthM * (q + r / 2.0) * spacingFactorX;
+        const y = tileHeightM * (3.0 / 4.0 * r) * spacingFactorY;
+
+        baseCoords.push([x, y]);
+    };
+
+    if (addCenterTile) {
+        addHexCoord(0, 0);
+    }
+
+    for (let ring = 1; ring <= numRingsHex; ring++) {
+        // Using axial coordinates (q, r) and walking the perimeter of each ring.
+        // Start at a corner of the ring.
+        let current_hex = {q: ring, r: -ring};
+
+        // Define the 6 directions for walking around the hex ring, in order
+        const axial_directions = [
+            { q: 0, r: 1 },   // Down-Left
+            { q: -1, r: 1 },  // Left
+            { q: -1, r: 0 },  // Up-Left
+            { q: 0, r: -1 },  // Up-Right
+            { q: 1, r: -1 },  // Right
+            { q: 1, r: 0 },   // Down-Right
+        ];
+
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < ring; j++) {
+                addHexCoord(current_hex.q, current_hex.r);
+                current_hex.q += axial_directions[i].q;
+                current_hex.r += axial_directions[i].r;
             }
         }
     }
 
+    // --- Finalization Logic (borrowed from other layout functions) ---
     const coordsToScale = addCenterTile && baseCoords.length > 0 && baseCoords[0][0] === 0 && baseCoords[0][1] === 0
                          ? baseCoords.slice(1) : baseCoords;
     const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
@@ -576,11 +575,10 @@ function createHexGridLayout(
 
     const roundedCoords = finalCoords.map(coord => [parseFloat(coord[0].toFixed(COORD_PRECISION)), parseFloat(coord[1].toFixed(COORD_PRECISION))]);
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
-    // Número esperado de tiles em uma grade hexagonal de `k` anéis é 1 + 6*1 + 6*2 + ... + 6*k = 1 + 3k(k+1)
-    const expectedTiles = addCenterTile ?
-        (1 + 3 * numRingsHex * (numRingsHex + 1)) :
-        (numRingsHex > 0 ? (3 * numRingsHex * (numRingsHex + 1)) : 0);
+
+    const expectedTiles = addCenterTile ? (1 + 3 * numRingsHex * (numRingsHex + 1)) : (3 * numRingsHex * (numRingsHex + 1));
     console.log(`Layout Grade Hexagonal (numRingsHex=${numRingsHex}, ExpFactor=${centerExpScaleFactor.toFixed(2)}): Gerou ${finalCoords.length} centros (esperado ${expectedTiles}).`);
+
     return centeredCoords;
 }
 
