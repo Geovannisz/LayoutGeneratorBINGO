@@ -64,7 +64,7 @@ TILE_DIAGONAL_M = math.sqrt(TILE_WIDTH**2 + TILE_HEIGHT**2) # Diagonal para esca
 # --- Configurações de Entrada/Saída ---
 # Caminho para o arquivo CSV com posições dos outriggers (WGS84)
 # Formato esperado: ArrangementName,StationID,Latitude,Longitude,Altitude
-CSV_INPUT_FILE = r'C:\Users\gefer\Documents\particular\OSKAR\posicoes_outriggers.csv'
+CSV_INPUT_FILE = 'data/posicoes_outriggers.csv'
 
 # Diretório base ONDE as pastas dos telescópios serão geradas
 # Ex: Se OUTPUT_BASE_DIR = '.../layouts', as saídas serão '.../layouts/circulo_padrao_50km_a', etc.
@@ -77,61 +77,34 @@ BINGO_LONGITUDE = -38.26884
 BINGO_ALTITUDE = 396.4 # Altitude já está em metros
 
 # ==================== Layout do Tile (64 Antenas - Losangos Internos) ====================
-# Esta função define a estrutura INTERNA de um único tile de 64 elementos.
-# É a mesma função do seu script original. Ela NÃO usa a biblioteca bingo_layouts.
-
-def create_tile_layout_64_antennas(
-    center_spacing_x=SUBGROUP_DX, center_spacing_y=SUBGROUP_DY,
-    centers_N=SUBGROUP_N, centers_M=SUBGROUP_M,
-    diamond_offset=DIAMOND_OFFSET
-    ) -> np.ndarray:
+def create_tile_layout_64_antennas() -> np.ndarray:
     """
-    Cria o layout INTERNO do tile com 64 elementos (16x4), onde 4 elementos
-    formam um losango/diamante ao redor de cada um dos 16 pontos centrais (grid NxM).
-    Retorna posições (x, y) em METROS, centradas na origem (0,0).
+    Cria o layout INTERNO do tile com 64 elementos.
+    Esta versão utiliza um conjunto de coordenadas fixas e pré-calculadas.
+    Retorna posições (x, y) em METROS, centradas na origem (0,0), como um array NumPy.
     """
-    if centers_N <= 0 or centers_M <= 0 or diamond_offset <= 0:
-        print("Aviso: Parâmetros inválidos para create_tile_layout_64_antennas.")
-        return np.empty((0, 2))
-
-    subgroup_centers = []
-    # 1. Gerar os 16 centros (grid NxM)
-    for i in range(centers_N):
-        pos_cx = (i - (centers_N - 1) / 2.0) * center_spacing_x
-        for j in range(centers_M):
-            pos_cy = (j - (centers_M - 1) / 2.0) * center_spacing_y
-            subgroup_centers.append([pos_cx, pos_cy])
-
-    subgroup_centers = np.array(subgroup_centers)
-    # Nota: os centros já são gerados em torno da origem por causa da subtração da média dos índices.
-
-    # 2. Para cada centro, gerar os 4 pontos do losango
-    final_antenna_positions = []
-    offsets = np.array([
-        [0, diamond_offset],  # Norte relativo
-        [diamond_offset, 0],  # Leste relativo
-        [0, -diamond_offset], # Sul relativo
-        [-diamond_offset, 0]  # Oeste relativo
+    # Coordenadas pré-calculadas e CORRIGIDAS das 64 antenas.
+    # Os valores já estão centralizados na origem (0,0) e convertidos para METROS.
+    # A função agora retorna diretamente este array, ignorando os parâmetros de entrada.
+    base_antenna_coords = np.array([
+        [-0.11890, 0.64080], [-0.05655, 0.64080], [0.05655, 0.64080], [0.11890, 0.64080],
+        [-0.11890, 0.53155], [-0.05655, 0.53155], [0.05655, 0.53155], [0.11890, 0.53155],
+        [-0.11890, 0.47332], [-0.05655, 0.47332], [0.05655, 0.47332], [0.11890, 0.47332],
+        [-0.11890, 0.36407], [-0.05655, 0.36407], [0.05655, 0.36407], [0.11890, 0.36407],
+        [-0.11890, 0.30584], [-0.05655, 0.30584], [0.05655, 0.30584], [0.11890, 0.30584],
+        [-0.11890, 0.19659], [-0.05655, 0.19659], [0.05655, 0.19659], [0.11890, 0.19659],
+        [-0.11890, 0.13836], [-0.05655, 0.13836], [0.05655, 0.13836], [0.11890, 0.13836],
+        [-0.11890, 0.02911], [-0.05655, 0.02911], [0.05655, 0.02911], [0.11890, 0.02911],
+        [-0.11890, -0.02911], [-0.05655, -0.02911], [0.05655, -0.02911], [0.11890, -0.02911],
+        [-0.11890, -0.13836], [-0.05655, -0.13836], [0.05655, -0.13836], [0.11890, -0.13836],
+        [-0.11890, -0.19659], [-0.05655, -0.19659], [0.05655, -0.19659], [0.11890, -0.19659],
+        [-0.11890, -0.30584], [-0.05655, -0.30584], [0.05655, -0.30584], [0.11890, -0.30584],
+        [-0.11890, -0.36407], [-0.05655, -0.36407], [0.05655, -0.36407], [0.11890, -0.36407],
+        [-0.11890, -0.47332], [-0.05655, -0.47332], [0.05655, -0.47332], [0.11890, -0.47332],
+        [-0.11890, -0.53155], [-0.05655, -0.53155], [0.05655, -0.53155], [0.11890, -0.53155],
+        [-0.11890, -0.64080], [-0.05655, -0.64080], [0.05655, -0.64080], [0.11890, -0.64080]
     ])
-
-    for center in subgroup_centers:
-        for offset in offsets:
-            final_antenna_positions.append(center + offset)
-
-    tile_array = np.array(final_antenna_positions)
-
-    # Re-centraliza o conjunto final de 64 antenas para garantir
-    tile_array -= tile_array.mean(axis=0)
-
-    # Verificação da contagem final
-    expected_total_antennas = centers_N * centers_M * N_ANTENNAS_PER_SUBGROUP
-    if tile_array.shape[0] != expected_total_antennas:
-         print(f"AVISO: create_tile_layout_64_antennas gerou {tile_array.shape[0]} antenas, esperado {expected_total_antennas}.")
-
-    return tile_array
-
-# ==================== Funções de Formatação e Plotagem (Do script original) ====================
-
+    return base_antenna_coords
 def format_layout_content_xy(layout_array: np.ndarray) -> str:
     """Formata um array numpy (N, 2) para string CSV (x, y em METROS)."""
     content = ""
