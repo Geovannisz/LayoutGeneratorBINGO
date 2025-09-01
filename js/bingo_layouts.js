@@ -512,8 +512,8 @@ function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor
         // Convert axial to cartesian for "flat-top" hexagons, with anisotropic spacing.
         // This formula is derived from the basis vectors of the hex grid, ensuring that
         // spacingFactor=1.0 results in a tightly packed grid based on tile dimensions.
-        const x = (tileWidthM * q) * spacingFactorX;
-        const y = (tileHeightM * (r + q / 2.0) * (Math.sqrt(3)/2)) * spacingFactorY;
+        const x = tileWidthM * (q + r / 2.0) * spacingFactorX;
+        const y = tileHeightM * (Math.sqrt(3)/2 * r) * spacingFactorY;
 
         baseCoords.push([x, y]);
     };
