@@ -504,45 +504,56 @@ function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor
     const tileDiagonalM = Math.sqrt(tileWidthM ** 2 + tileHeightM ** 2);
     const baseSpacing = spacingFactor * tileDiagonalM;
     const baseCoords = [];
-    const seenCoords = new Set(); // Usar um Set para evitar duplicatas
+    const seenCoords = new Set();
 
-    // Função auxiliar para adicionar coordenada se ainda não existir
-    const addCoord = (x, y) => {
-        const coordKey = `${x.toFixed(COORD_PRECISION)},${y.toFixed(COORD_PRECISION)}`;
-        if (!seenCoords.has(coordKey)) {
-            seenCoords.add(coordKey);
-            baseCoords.push([x, y]);
-        }
+    const addHexCoord = (q, r) => {
+        const key = `${q},${r}`;
+        if (seenCoords.has(key)) return;
+        seenCoords.add(key);
+
+        // Convert axial to cartesian for "flat-top" hexagons
+        const x = baseSpacing * (3.0 / 2.0 * q);
+        const y = baseSpacing * (Math.sqrt(3) / 2.0 * q + Math.sqrt(3) * r);
+        baseCoords.push([x, y]);
     };
 
     if (addCenterTile) {
-        addCoord(0.0, 0.0);
+        addHexCoord(0, 0);
     }
 
     for (let ring = 1; ring <= numRingsHex; ring++) {
-        // Ponto inicial de cada anel (no eixo x positivo)
-        let x = ring * baseSpacing;
-        let y = 0.0;
-        addCoord(x, y);
+        // Start at one of the 6 corners of the ring
+        let q = ring;
+        let r = 0;
+        let s = -ring;
 
-        // Percorre os 6 lados do hexágono
-        for (let side = 0; side < 6; side++) {
-            // Move ao longo das arestas do anel
-            for (let i = 0; i < ring; i++) {
-                const angle = Math.PI / 3.0 * (side + 2); // Ângulos para se mover no grid hexagonal
-                x += baseSpacing * Math.cos(angle);
-                y += baseSpacing * Math.sin(angle);
-                addCoord(x, y);
+        // Define the 6 directions for walking around the hex ring, in order
+        const cube_directions = [
+            { q: 0, r: -1, s: 1 },  // up-right
+            { q: -1, r: 0, s: 1 },  // up-left
+            { q: -1, r: 1, s: 0 },  // left
+            { q: 0, r: 1, s: -1 },  // down-left
+            { q: 1, r: 0, s: -1 },  // down-right
+            { q: 1, r: -1, s: 0 }   // right
+        ];
+
+        // Start at (q,r,s) = (ring, 0, -ring) and walk the perimeter
+        for (let i = 0; i < 6; i++) {
+            for (let j = 0; j < ring; j++) {
+                addHexCoord(q, r);
+                q += cube_directions[i].q;
+                r += cube_directions[i].r;
+                s += cube_directions[i].s;
             }
         }
     }
 
-    // This is the "finalize" logic, adapted from other functions in the file.
+    // --- Finalization Logic (borrowed from other layout functions) ---
     const coordsToScale = addCenterTile && baseCoords.length > 0 && baseCoords[0][0] === 0 && baseCoords[0][1] === 0
                          ? baseCoords.slice(1) : baseCoords;
     const scaledPart = applyCenterExponentialScaling(coordsToScale, centerExpScaleFactor);
     const scaledCoords = addCenterTile && baseCoords.length > 0 && baseCoords[0][0] === 0 && baseCoords[0][1] === 0
-                       ? [baseCoords[0], ...scaledPart] : scaledCoords;
+                       ? [baseCoords[0], ...scaledPart] : scaledPart;
 
     const finalCoords = [];
     let skippedCount = 0;
@@ -567,7 +578,7 @@ function createHexGridLayout(numRingsHex, tileWidthM, tileHeightM, spacingFactor
     const roundedCoords = finalCoords.map(coord => [parseFloat(coord[0].toFixed(COORD_PRECISION)), parseFloat(coord[1].toFixed(COORD_PRECISION))]);
     const centeredCoords = centerLayout ? centerCoords(roundedCoords) : roundedCoords;
 
-    const expectedTiles = addCenterTile ? (1 + 6 * numRingsHex * (numRingsHex + 1) / 2) : (6 * numRingsHex * (numRingsHex + 1) / 2);
+    const expectedTiles = addCenterTile ? (1 + 3 * numRingsHex * (numRingsHex + 1)) : (3 * numRingsHex * (numRingsHex + 1));
     console.log(`Layout Grade Hexagonal (numRingsHex=${numRingsHex}, ExpFactor=${centerExpScaleFactor.toFixed(2)}): Gerou ${finalCoords.length} centros (esperado ${expectedTiles}).`);
 
     return centeredCoords;
