@@ -23,7 +23,12 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build and release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build application
         run: npm run dist
+
+      - name: Create Draft Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/*
+          draft: true
+          generate_release_notes: true
