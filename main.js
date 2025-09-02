@@ -40,11 +40,5 @@ app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// Cria um arquivo de preload vazio para conformidade com as boas práticas de segurança do Electron.
-const fs = require('fs');
-if (!fs.existsSync(path.join(__dirname, 'preload.js'))) {
-    fs.writeFileSync(path.join(__dirname, 'preload.js'), '// Este arquivo é necessário para o Context Isolation do Electron.', 'utf-8');
-}
-
 // Remove o menu padrão para um visual mais limpo
 Menu.setApplicationMenu(null);
