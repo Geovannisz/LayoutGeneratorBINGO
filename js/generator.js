@@ -21,32 +21,32 @@ const DIAMOND_OFFSET = 0.05;
 
 const PROFILE_PARAM_SCHEMAS = {
     gaussian: [
-        { key: 'mean', label: 'Média (0-1)', type: 'number', min: 0, max: 1, step: 0.005, defaultValue: 0.1 },
-        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, max: 2, step: 0.005, defaultValue: 0.2 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.005, defaultValue: 1.0 }
+        { key: 'mean', label: 'Média (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.2 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     exponential: [
-        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, max: 10, step: 0.005, defaultValue: 4.0 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.005, defaultValue: 1.0 }
+        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, max: 10, step: 0.01, defaultValue: 4.0 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     linear_falloff: [
-        { key: 'slope', label: 'Inclinação (>0)', type: 'number', min: 0.1, max: 10, step: 0.005, defaultValue: 1.0 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.005, defaultValue: 1.0 }
+        { key: 'slope', label: 'Inclinação (>0)', type: 'number', min: 0.1, max: 10, step: 0.01, defaultValue: 1.0 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     logNormal: [
-        { key: 'mean', label: 'Média (escala log)', type: 'number', min: -5, max: 2, step: 0.005, defaultValue: Math.log(0.25) },
-        { key: 'stddev', label: 'Desvio Padrão (escala log, >0)', type: 'number', min: 0.01, max: 3, step: 0.005, defaultValue: 0.5 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 10, step: 0.005, defaultValue: 2.0 }
+        { key: 'mean', label: 'Média (escala log)', type: 'number', min: -5, max: 2, step: 0.01, defaultValue: Math.log(0.25) },
+        { key: 'stddev', label: 'Desvio Padrão (escala log, >0)', type: 'number', min: 0.01, max: 3, step: 0.01, defaultValue: 0.5 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 10, step: 0.01, defaultValue: 2.0 }
     ],
     cauchy: [
-        { key: 'location', label: 'Localização (0-1)', type: 'number', min: 0, max: 1, step: 0.005, defaultValue: 0.1 },
-        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, max: 2, step: 0.005, defaultValue: 0.05 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.005, defaultValue: 1.0 }
+        { key: 'location', label: 'Localização (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.05 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     weibull: [
-        { key: 'shape', label: 'Forma (k >0)', type: 'number', min: 0.1, max: 10, step: 0.005, defaultValue: 2.0 },
-        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, max: 5, step: 0.005, defaultValue: 0.45 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.005, defaultValue: 1.0 }
+        { key: 'shape', label: 'Forma (k >0)', type: 'number', min: 0.1, max: 10, step: 0.01, defaultValue: 2.0 },
+        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, max: 5, step: 0.01, defaultValue: 0.45 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ]
 };
 
@@ -83,14 +83,14 @@ const DEFAULT_PARAMS = {
 };
 
 const PARAM_CONTROLS = {
-    grid: [ { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    spiral: [ { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, max: 12, step: 1 }, { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, max: 30, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.005 }, { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    ring: [ { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, max: 10, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    rhombus: [ { id: 'numRowsHalf', label: 'Metade Linhas', type: 'number', min: 1, max: 15, step: 1 }, { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 }, { id: 'spacingFactorX', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'spacingFactorY', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    phyllotaxis: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    manual_circular: [ { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.005 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.005 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.005 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.005 } ],
+    grid: [ { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    spiral: [ { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, max: 12, step: 1 }, { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, max: 30, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.01 }, { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    ring: [ { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, max: 10, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    rhombus: [ { id: 'numRowsHalf', label: 'Metade Linhas', type: 'number', min: 1, max: 15, step: 1 }, { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 }, { id: 'spacingFactorX', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingFactorY', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    phyllotaxis: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    manual_circular: [ { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01 } ],
     advanced_density: [
         { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 300, step: 1 },
         { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 },
@@ -109,11 +109,11 @@ const PARAM_CONTROLS = {
             id: 'densityInfluenceFactor',
             label: 'Fator Influência Densidade',
             type: 'number',
-            min: 0, max: 1, step: 0.005,
+            min: 0, max: 1, step: 0.01,
             defaultValue: 0.75
         },
         // Profile-specific parameters will be inserted here by updateDynamicControls
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.005 }
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.01 }
     ]
 };
 
