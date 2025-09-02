@@ -5,7 +5,7 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --publish always"
+    "dist": "electron-builder"
   },
   "author": "Geovanni Fernandes Garcia",
   "license": "MIT",
