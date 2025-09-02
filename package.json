@@ -1,0 +1,26 @@
+{
+  "name": "bingo-layout-generator",
+  "version": "1.0.0",
+  "description": "Aplicação Desktop para o Gerador de Layouts BINGO",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "author": "Geovanni Fernandes Garcia",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.example.bingolayoutgenerator",
+    "productName": "BINGO Layout Generator",
+    "files": [
+      "**/*"
+    ],
+    "directories": {
+      "output": "release"
+    }
+  }
+}

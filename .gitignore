@@ -1,2 +1,17 @@
 data/rE_table_vivaldi.csv
 data/rE_table_vivaldi_filtrado.csv
+
+# Dependencies
+/node_modules
+
+# Build output
+/release
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Optional files
+.DS_Store
+preload.js
