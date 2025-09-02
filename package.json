@@ -1,6 +1,6 @@
 {
   "name": "bingo-layout-generator",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "Aplicação Desktop para o Gerador de Layouts BINGO",
   "main": "main.js",
   "scripts": {
