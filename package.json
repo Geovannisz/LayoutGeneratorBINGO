@@ -5,13 +5,14 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder"
+    "dist": "electron-builder --publish always"
   },
   "author": "Geovanni Fernandes Garcia",
   "license": "MIT",
   "devDependencies": {
     "electron": "^25.0.0",
-    "electron-builder": "^24.0.0"
+    "electron-builder": "^24.0.0",
+    "electron-updater": "^6.1.1"
   },
   "build": {
     "appId": "com.example.bingolayoutgenerator",
@@ -21,6 +22,11 @@
     ],
     "directories": {
       "output": "release"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "Geovannisz",
+      "repo": "LayoutGeneratorBINGO"
     }
   }
 }

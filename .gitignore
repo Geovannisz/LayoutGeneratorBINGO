@@ -14,4 +14,3 @@ yarn-error.log*
 
 # Optional files
 .DS_Store
-preload.js

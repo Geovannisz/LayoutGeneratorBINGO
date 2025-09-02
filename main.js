@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 function createWindow() {
@@ -25,6 +26,7 @@ function createWindow() {
 // a inicialização e estiver pronto para criar janelas do navegador.
 app.whenReady().then(() => {
   createWindow();
+  autoUpdater.checkForUpdatesAndNotify();
 
   app.on('activate', function () {
     // No macOS, é comum recriar uma janela no aplicativo quando o
