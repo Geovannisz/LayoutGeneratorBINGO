@@ -18,7 +18,7 @@ Antes de começar, você precisará ter os seguintes softwares instalados em sua
 Abra um terminal (Prompt de Comando, PowerShell ou Terminal) e clone o repositório do projeto para o seu computador usando o seguinte comando:
 
 ```bash
-git clone https://github.com/Geovannisz/LayoutGeneratorBINGO
+git clone <URL_DO_SEU_REPOSITORIO_GIT>
 ```
 
 ### 2. Navegar para a Pasta do Projeto
