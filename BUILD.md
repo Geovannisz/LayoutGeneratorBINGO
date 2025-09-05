@@ -39,7 +39,7 @@ npm install
 
 Este comando criará uma pasta `node_modules` no seu diretório.
 
-### 4. Executar em Modo de Desenvolvimento
+### 4. Executar em Modo de Desenvolvimento (Opcional)
 
 Para abrir o aplicativo e testá-lo em modo de desenvolvimento, use o seguinte comando:
 
