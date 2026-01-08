@@ -15,10 +15,10 @@ const K = (2 * Math.PI) / LAMBDA;
 
 // Lista de Gateways IPFS Públicos (o primeiro é o preferencial, os seguintes são fallbacks)
 const IPFS_GATEWAYS = [
-    "https://gateway.pinata.cloud/ipfs/", // Gateway original, mantido como primeira opção
-    "https://cloudflare-ipfs.com/ipfs/",
-    "https://ipfs.io/ipfs/",
-    "https://dweb.link/ipfs/",
+    "https://dweb.link/ipfs/", // Geralmente suporta CORS bem
+    "https://ipfs.io/ipfs/",   // Gateway padrão, suporte variável a CORS
+    "https://gateway.pinata.cloud/ipfs/", // Gateway original
+    "https://cloudflare-ipfs.com/ipfs/", // Rápido, mas às vezes restrito com CORS
     "https://gateway.ipfs.io/ipfs/"
     // Você pode adicionar mais gateways confiáveis aqui se desejar
 ];
