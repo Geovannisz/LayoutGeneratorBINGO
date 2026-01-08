@@ -123,8 +123,25 @@ function setupGlobalEventListeners() {
     // Quando os dados 3D do padrão de feixe são carregados com sucesso
     window.addEventListener('beamData3DLoaded', async () => {
         console.log("Main.js: Evento 'beamData3DLoaded' recebido.");
+
         // Garante que os módulos PSF tenham os dados E-field 3D mais recentes.
         await updatePSFModulesData();
+
+        // Força a atualização da interface/plotagem se houver um layout pendente
+        // Verifica se o gerador de antenas já tem antenas, indicando que um layout foi gerado enquanto carregava
+        if (window.antennaGenerator && window.antennaGenerator.getAllAntennas().length > 0) {
+            console.log("Main.js: Dados 3D chegaram e há layout. Forçando atualização visual...");
+
+            // Dispara novamente o evento 'layoutGenerated' para que todos os ouvintes
+            // (beam_pattern, psf, etc) saibam que agora têm TUDO (layout + dados) para plotar.
+            window.dispatchEvent(new CustomEvent('layoutGenerated'));
+
+            // Se o status do beam_pattern ainda estiver em "carregando", atualiza para pronto
+            const beamStatus = document.getElementById('beam-status');
+            if (beamStatus && beamStatus.textContent.includes("Carregando")) {
+                 beamStatus.textContent = "Dados carregados. Pronto.";
+            }
+        }
     });
     
     // Listener para quando o volume total da PSF é calculado pelo PSFAnalyzer
