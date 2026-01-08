@@ -4,7 +4,13 @@
  * Web Worker para calcular o Array Factor (AF) e aplicar ao campo do elemento
  * para uma varredura completa de ângulos Theta e Phi, preparando dados para um plot 3D.
  * Retorna grades de magnitude em dB e linear normalizada.
+ * Suporta aceleração por WebGPU (com fallback para CPU).
  */
+
+// Importa a implementação WebGPU
+importScripts('beam_gpu.js');
+
+let gpuCalculator = null;
 
 function computeAFForPoint(theta_deg, phi_deg, antennaCoords, k, theta_0_deg = 0, phi_0_deg = 0) {
     if (antennaCoords.length === 0) {
@@ -34,7 +40,7 @@ function computeAFForPoint(theta_deg, phi_deg, antennaCoords, k, theta_0_deg = 0
 }
 
 
-self.onmessage = function(e) {
+self.onmessage = async function(e) {
     // CORREÇÃO: 'id' é o ID da tarefa, incluído nas mensagens de progresso e resultado.
     const { id, antennaCoords, elementFieldData3D, K_CONST } = e.data;
 
@@ -43,57 +49,60 @@ self.onmessage = function(e) {
         return;
     }
 
-    // CORREÇÃO: Inclui 'id' na mensagem de progresso.
     self.postMessage({ type: 'progress', id, data: 'Worker 3D: Iniciando cálculos... 0%' });
 
+    let magnitudes_data = []; // Array de {phi, theta, mag_linear}
+
     try {
-        const magnitudes_data = []; // Array de {phi, theta, mag_linear}
-        const uniquePhiSet = new Set();
-        const uniqueThetaSet = new Set();
+        // Tenta usar WebGPU se disponível
+        if (navigator.gpu) {
+            try {
+                if (!gpuCalculator) {
+                    gpuCalculator = new BeamCalculatorGPU();
+                }
 
-        const totalPoints = elementFieldData3D.length;
-        let lastReportedProgress = 0;
+                self.postMessage({ type: 'progress', id, data: 'Worker 3D: Calculando na GPU (WebGPU)...' });
 
-        elementFieldData3D.forEach((elementPoint, index) => {
-            uniquePhiSet.add(elementPoint.phi_deg);
-            uniqueThetaSet.add(elementPoint.theta_deg);
+                const gpuResults = await gpuCalculator.compute(antennaCoords, elementFieldData3D, K_CONST);
 
-            const af_complex = computeAFForPoint(elementPoint.theta_deg, elementPoint.phi_deg, antennaCoords, K_CONST);
+                // Processa os resultados da GPU
+                // gpuResults é um Float32Array com as magnitudes lineares correspondentes a elementFieldData3D
+                for (let i = 0; i < elementFieldData3D.length; i++) {
+                    magnitudes_data.push({
+                        phi: elementFieldData3D[i].phi_deg,
+                        theta: elementFieldData3D[i].theta_deg,
+                        mag_linear: gpuResults[i]
+                    });
+                }
 
-            const rEThetaTotal_re = elementPoint.rETheta.re * af_complex.re - elementPoint.rETheta.im * af_complex.im;
-            const rEThetaTotal_im = elementPoint.rETheta.re * af_complex.im + elementPoint.rETheta.im * af_complex.re;
-            const rEPhiTotal_re = elementPoint.rEPhi.re * af_complex.re - elementPoint.rEPhi.im * af_complex.im;
-            const rEPhiTotal_im = elementPoint.rEPhi.re * af_complex.im + elementPoint.rEPhi.im * af_complex.re;
-            
-            const linear_magnitude = Math.sqrt(
-                rEThetaTotal_re * rEThetaTotal_re + rEThetaTotal_im * rEThetaTotal_im +
-                rEPhiTotal_re * rEPhiTotal_re + rEPhiTotal_im * rEPhiTotal_im
-            );
-            magnitudes_data.push({ // Armazena magnitude linear
-                phi: elementPoint.phi_deg,
-                theta: elementPoint.theta_deg,
-                mag_linear: linear_magnitude 
-            });
+                self.postMessage({ type: 'progress', id, data: 'Worker 3D: Cálculo na GPU concluído.' });
 
-            const currentProgress = Math.round(((index + 1) / totalPoints) * 100);
-            if (currentProgress > lastReportedProgress) {
-                // CORREÇÃO: Inclui 'id' na mensagem de progresso.
-                self.postMessage({ type: 'progress', id, data: `Worker 3D: Calculando... ${currentProgress}%` });
-                lastReportedProgress = currentProgress;
+            } catch (gpuError) {
+                console.error("Falha na GPU, revertendo para CPU:", gpuError);
+                self.postMessage({ type: 'progress', id, data: `Worker 3D: GPU falhou (${gpuError.message}), usando CPU...` });
+                magnitudes_data = calculateCPU(antennaCoords, elementFieldData3D, K_CONST, id);
             }
-        });
-        
-        // CORREÇÃO: Inclui 'id' na mensagem de progresso.
+        } else {
+             self.postMessage({ type: 'progress', id, data: 'Worker 3D: WebGPU não disponível, usando CPU...' });
+             magnitudes_data = calculateCPU(antennaCoords, elementFieldData3D, K_CONST, id);
+        }
+
+        // Processamento final para plotagem (comum para GPU e CPU)
         self.postMessage({ type: 'progress', id, data: 'Worker 3D: Processando dados para plotagem...' });
 
-        const uniquePhis = Array.from(uniquePhiSet).sort((a, b) => a - b);
-        const uniqueThetas = Array.from(uniqueThetaSet).sort((a, b) => a - b);
-
+        const uniquePhiSet = new Set();
+        const uniqueThetaSet = new Set();
         const magnitudeMapLinear = new Map();
+
         magnitudes_data.forEach(m => {
+            uniquePhiSet.add(m.phi);
+            uniqueThetaSet.add(m.theta);
             const key = `${m.phi}_${m.theta}`;
             magnitudeMapLinear.set(key, m.mag_linear);
         });
+
+        const uniquePhis = Array.from(uniquePhiSet).sort((a, b) => a - b);
+        const uniqueThetas = Array.from(uniqueThetaSet).sort((a, b) => a - b);
         
         const z_grid_linear_raw = Array(uniqueThetas.length).fill(null).map(() => Array(uniquePhis.length).fill(0));
         let max_linear_magnitude = 1e-10; 
@@ -124,7 +133,7 @@ self.onmessage = function(e) {
         );
 
         // CORREÇÃO: Inclui 'id' na mensagem de progresso.
-        self.postMessage({ type: 'progress', id, data: 'Worker 3D: Cálculo concluído.' });
+        self.postMessage({ type: 'progress', id, data: 'Worker 3D: Processamento final concluído.' });
 
         self.postMessage({
             id,
@@ -133,7 +142,7 @@ self.onmessage = function(e) {
                 uniquePhis_deg: uniquePhis,    
                 uniqueThetas_deg: uniqueThetas, 
                 magnitudes_grid_dB: z_grid_db,
-                magnitudes_grid_linear_normalized: z_grid_linear_normalized // Nova grade adicionada
+                magnitudes_grid_linear_normalized: z_grid_linear_normalized
             }
         });
 
@@ -142,3 +151,35 @@ self.onmessage = function(e) {
         self.postMessage({ id, type: 'error', error: `Worker 3D: ${errorMessage}` });
     }
 };
+
+function calculateCPU(antennaCoords, elementFieldData3D, K_CONST, id) {
+    const magnitudes_data = [];
+    const totalPoints = elementFieldData3D.length;
+    let lastReportedProgress = 0;
+
+    elementFieldData3D.forEach((elementPoint, index) => {
+        const af_complex = computeAFForPoint(elementPoint.theta_deg, elementPoint.phi_deg, antennaCoords, K_CONST);
+
+        const rEThetaTotal_re = elementPoint.rETheta.re * af_complex.re - elementPoint.rETheta.im * af_complex.im;
+        const rEThetaTotal_im = elementPoint.rETheta.re * af_complex.im + elementPoint.rETheta.im * af_complex.re;
+        const rEPhiTotal_re = elementPoint.rEPhi.re * af_complex.re - elementPoint.rEPhi.im * af_complex.im;
+        const rEPhiTotal_im = elementPoint.rEPhi.re * af_complex.im + elementPoint.rEPhi.im * af_complex.re;
+
+        const linear_magnitude = Math.sqrt(
+            rEThetaTotal_re * rEThetaTotal_re + rEThetaTotal_im * rEThetaTotal_im +
+            rEPhiTotal_re * rEPhiTotal_re + rEPhiTotal_im * rEPhiTotal_im
+        );
+        magnitudes_data.push({
+            phi: elementPoint.phi_deg,
+            theta: elementPoint.theta_deg,
+            mag_linear: linear_magnitude
+        });
+
+        const currentProgress = Math.round(((index + 1) / totalPoints) * 100);
+        if (currentProgress > lastReportedProgress) {
+            self.postMessage({ type: 'progress', id, data: `Worker 3D (CPU): Calculando... ${currentProgress}%` });
+            lastReportedProgress = currentProgress;
+        }
+    });
+    return magnitudes_data;
+}
