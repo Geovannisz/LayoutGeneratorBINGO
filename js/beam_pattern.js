@@ -81,6 +81,9 @@ async function fetchDataFromIPFS(cidWithPath, options = {}) {
     let originalStatusText = statusDiv ? statusDiv.textContent : "";
     let statusUpdatedForGateway = false;
 
+    // Timeout de 5 segundos para cada tentativa
+    const GATEWAY_TIMEOUT = 5000;
+
     for (let i = 0; i < IPFS_GATEWAYS.length; i++) {
         const gatewayBase = IPFS_GATEWAYS[i];
         const url = gatewayBase + cidWithPath;
@@ -93,8 +96,14 @@ async function fetchDataFromIPFS(cidWithPath, options = {}) {
         }
         console.log(`Tentando buscar de: ${url}`);
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT);
+        const fetchOptions = { ...options, signal: controller.signal };
+
         try {
-            const response = await fetch(url, options);
+            const response = await fetch(url, fetchOptions);
+            clearTimeout(timeoutId); // Limpa o timeout se a resposta chegar a tempo
+
             if (!response.ok) {
                 // Se um gateway específico retornar um erro (ex: 404, 500), registra e tenta o próximo.
                 console.warn(`Falha ao buscar de ${url}: ${response.status} ${response.statusText}. Tentando próximo gateway.`);
