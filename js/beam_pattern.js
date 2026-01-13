@@ -47,7 +47,7 @@ let currentCalculationId = 0;      // ID para rastrear cálculos 2D
 let current3DCalculationId = 0;  // ID para rastrear cálculos 3D
 
 let storedWorkerPlotParams = {}; // Parâmetros do último plot 2D enviado ao worker
-let storedFullDataScaleType = 'dB';    // Tipo de escala para o último plot 3D/Heatmap
+let storedFullDataScaleType = 'linear';    // Tipo de escala para o último plot 3D/Heatmap (Padrão: linear)
 
 // Novo Cache para Resultados de Cálculos 3D (para evitar reprocessamento no worker)
 let cachedCalculationResult3D = null; // Armazena o resultado retornado pelo worker 3D
@@ -475,7 +475,9 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
         });
 }
 
-// === Heatmap/Contour Plotting Function (Top-Down) ===
+// === Heatmap/Surface Top-Down Plotting Function ===
+// Alterado para usar type: 'surface' com câmera ortográfica para simular heatmap,
+// pois type: 'contour' não suporta coordenadas curvilíneas (grids não-retangulares)
 function plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, scaleType) {
     const plotDiv = document.getElementById(plotDivId);
     if (!plotDiv) return;
@@ -503,6 +505,7 @@ function plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, m
         textColor: rootStyle.getPropertyValue('--text-color').trim() || '#333333',
         gridColor: rootStyle.getPropertyValue('--plot-grid-color').trim() || '#eeeeee',
         axisColor: rootStyle.getPropertyValue('--border-color').trim() || '#cccccc',
+        colorscale: 'Viridis',
     };
 
     let z_data_to_plot, colorbar_title, z_min, z_max;
@@ -510,7 +513,7 @@ function plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, m
     if (scaleType === 'dB') {
         z_data_to_plot = magnitudes_grid_dB;
         colorbar_title = 'dB';
-        z_min = -100; // Alinhado com o plot 3D para consistência
+        z_min = -100; // Corte para melhor visualização (alinhado com 3D)
         z_max = 0;
     } else if (scaleType === 'sqrt') {
         z_data_to_plot = magnitudes_grid_linear_normalized.map(row => row.map(val => Math.sqrt(val)));
@@ -525,57 +528,86 @@ function plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, m
     }
 
     const data = [{
-        type: 'contour',
-        x: x_surface, // Passa as matrizes de coordenadas X e Y
+        type: 'surface', // Usamos surface para suportar a malha polar projetada
+        x: x_surface,
         y: y_surface,
         z: z_data_to_plot,
-        colorscale: 'Viridis',
-        contours: {
-            coloring: 'heatmap', // Preenchimento suave como heatmap
-            showlines: false, // Opcional: mostrar linhas de contorno
-        },
+        surfacecolor: z_data_to_plot,
+        colorscale: plotColors.colorscale,
+        showscale: true,
         colorbar: {
             title: colorbar_title,
             tickfont: { color: plotColors.textColor },
             titlefont: { color: plotColors.textColor },
+            len: 0.75, yanchor: 'middle', y: 0.5,
         },
-        zmin: z_min,
-        zmax: z_max,
+        cmin: z_min,
+        cmax: z_max,
         hoverinfo: 'x+y+z',
+        lighting: { // Desabilita iluminação para parecer um mapa de calor plano ("flat")
+            ambient: 1, diffuse: 0, specular: 0, roughness: 1, fresnel: 0
+        },
+        contours: {
+            z: { show: false } // Remove linhas de contorno se houver
+        }
     }];
 
     const layout = {
         autosize: true,
-        xaxis: {
-            title: 'X = Θ·cos(Φ)',
-            scaleanchor: "y",
-            scaleratio: 1,
-            gridcolor: plotColors.gridColor,
-            zerolinecolor: plotColors.axisColor,
-            tickfont: { color: plotColors.textColor },
-            titlefont: { color: plotColors.textColor }
-        },
-        yaxis: {
-            title: 'Y = Θ·sin(Φ)',
-            gridcolor: plotColors.gridColor,
-            zerolinecolor: plotColors.axisColor,
-            tickfont: { color: plotColors.textColor },
-            titlefont: { color: plotColors.textColor }
+        scene: {
+            xaxis: {
+                title: 'X = Θ·cos(Φ)', autorange: true,
+                color: plotColors.textColor, gridcolor: plotColors.gridColor,
+                zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor,
+                backgroundcolor: plotColors.plotBgColor,
+                titlefont: {size: 10}, tickfont: {size: 9}
+            },
+            yaxis: {
+                title: 'Y = Θ·sin(Φ)', autorange: true,
+                color: plotColors.textColor, gridcolor: plotColors.gridColor,
+                zerolinecolor: plotColors.axisColor, linecolor: plotColors.axisColor,
+                backgroundcolor: plotColors.plotBgColor,
+                titlefont: {size: 10}, tickfont: {size: 9}
+            },
+            zaxis: {
+                title: '', // Oculta título Z para parecer 2D
+                range: [z_min, z_max],
+                showticklabels: false, showgrid: false, zeroline: false, // Oculta eixo Z
+                color: plotColors.textColor,
+                backgroundcolor: plotColors.plotBgColor
+            },
+            camera: {
+                projection: { type: 'orthographic' }, // Projeção ortográfica para eliminar perspectiva
+                eye: { x: 0, y: 0, z: 2 }, // Câmera diretamente acima
+                up: { x: 0, y: 1, z: 0 } // Orientação Y para cima
+            },
+            aspectmode: 'data', // Garante proporção correta X/Y
+            dragmode: 'pan' // Permite pan como em mapas 2D (limitado em 3D, mas ajuda)
         },
         plot_bgcolor: plotColors.plotBgColor,
         paper_bgcolor: plotColors.paperBgColor,
         font: { color: plotColors.textColor },
-        margin: { l: 50, r: 50, b: 50, t: 50 },
+        margin: { l: 5, r: 5, b: 5, t: 5, pad: 2 }
     };
 
     const config = { responsive: true, scrollZoom: true };
 
-    Plotly.newPlot(plotDivId, data, layout, config).then(() => {
-        plotDiv.classList.add('visible');
-        if (statusDiv && !statusDiv.textContent.startsWith("Erro")) {
-             statusDiv.textContent = `Mapa de Calor (${scaleType}) atualizado.`;
-        }
-    });
+    Plotly.newPlot(plotDivId, data, layout, config)
+        .then(() => {
+             // Força um resize/relayout após renderização inicial para garantir ajuste
+             setTimeout(() => {
+                Plotly.Plots.resize(plotDivId).then(() => {
+                    plotDiv.classList.add('visible');
+                    if (statusDiv && !statusDiv.textContent.startsWith("Erro")) {
+                         statusDiv.textContent = `Mapa de Calor (${scaleType}) atualizado.`;
+                    }
+                });
+             }, 100);
+        })
+        .catch(err => {
+            console.error("Erro no Plotly Heatmap (Surface):", err);
+            if (statusDiv) statusDiv.textContent = `Erro visualização Heatmap: ${err.message}`;
+        });
 }
 
 
@@ -688,7 +720,7 @@ function schedulePlotUpdate() {
     const currentPhi = phiInput ? parseFloat(phiInput.value) : 90;
 
     // Obtém a escala do select
-    let currentScale = 'dB';
+    let currentScale = 'linear'; // Padrão linear
     if (scaleSelect) {
         currentScale = scaleSelect.value;
     }
@@ -815,7 +847,7 @@ async function processFullDataPlotRequest() {
     if (visualizeHeatmapBtn) visualizeHeatmapBtn.disabled = true;
 
     // Obtém a escala selecionada
-    let selectedScale = 'dB';
+    let selectedScale = 'linear'; // Padrão linear
     if (scaleSelect) {
         selectedScale = scaleSelect.value;
     }
