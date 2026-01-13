@@ -523,8 +523,7 @@ function refreshVisualization() {
             uniquePhis_deg,
             uniqueThetas_deg,
             magnitudes_grid_linear_normalized,
-            storedFullDataScaleType,
-            storedHeatmapResolution
+            storedFullDataScaleType
         );
     } else if (visualize3DBtn.classList.contains('primary')) {
         // 3D Mode
