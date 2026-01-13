@@ -65,6 +65,19 @@ let plotDivId = 'beam-pattern-plot'; // Plotly Div
 let heatmapContainer, heatmapCanvas, heatmapTooltip;
 let statusDiv = null;
 
+// === EXPORT FOR EXTERNAL MODULES (PSF) ===
+window.getBeamPatternModuleData = function() {
+    return {
+        K_CONST: K,
+        parsedEFieldData3D: fullEFieldDataCache,
+        fullEFieldDataLoadingState: fullEFieldDataLoadingState,
+        ensureDataLoaded: ensureFullEFieldData3DLoaded // Expose the loader function
+    };
+};
+// Make specific loader global as requested by existing main.js logic
+window.ensureFullEFieldData3DLoaded = ensureFullEFieldData3DLoaded;
+
+
 // === Helper Functions ===
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -241,14 +254,30 @@ async function ensureFullEFieldData3DLoaded() {
 
 // === Plotting Functions ===
 
+function toggleViews(viewMode) {
+    const plotDiv = document.getElementById(plotDivId);
+    if (!plotDiv || !heatmapContainer) return;
+
+    if (viewMode === 'heatmap') {
+        plotDiv.style.visibility = 'hidden';
+        plotDiv.style.opacity = '0';
+        plotDiv.style.display = 'none'; // Ensure display none to remove from flow
+
+        heatmapContainer.style.display = 'flex';
+        heatmapContainer.style.zIndex = '10';
+    } else {
+        // 2D or 3D
+        heatmapContainer.style.display = 'none';
+
+        plotDiv.style.display = 'block'; // Restore to flow
+        plotDiv.style.visibility = 'visible';
+        plotDiv.style.opacity = '1';
+    }
+}
+
 // 2D Plot (Plotly)
 function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
-    const plotDiv = document.getElementById(plotDivId);
-    if (!plotDiv) return;
-
-    // Hide Heatmap UI, Show Plotly
-    if(heatmapContainer) heatmapContainer.style.display = 'none';
-    plotDiv.style.display = 'block';
+    toggleViews('2d');
 
     const peak = Math.max(1e-10, ...fieldMagnitude);
     let yData, title;
@@ -277,12 +306,7 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
 
 // 3D Plot (Plotly)
 function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scaleType) {
-    const plotDiv = document.getElementById(plotDivId);
-    if (!plotDiv) return;
-
-    // Hide Heatmap UI, Show Plotly
-    if(heatmapContainer) heatmapContainer.style.display = 'none';
-    plotDiv.style.display = 'block';
+    toggleViews('3d');
 
     const DEG_TO_RAD = Math.PI / 180;
     const x = [], y = [];
@@ -300,7 +324,6 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
 
     let zData, zTitle;
     if (scaleType === 'dB') {
-        // Sanitiza para evitar NaN/Infinity que quebram o Plotly
         zData = mags_dB.map(row => row.map(v => (isNaN(v) || !isFinite(v)) ? -100 : v));
         zTitle = 'dB';
     } else if (scaleType === 'sqrt') {
@@ -338,10 +361,7 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
         return;
     }
 
-    // Hide Plotly, Show Heatmap
-    const plotDiv = document.getElementById(plotDivId);
-    if(plotDiv) plotDiv.style.display = 'none';
-    if(heatmapContainer) heatmapContainer.style.display = 'flex';
+    toggleViews('heatmap');
 
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap (${resolution}px)...`;
 
@@ -373,14 +393,12 @@ function setupHeatmapInteraction() {
     if (!heatmapCanvas || !heatmapContainer) return;
 
     heatmapCanvas.addEventListener('mousemove', (e) => {
-        // Only if we have valid data
         if (!cachedCalculationResult3D) return;
 
         const rect = heatmapCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
 
-        // Scale coords to canvas actual size
         const scaleX = heatmapCanvas.width / rect.width;
         const scaleY = heatmapCanvas.height / rect.height;
 
@@ -404,7 +422,7 @@ function setupHeatmapInteraction() {
         const maxTheta = uniqueThetas_deg[uniqueThetas_deg.length - 1];
         
         const theta = (rPx / maxRadiusPx) * maxTheta;
-        let angleRad = Math.atan2(-dy, dx); // Matches worker logic
+        let angleRad = Math.atan2(-dy, dx);
         let angleDeg = angleRad * 180 / Math.PI;
         if (angleDeg < 0) angleDeg += 360;
         
@@ -494,9 +512,6 @@ function refreshVisualization() {
         // 3D Mode
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     }
-    // 2D is handled separately via `schedulePlotUpdate` usually, but if we switched back...
-    // 2D requires a specific Phi cut, which we might not have fresh in cache if we only calculated 3D full.
-    // So 2D logic remains separate for single-file fetching optimization.
 }
 
 async function processFullDataPlotRequest() {
@@ -599,11 +614,14 @@ function initBeamPatternControls() {
         visualize2DBtn.classList.toggle('secondary', mode !== '2d');
 
         if (mode === '2d') {
-            if(heatmapContainer) heatmapContainer.style.display = 'none';
-            document.getElementById(plotDivId).style.display = 'block';
             schedulePlotUpdate();
         } else {
+            // Both 3D and Heatmap use the 3D data pipeline
             processFullDataPlotRequest();
+            if (cachedCalculationResult3D) {
+                // Force switch if data is already there (refreshVisualization checks active buttons)
+                refreshVisualization();
+            }
         }
     };
 
@@ -613,7 +631,7 @@ function initBeamPatternControls() {
 
     scaleSelect.onchange = () => {
         if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
-        else processFullDataPlotRequest(); // Will use cache and just refresh viz
+        else processFullDataPlotRequest();
     };
 
     resolutionSelect.onchange = () => {
