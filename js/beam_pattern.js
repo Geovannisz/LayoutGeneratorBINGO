@@ -401,10 +401,6 @@ function setupHeatmapInteraction() {
         if (angleDeg < 0) angleDeg += 360;
         
         heatmapTooltip.style.display = 'block';
-        heatmapTooltip.style.left = (e.clientX + 10) + 'px'; // Relative to viewport usually better for fixed tooltip?
-        // Better: relative to heatmapContainer which is relative.
-        // Actually, e.clientX is global. heatmapTooltip is absolute inside container.
-        // Let's position relative to container.
         heatmapTooltip.style.left = (x + 10) + 'px';
         heatmapTooltip.style.top = (y + 10) + 'px';
         
@@ -420,46 +416,55 @@ function setupHeatmapInteraction() {
 // === Orchestration ===
 
 function setupWorkers() {
-    if (!window.Worker) return;
+    if (!window.Worker) {
+        console.warn("Workers not supported");
+        return;
+    }
 
-    // 2D Worker
-    beamCalculationWorker = new Worker('js/beam_worker.js');
-    beamCalculationWorker.onmessage = (e) => {
-        if (e.data.id !== currentCalculationId) return;
-        if (e.data.type === 'result') {
-            const { thetaValues, resultingMagnitude } = e.data.data;
-            plotBeamPattern2D(thetaValues, resultingMagnitude, storedWorkerPlotParams.phi, storedWorkerPlotParams.scale);
-            isProcessingPlot = false;
-        } else if (e.data.type === 'error') {
-            isProcessingPlot = false;
-        }
-    };
+    try {
+        // 2D Worker
+        beamCalculationWorker = new Worker('js/beam_worker.js');
+        beamCalculationWorker.onmessage = (e) => {
+            if (e.data.id !== currentCalculationId) return;
+            if (e.data.type === 'result') {
+                const { thetaValues, resultingMagnitude } = e.data.data;
+                plotBeamPattern2D(thetaValues, resultingMagnitude, storedWorkerPlotParams.phi, storedWorkerPlotParams.scale);
+                isProcessingPlot = false;
+            } else if (e.data.type === 'error') {
+                isProcessingPlot = false;
+            }
+        };
 
-    // 3D Worker
-    beamCalculationWorker3D = new Worker('js/beam_worker_3d.js');
-    beamCalculationWorker3D.onmessage = (e) => {
-        if (e.data.id !== current3DCalculationId) return;
-        if (e.data.type === 'progress') {
-            if(statusDiv) statusDiv.textContent = e.data.data;
-        } else if (e.data.type === 'result3D') {
-            cachedCalculationResult3D = e.data.data;
-            refreshVisualization();
-            isProcessingPlot = false;
-        } else if (e.data.type === 'error') {
-             if(statusDiv) statusDiv.textContent = e.data.error;
-             isProcessingPlot = false;
-        }
-    };
+        // 3D Worker
+        beamCalculationWorker3D = new Worker('js/beam_worker_3d.js');
+        beamCalculationWorker3D.onmessage = (e) => {
+            if (e.data.id !== current3DCalculationId) return;
+            if (e.data.type === 'progress') {
+                if(statusDiv) statusDiv.textContent = e.data.data;
+            } else if (e.data.type === 'result3D') {
+                cachedCalculationResult3D = e.data.data;
+                refreshVisualization();
+                isProcessingPlot = false;
+            } else if (e.data.type === 'error') {
+                 if(statusDiv) statusDiv.textContent = e.data.error;
+                 isProcessingPlot = false;
+            }
+        };
 
-    // Heatmap Worker
-    heatmapWorker = new Worker('js/heatmap_worker.js');
-    heatmapWorker.onmessage = (e) => {
-        if (e.data.pixels) {
-            drawHeatmapToCanvas(e.data.pixels, e.data.width, e.data.height);
-        } else if (e.data.error) {
-            console.error(e.data.error);
-        }
-    };
+        // Heatmap Worker
+        heatmapWorker = new Worker('js/heatmap_worker.js');
+        heatmapWorker.onmessage = (e) => {
+            if (e.data.pixels) {
+                drawHeatmapToCanvas(e.data.pixels, e.data.width, e.data.height);
+            } else if (e.data.error) {
+                console.error(e.data.error);
+            }
+        };
+
+        console.log("Workers Initialized");
+    } catch (e) {
+        console.error("Worker Init Failed", e);
+    }
 }
 
 function refreshVisualization() {
@@ -563,9 +568,15 @@ function initBeamPatternControls() {
     heatmapTooltip = document.getElementById('heatmap-tooltip');
     statusDiv = document.getElementById('beam-status');
 
-    if(!heatmapCanvas) return;
-
+    // Ensure workers run even if some UI is glitchy, but need canvas
     setupWorkers();
+
+    if (!heatmapCanvas) {
+        console.error("Heatmap Canvas missing");
+        if(statusDiv) statusDiv.textContent = "Erro: Canvas não encontrado.";
+        return;
+    }
+
     setupHeatmapInteraction();
 
     // Event Listeners
@@ -615,6 +626,7 @@ function initBeamPatternControls() {
         else processFullDataPlotRequest();
     });
 
+    console.log("Controles do padrão de feixe inicializados.");
     // Initial State
     setMode('heatmap');
 }
