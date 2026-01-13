@@ -419,6 +419,7 @@ button.small-btn {
 .beam-controls .slider-group input[type="number"] { width: 60px; flex-shrink: 0; text-align: right; padding: 6px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 13px; background-color: var(--input-bg-color); color: var(--input-text-color); }
 .beam-controls .slider-group input[type=number]::-webkit-inner-spin-button, .beam-controls .slider-group input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .beam-controls .slider-group input[type=number] { -moz-appearance: textfield; }
+.beam-controls select { width: 100%; padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; background-color: var(--input-bg-color); color: var(--input-text-color); box-sizing: border-box; cursor: pointer; }
 .beam-controls .radio-group { display: flex; gap: 15px; margin-top: 5px; }
 .beam-controls .radio-group label { display: inline-flex; align-items: center; font-weight: normal; cursor: pointer; }
 .beam-controls .radio-group input[type="radio"] { margin-right: 5px; cursor: pointer; }

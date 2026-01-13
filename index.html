@@ -184,17 +184,19 @@
                             </div>
                         </div>
                         <div class="control-group">
-                            <label>Escala Y (2D/3D):</label>
-                            <div class="radio-group">
-                                <label><input type="radio" name="beamScale" value="dB" checked> dB</label>
-                                <label><input type="radio" name="beamScale" value="linear"> Linear</label>
-                            </div>
+                            <label for="beam-scale-select">Escala de Magnitude:</label>
+                            <select id="beam-scale-select">
+                                <option value="dB" selected>dB (Logarítmica)</option>
+                                <option value="linear">Linear (Normalizada)</option>
+                                <option value="sqrt">Sqrt (Raiz Quadrada)</option>
+                            </select>
                         </div>
                         <div class="control-group button-group-2d-3d">
                             <label>Modo de Visualização:</label>
                             <div class="view-mode-buttons">
-                                <button id="visualize-2d-btn" class="primary" title="Visualizar padrão de feixe em 2D para o Phi selecionado."><i class="fas fa-chart-line"></i> Padrão 2D</button>
-                                <button id="visualize-3d-btn" class="secondary" title="Visualizar padrão de feixe em 3D (varredura completa)."><i class="fas fa-cube"></i> Padrão 3D</button>
+                                <button id="visualize-heatmap-btn" class="primary" title="Visualizar Mapa de Calor Planar (Top-down)."><i class="fas fa-map"></i> Mapa de Calor</button>
+                                <button id="visualize-3d-btn" class="secondary" title="Visualizar padrão de feixe em 3D (varredura completa)."><i class="fas fa-cube"></i> 3D</button>
+                                <button id="visualize-2d-btn" class="secondary" title="Visualizar padrão de feixe em 2D para o Phi selecionado."><i class="fas fa-chart-line"></i> 2D</button>
                             </div>
                         </div>
                     </div>
