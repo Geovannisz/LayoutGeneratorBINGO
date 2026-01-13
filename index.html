@@ -191,6 +191,14 @@
                                 <option value="sqrt">Sqrt (Raiz Quadrada)</option>
                             </select>
                         </div>
+                        <div class="control-group">
+                            <label for="heatmap-resolution-select">Resolução (Heatmap):</label>
+                            <select id="heatmap-resolution-select">
+                                <option value="512">Baixa (512px)</option>
+                                <option value="1024" selected>Padrão (1024px)</option>
+                                <option value="2048">Alta (2048px)</option>
+                            </select>
+                        </div>
                         <div class="control-group button-group-2d-3d">
                             <label>Modo de Visualização:</label>
                             <div class="view-mode-buttons">
@@ -200,7 +208,14 @@
                             </div>
                         </div>
                     </div>
-                    <div id="beam-pattern-plot" class="plot-area"></div>
+
+                    <div id="plot-container-wrapper" class="plot-area" style="position: relative; overflow: hidden;">
+                        <div id="beam-pattern-plot" style="width: 100%; height: 100%;"></div>
+                        <div id="heatmap-container" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background-color: white; position: absolute; top: 0; left: 0; z-index: 10;">
+                            <canvas id="beam-heatmap-canvas" style="max-width: 100%; max-height: 100%; object-fit: contain;"></canvas>
+                            <div id="heatmap-tooltip" style="position: absolute; background: rgba(0,0,0,0.8); color: white; padding: 5px 10px; border-radius: 4px; pointer-events: none; display: none; font-size: 12px; white-space: nowrap; z-index: 20;"></div>
+                        </div>
+                    </div>
                     <div id="beam-status">Aguardando geração do layout inicial...</div>
                 </div>
 
