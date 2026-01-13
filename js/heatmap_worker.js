@@ -194,6 +194,10 @@ self.onmessage = function(e) {
                 normalizedVal = (db - minDb) / (0 - minDb);
             } else if (scaleType === 'sqrt') {
                 normalizedVal = Math.sqrt(val);
+            } else if (scaleType === 'quadratic') {
+                normalizedVal = val * val;
+            } else if (scaleType === 'fourth_root') {
+                normalizedVal = Math.pow(val, 0.25);
             } else {
                 normalizedVal = val;
             }
