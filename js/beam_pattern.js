@@ -528,6 +528,15 @@ function refreshVisualization() {
     } else if (visualize3DBtn.classList.contains('primary')) {
         // 3D Mode
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
+    } else {
+         // Default Fallback (auto-refresh context)
+         // If no specific 3D/Heatmap button is active (shouldn't happen), force Heatmap
+         triggerHeatmapGeneration(
+            uniquePhis_deg,
+            uniqueThetas_deg,
+            magnitudes_grid_linear_normalized,
+            storedFullDataScaleType
+        );
     }
 }
 
