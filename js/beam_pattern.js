@@ -150,8 +150,9 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
                 const imTheta = parseFloat(v[indices.imTheta]);
                 const rePhi = parseFloat(v[indices.rePhi]);
                 const imPhi = parseFloat(v[indices.imPhi]);
+                const phi = parseFloat(v[indices.phi_deg]);
                 if (!isNaN(theta)) {
-                    data.push({ theta, rETheta: { re: reTheta, im: imTheta }, rEPhi: { re: rePhi, im: imPhi } });
+                    data.push({ theta, phi, rETheta: { re: reTheta, im: imTheta }, rEPhi: { re: rePhi, im: imPhi } });
                 }
             } catch (e) {}
         }
@@ -299,11 +300,18 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
 
     let zData, zTitle;
     if (scaleType === 'dB') {
-        zData = mags_dB; zTitle = 'dB';
+        // Sanitiza para evitar NaN/Infinity que quebram o Plotly
+        zData = mags_dB.map(row => row.map(v => (isNaN(v) || !isFinite(v)) ? -100 : v));
+        zTitle = 'dB';
     } else if (scaleType === 'sqrt') {
-        zData = mags_linear.map(row => row.map(v => Math.sqrt(v))); zTitle = 'Sqrt';
+        zData = mags_linear.map(row => row.map(v => {
+            const val = Math.sqrt(v);
+            return (isNaN(val) || !isFinite(val)) ? 0 : val;
+        }));
+        zTitle = 'Sqrt';
     } else {
-        zData = mags_linear; zTitle = 'Linear';
+        zData = mags_linear.map(row => row.map(v => (isNaN(v) || !isFinite(v)) ? 0 : v));
+        zTitle = 'Linear';
     }
 
     const data = [{
