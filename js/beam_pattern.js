@@ -47,8 +47,8 @@ let currentCalculationId = 0;
 let current3DCalculationId = 0;
 
 let storedWorkerPlotParams = {};
-let storedFullDataScaleType = 'linear'; // default
-let storedHeatmapResolution = 1024; // default
+let storedFullDataScaleType = 'sqrt'; // default
+const HEATMAP_RESOLUTION = 2048; // Fixed high resolution
 
 // Cache para Resultados de Cálculos 3D
 let cachedCalculationResult3D = null;
@@ -59,7 +59,7 @@ let currentlyProcessingRequestTimestamp = null;
 let processRequestTimeoutId = null;
 
 // === DOM Element References ===
-let phiSlider, phiInput, scaleSelect, resolutionSelect;
+let phiSlider, phiInput, scaleSelect;
 let visualize3DBtn, visualize2DBtn, visualizeHeatmapBtn;
 let plotDivId = 'beam-pattern-plot'; // Plotly Div
 let heatmapContainer, heatmapCanvas, heatmapTooltip;
@@ -288,6 +288,12 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
     } else if (scaleType === 'sqrt') {
         yData = fieldMagnitude.map(mag => Math.sqrt(mag / peak));
         title = 'Magnitude (Sqrt)';
+    } else if (scaleType === 'quadratic') {
+        yData = fieldMagnitude.map(mag => Math.pow(mag / peak, 2));
+        title = 'Magnitude (Quadrática)';
+    } else if (scaleType === 'fourth_root') {
+        yData = fieldMagnitude.map(mag => Math.pow(mag / peak, 0.25));
+        title = 'Magnitude (Raiz Quarta)';
     } else {
         yData = fieldMagnitude.map(mag => mag / peak);
         title = 'Magnitude (Linear)';
@@ -332,6 +338,18 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
             return (isNaN(val) || !isFinite(val)) ? 0 : val;
         }));
         zTitle = 'Sqrt';
+    } else if (scaleType === 'quadratic') {
+        zData = mags_linear.map(row => row.map(v => {
+            const val = Math.pow(v, 2);
+            return (isNaN(val) || !isFinite(val)) ? 0 : val;
+        }));
+        zTitle = 'Quadrática';
+    } else if (scaleType === 'fourth_root') {
+        zData = mags_linear.map(row => row.map(v => {
+            const val = Math.pow(v, 0.25);
+            return (isNaN(val) || !isFinite(val)) ? 0 : val;
+        }));
+        zTitle = 'Raiz Quarta';
     } else {
         zData = mags_linear.map(row => row.map(v => (isNaN(v) || !isFinite(v)) ? 0 : v));
         zTitle = 'Linear';
@@ -355,7 +373,7 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
 }
 
 // Heatmap Native (Canvas)
-function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType, resolution) {
+function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType) {
     if (!heatmapWorker) {
         console.error("Heatmap Worker not init");
         return;
@@ -363,11 +381,11 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
 
     toggleViews('heatmap');
 
-    if (statusDiv) statusDiv.textContent = `Gerando Heatmap (${resolution}px)...`;
+    if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
     heatmapWorker.postMessage({
-        width: resolution,
-        height: resolution,
+        width: HEATMAP_RESOLUTION,
+        height: HEATMAP_RESOLUTION,
         scaleType: scaleType,
         magnitudesLinear: mags_linear,
         uniqueThetas: uniqueThetas,
@@ -522,7 +540,6 @@ async function processFullDataPlotRequest() {
 
     // Scale
     storedFullDataScaleType = scaleSelect.value;
-    storedHeatmapResolution = parseInt(resolutionSelect.value);
 
     // Cache Check
     const layoutHash = getLayoutHash(antennaCoords);
@@ -580,7 +597,6 @@ function initBeamPatternControls() {
     phiSlider = document.getElementById('beam-phi-slider');
     phiInput = document.getElementById('beam-phi-input');
     scaleSelect = document.getElementById('beam-scale-select');
-    resolutionSelect = document.getElementById('heatmap-resolution-select');
 
     visualize3DBtn = document.getElementById('visualize-3d-btn');
     visualize2DBtn = document.getElementById('visualize-2d-btn');
@@ -632,10 +648,6 @@ function initBeamPatternControls() {
     scaleSelect.onchange = () => {
         if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
         else processFullDataPlotRequest();
-    };
-
-    resolutionSelect.onchange = () => {
-        if (visualizeHeatmapBtn.classList.contains('primary')) refreshVisualization();
     };
 
     phiSlider.oninput = () => {
