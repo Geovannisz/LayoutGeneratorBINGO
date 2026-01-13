@@ -47,7 +47,11 @@ let currentCalculationId = 0;      // ID para rastrear cálculos 2D
 let current3DCalculationId = 0;  // ID para rastrear cálculos 3D
 
 let storedWorkerPlotParams = {}; // Parâmetros do último plot 2D enviado ao worker
-let stored3DScaleType = 'dB';    // Tipo de escala para o último plot 3D
+let storedFullDataScaleType = 'dB';    // Tipo de escala para o último plot 3D/Heatmap
+
+// Novo Cache para Resultados de Cálculos 3D (para evitar reprocessamento no worker)
+let cachedCalculationResult3D = null; // Armazena o resultado retornado pelo worker 3D
+let cachedCalculationParams3D = null; // Armazena { layoutHash, etc } para validar o cache
 
 let latestPlotRequestParams = null; // Parâmetros da última solicitação de plot (para debounce)
 let currentlyProcessingRequestTimestamp = null; // Timestamp da solicitação em processamento
@@ -56,15 +60,22 @@ let processRequestTimeoutId = null; // ID do timeout para debounce
 // === DOM Element References ===
 let phiSlider = null;
 let phiInput = null;
-let scaleRadios = null;
+let scaleSelect = null;
 let visualize3DBtn = null;
 let visualize2DBtn = null;
+let visualizeHeatmapBtn = null;
 let plotDivId = 'beam-pattern-plot';
 let statusDiv = null;
 
 // === Helper Functions ===
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Gera um hash simples do layout de antenas para verificar mudanças
+function getLayoutHash(antennaCoords) {
+    if (!antennaCoords) return "";
+    return JSON.stringify(antennaCoords.map(a => [Math.round(a.x*100), Math.round(a.y*100)]));
 }
 
 /**
@@ -254,7 +265,7 @@ async function fetchAndParseEFieldDataForSelectedPhi(phiValue) {
 async function _fetchAndParseFullEFieldDataRecursive3D() {
     // Define o texto base para o status
     if (statusDiv) {
-        statusDiv.textContent = `Carregando dados E-field 3D (IPFS)...`;
+        statusDiv.textContent = `Carregando dados E-field Completos (IPFS)...`;
     }
 
     try {
@@ -263,11 +274,11 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
 
         const csvText = await response.text();
         if (csvText.startsWith("version https://git-lfs.github.com/spec/v1")) {
-            throw new Error("Falha 3D: Recebido ponteiro Git LFS (IPFS).");
+            throw new Error("Falha Dados Completos: Recebido ponteiro Git LFS (IPFS).");
         }
         const lines = csvText.trim().split('\n');
         if (lines.length < 2) {
-            throw new Error("CSV 3D (IPFS) vazio ou apenas com cabeçalho.");
+            throw new Error("CSV Completos (IPFS) vazio ou apenas com cabeçalho.");
         }
         const headersRaw = lines[0].split(',');
         // Normaliza cabeçalhos: remove aspas, remove unidades "[...]", converte para minúsculas e remove espaços extras.
@@ -333,7 +344,7 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
         console.error(`Erro final em _fetchAndParseFullEFieldDataRecursive3D (IPFS):`, error);
         // O statusDiv já deve ter sido atualizado por fetchDataFromIPFS.
         if (statusDiv && !statusDiv.textContent.startsWith("Falha final")) {
-            statusDiv.textContent = `Falha ao buscar dados 3D: ${error.message.substring(0,100)}`;
+            statusDiv.textContent = `Falha ao buscar dados completos: ${error.message.substring(0,100)}`;
         }
         throw error;
     }
@@ -355,8 +366,8 @@ async function ensureFullEFieldData3DLoaded() {
         .then(data => {
             fullEFieldDataCache = data; // Armazena os dados no cache.
             fullEFieldDataLoadingState = 'loaded'; // Define o estado para 'loaded'.
-            if (statusDiv && statusDiv.textContent.startsWith('Carregando dados E-field 3D (IPFS)')) {
-                 statusDiv.textContent = 'Dados E-field 3D (IPFS) carregados com sucesso.';
+            if (statusDiv && statusDiv.textContent.startsWith('Carregando dados E-field Completos (IPFS)')) {
+                 statusDiv.textContent = 'Dados E-field Completos (IPFS) carregados com sucesso.';
             }
             fetchFullDataPromiseActive = null; // Limpa a promessa ativa.
             // Dispara evento para notificar que os dados 3D estão prontos.
@@ -409,7 +420,12 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
         });
         yAxisTitle = 'Magnitude Normalizada (dB)';
         yAxisConfig.range = [-100, 0]; // Faixa padrão para dB
-    } else { // scaleType === 'linear'
+    } else if (scaleType === 'sqrt') {
+        yData = fieldMagnitude.map(mag => peakMagnitude > 0 ? Math.sqrt(mag / peakMagnitude) : 0);
+        yAxisTitle = 'Magnitude Normalizada (Sqrt)';
+        yAxisConfig.autorange = true;
+        yAxisConfig.rangemode = 'tozero';
+    } else { // scaleType === 'linear' e outros
         yData = fieldMagnitude.map(mag => peakMagnitude > 0 ? mag / peakMagnitude : 0); // Normaliza linearmente
         yAxisTitle = 'Magnitude Normalizada (Linear)';
         yAxisConfig.autorange = true;
@@ -459,6 +475,110 @@ function plotBeamPattern2D(theta, fieldMagnitude, phiValue, scaleType) {
         });
 }
 
+// === Heatmap/Contour Plotting Function (Top-Down) ===
+function plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, scaleType) {
+    const plotDiv = document.getElementById(plotDivId);
+    if (!plotDiv) return;
+
+    const DEG_TO_RAD = Math.PI / 180;
+    const x_surface = [];
+    const y_surface = [];
+
+    // Gera coordenadas Cartesianas (projeção top-down do cone 3D)
+    for (let i = 0; i < uniqueThetas_deg.length; i++) {
+        const theta_val_for_radius_rad = uniqueThetas_deg[i] * DEG_TO_RAD;
+        const x_row = []; const y_row = [];
+        for (let j = 0; j < uniquePhis_deg.length; j++) {
+            const phi_rad = uniquePhis_deg[j] * DEG_TO_RAD;
+            x_row.push(theta_val_for_radius_rad * Math.cos(phi_rad));
+            y_row.push(theta_val_for_radius_rad * Math.sin(phi_rad));
+        }
+        x_surface.push(x_row); y_surface.push(y_row);
+    }
+
+    const rootStyle = getComputedStyle(document.documentElement);
+    const plotColors = {
+        plotBgColor: rootStyle.getPropertyValue('--plot-bg-color').trim() || '#ffffff',
+        paperBgColor: rootStyle.getPropertyValue('--card-bg-color').trim() || '#ffffff',
+        textColor: rootStyle.getPropertyValue('--text-color').trim() || '#333333',
+        gridColor: rootStyle.getPropertyValue('--plot-grid-color').trim() || '#eeeeee',
+        axisColor: rootStyle.getPropertyValue('--border-color').trim() || '#cccccc',
+    };
+
+    let z_data_to_plot, colorbar_title, z_min, z_max;
+
+    if (scaleType === 'dB') {
+        z_data_to_plot = magnitudes_grid_dB;
+        colorbar_title = 'dB';
+        z_min = -100; // Alinhado com o plot 3D para consistência
+        z_max = 0;
+    } else if (scaleType === 'sqrt') {
+        z_data_to_plot = magnitudes_grid_linear_normalized.map(row => row.map(val => Math.sqrt(val)));
+        colorbar_title = 'Sqrt';
+        z_min = 0;
+        z_max = 1;
+    } else { // Linear
+        z_data_to_plot = magnitudes_grid_linear_normalized;
+        colorbar_title = 'Linear';
+        z_min = 0;
+        z_max = 1;
+    }
+
+    const data = [{
+        type: 'contour',
+        x: x_surface, // Passa as matrizes de coordenadas X e Y
+        y: y_surface,
+        z: z_data_to_plot,
+        colorscale: 'Viridis',
+        contours: {
+            coloring: 'heatmap', // Preenchimento suave como heatmap
+            showlines: false, // Opcional: mostrar linhas de contorno
+        },
+        colorbar: {
+            title: colorbar_title,
+            tickfont: { color: plotColors.textColor },
+            titlefont: { color: plotColors.textColor },
+        },
+        zmin: z_min,
+        zmax: z_max,
+        hoverinfo: 'x+y+z',
+    }];
+
+    const layout = {
+        autosize: true,
+        xaxis: {
+            title: 'X = Θ·cos(Φ)',
+            scaleanchor: "y",
+            scaleratio: 1,
+            gridcolor: plotColors.gridColor,
+            zerolinecolor: plotColors.axisColor,
+            tickfont: { color: plotColors.textColor },
+            titlefont: { color: plotColors.textColor }
+        },
+        yaxis: {
+            title: 'Y = Θ·sin(Φ)',
+            gridcolor: plotColors.gridColor,
+            zerolinecolor: plotColors.axisColor,
+            tickfont: { color: plotColors.textColor },
+            titlefont: { color: plotColors.textColor }
+        },
+        plot_bgcolor: plotColors.plotBgColor,
+        paper_bgcolor: plotColors.paperBgColor,
+        font: { color: plotColors.textColor },
+        margin: { l: 50, r: 50, b: 50, t: 50 },
+    };
+
+    const config = { responsive: true, scrollZoom: true };
+
+    Plotly.newPlot(plotDivId, data, layout, config).then(() => {
+        plotDiv.classList.add('visible');
+        if (statusDiv && !statusDiv.textContent.startsWith("Erro")) {
+             statusDiv.textContent = `Mapa de Calor (${scaleType}) atualizado.`;
+        }
+    });
+}
+
+
 // === 3D Plotting Function ===
 function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, scaleType) {
     const plotDiv = document.getElementById(plotDivId);
@@ -494,9 +614,13 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
     // Seleciona os dados Z e configura o eixo Z com base na escala (dB ou Linear).
     if (scaleType === 'dB') {
         z_data_to_plot = magnitudes_grid_dB; z_axis_title = 'Magnitude (dB)'; colorbar_title = 'dB'; z_axis_range_plot = [-100, 0];
+    } else if (scaleType === 'sqrt') {
+        z_data_to_plot = magnitudes_grid_linear_normalized.map(row => row.map(v => Math.sqrt(v)));
+        z_axis_title = 'Magnitude (Sqrt)'; colorbar_title = 'Sqrt'; z_axis_range_plot = [0, 1];
     } else { // scaleType === 'linear'
         z_data_to_plot = magnitudes_grid_linear_normalized; z_axis_title = 'Magnitude (Linear Norm.)'; colorbar_title = 'Linear'; z_axis_range_plot = [0, 1];
     }
+
     const data = [{
         type: 'surface', x: x_surface, y: y_surface, z: z_data_to_plot, surfacecolor: z_data_to_plot, colorscale: plotColors.colorscale,
         showscale: true, colorbar: { title: colorbar_title, tickfont: { color: plotColors.textColor }, titlefont: { color: plotColors.textColor }, len: 0.75, yanchor: 'middle', y: 0.5, },
@@ -562,9 +686,11 @@ function plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB,
 function schedulePlotUpdate() {
     const currentAntennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
     const currentPhi = phiInput ? parseFloat(phiInput.value) : 90;
+
+    // Obtém a escala do select
     let currentScale = 'dB';
-    if (scaleRadios) {
-        for (const radio of scaleRadios) { if (radio.checked) { currentScale = radio.value; break; } }
+    if (scaleSelect) {
+        currentScale = scaleSelect.value;
     }
 
     // Armazena os parâmetros da última solicitação de plot
@@ -622,10 +748,10 @@ async function processLatestPlotRequestIfIdle() {
             return;
         }
         
-        // Se o plot atual for 3D, esconde-o antes de mostrar o 2D
-        if (plotDivCurrent && plotDivCurrent.data && plotDivCurrent.data.length > 0 && plotDivCurrent.data[0].type === 'surface') {
-            console.log("Transição de 3D para 2D detectada. Escondendo plot 3D.");
-            plotDivCurrent.classList.remove('visible'); // Esconde antes de carregar/calcular novos dados
+        // Se o plot atual for 3D ou Heatmap, esconde-o antes de mostrar o 2D
+        if (plotDivCurrent && plotDivCurrent.data && plotDivCurrent.data.length > 0 && (plotDivCurrent.data[0].type === 'surface' || plotDivCurrent.data[0].type === 'contour')) {
+            console.log("Transição de 3D/Heatmap para 2D detectada. Escondendo plot.");
+            plotDivCurrent.classList.remove('visible');
         }
         
         // Busca e parseia os dados do elemento para o Phi selecionado
@@ -670,61 +796,86 @@ async function processLatestPlotRequestIfIdle() {
     }
 }
 
-async function process3DPlotRequest() {
+// Renomeado para processFullDataPlotRequest para refletir que serve para Heatmap e 3D
+async function processFullDataPlotRequest() {
     // Se já estiver processando um plot ou carregando dados 3D, informa o usuário e retorna
     if (isProcessingPlot || fullEFieldDataLoadingState === 'loading') {
         if (statusDiv && fullEFieldDataLoadingState === 'loading') {
-            statusDiv.textContent = "Carregamento dos dados E-field 3D (IPFS) em andamento, aguarde...";
+            statusDiv.textContent = "Carregamento dos dados E-field Completos (IPFS) em andamento, aguarde...";
         } else if (statusDiv && !statusDiv.textContent.startsWith("Falha")) {
             statusDiv.textContent = "Processamento de outro gráfico em andamento. Aguarde...";
-        }
-        if (visualize3DBtn && fullEFieldDataLoadingState !== 'loading') {
-            visualize3DBtn.disabled = false; // Reabilita o botão se não estiver carregando
         }
         return;
     }
     isProcessingPlot = true; // Define a flag de processamento
-    if (statusDiv && !statusDiv.textContent.startsWith("Falha")) statusDiv.textContent = 'Preparando para gerar padrão de feixe 3D...';
-    if (visualize3DBtn) visualize3DBtn.disabled = true; // Desabilita o botão durante o processamento
+    if (statusDiv && !statusDiv.textContent.startsWith("Falha")) statusDiv.textContent = 'Preparando dados completos (Heatmap/3D)...';
 
-    const plotDiv = document.getElementById(plotDivId);
-    if (plotDiv) { // Esconde o plot atual antes de gerar o novo
-        plotDiv.classList.remove('visible');
-    }
+    // Desabilita botões durante processamento
+    if (visualize3DBtn) visualize3DBtn.disabled = true;
+    if (visualizeHeatmapBtn) visualizeHeatmapBtn.disabled = true;
 
     // Obtém a escala selecionada
-    let selectedScale3D = 'dB';
-    if (scaleRadios) {
-        for (const radio of scaleRadios) { if (radio.checked) { selectedScale3D = radio.value; break; } }
+    let selectedScale = 'dB';
+    if (scaleSelect) {
+        selectedScale = scaleSelect.value;
     }
-    stored3DScaleType = selectedScale3D; // Armazena para uso no callback do worker
+    storedFullDataScaleType = selectedScale; // Armazena para uso no callback do worker
 
     try {
         const antennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
         if (!antennaCoords || antennaCoords.length === 0) {
             if (statusDiv) statusDiv.textContent = 'Layout de antenas vazio. Gere um layout primeiro.';
+            const plotDiv = document.getElementById(plotDivId);
             if (plotDiv) { Plotly.purge(plotDiv); } // Limpa o plot se não houver antenas
+            finalizePlotProcessing(true, '3D'); // Usa '3D' como genérico para plot completo
+            return;
+        }
+
+        // Verifica o cache do resultado do cálculo
+        const currentLayoutHash = getLayoutHash(antennaCoords);
+        if (cachedCalculationResult3D && cachedCalculationParams3D && cachedCalculationParams3D.layoutHash === currentLayoutHash) {
+             console.log("Usando resultado de cálculo 3D em cache (cliente). Re-plotando apenas.");
+             if (statusDiv) statusDiv.textContent = `Atualizando visualização (${selectedScale})...`;
+
+             // Usa os dados cacheados para plotar diretamente
+             const { uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized } = cachedCalculationResult3D;
+
+             if (visualizeHeatmapBtn && visualizeHeatmapBtn.classList.contains('primary')) {
+                plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, selectedScale);
+            } else {
+                plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, selectedScale);
+            }
+
             finalizePlotProcessing(true, '3D');
             return;
         }
 
-        // Garante que os dados 3D completos estejam carregados
-        const allEFieldDataFor3D = await ensureFullEFieldData3DLoaded();
-        if (!allEFieldDataFor3D || allEFieldDataFor3D.length === 0) {
-            throw new Error("Dados E-field 3D (IPFS) não disponíveis após tentativa de carregamento.");
+        // Se não houver cache válido, prossegue com o carregamento e cálculo
+        const plotDiv = document.getElementById(plotDivId);
+        if (plotDiv) { // Esconde o plot atual antes de gerar o novo (apenas se for recalcular)
+            plotDiv.classList.remove('visible');
         }
 
-        current3DCalculationId++; // Incrementa o ID do cálculo 3D
+        // Garante que os dados 3D completos estejam carregados
+        const allEFieldData = await ensureFullEFieldData3DLoaded();
+        if (!allEFieldData || allEFieldData.length === 0) {
+            throw new Error("Dados E-field Completos (IPFS) não disponíveis após tentativa de carregamento.");
+        }
+
+        current3DCalculationId++; // Incrementa o ID do cálculo 3D (usado para Heatmap também)
 
         if (beamCalculationWorker3D) {
-            if (statusDiv && !statusDiv.textContent.startsWith("Falha")) statusDiv.textContent = 'Calculando padrão 3D... 0%';
+            if (statusDiv && !statusDiv.textContent.startsWith("Falha")) statusDiv.textContent = 'Calculando padrão completo... 0%';
             // Envia dados para o Web Worker 3D
             beamCalculationWorker3D.postMessage({
                 id: current3DCalculationId,
                 antennaCoords: antennaCoords,
-                elementFieldData3D: allEFieldDataFor3D, // Dados completos do E-field
+                elementFieldData3D: allEFieldData, // Dados completos do E-field
                 K_CONST: K
             });
+            // O cache será atualizado no onmessage quando o resultado chegar
+            cachedCalculationParams3D = { layoutHash: currentLayoutHash };
+
         } else {
             console.error("Web Worker 3D não disponível.");
             if (statusDiv) statusDiv.textContent = "Erro: Web Worker 3D não suportado ou falhou ao inicializar.";
@@ -732,10 +883,11 @@ async function process3DPlotRequest() {
         }
 
     } catch (error) {
-        console.error("Erro ao processar solicitação do padrão de feixe 3D:", error);
+        console.error("Erro ao processar solicitação de dados completos:", error);
         if (statusDiv && !statusDiv.textContent.startsWith("Falha")) {
-            statusDiv.textContent = `Erro 3D: ${error.message.substring(0, 150)}`;
+            statusDiv.textContent = `Erro no processamento: ${error.message.substring(0, 150)}`;
         }
+        const plotDiv = document.getElementById(plotDivId);
         if (plotDiv) { Plotly.purge(plotDiv); } // Limpa o plot em caso de erro
         finalizePlotProcessing(false, '3D');
     }
@@ -746,8 +898,9 @@ async function process3DPlotRequest() {
 
 function finalizePlotProcessing(processedSuccessfully, plotType = '2D') {
     isProcessingPlot = false; // Reseta a flag de processamento
-    if (plotType === '3D' && visualize3DBtn) {
-        visualize3DBtn.disabled = false; // Reabilita o botão 3D
+    if (plotType === '3D') { // Reabilita botões 3D/Heatmap
+        if(visualize3DBtn) visualize3DBtn.disabled = false;
+        if(visualizeHeatmapBtn) visualizeHeatmapBtn.disabled = false;
     }
 
     if (plotType === '2D') {
@@ -763,29 +916,16 @@ function finalizePlotProcessing(processedSuccessfully, plotType = '2D') {
             clearTimeout(processRequestTimeoutId);
             processRequestTimeoutId = setTimeout(processLatestPlotRequestIfIdle, PLOT_REQUEST_DEBOUNCE_DELAY);
         } else {
-            // Se não houver mais solicitações, atualiza o status para "Pronto" ou similar
-            const currentStatus = statusDiv ? statusDiv.textContent : "";
-            // Evita sobrescrever mensagens de erro ou status específicos
-            if (statusDiv &&
-                !currentStatus.includes("Padrão de feixe 2D para Phi") && // Evita se já mostrou o resultado
-                !currentStatus.includes("Visualização 3D") && // Evita se estiver mostrando 3D
-                !currentStatus.includes("Worker") && // Evita se estiver mostrando progresso do worker
-                !currentStatus.includes("Erro") && // Evita sobrescrever erros
-                !currentStatus.includes("Falha") && // Evita sobrescrever falhas
-                !currentStatus.includes("Carregando dados") &&
-                !currentStatus.includes("Aguardando interação...") &&
-                !currentStatus.includes("Layout de antenas vazio") &&
-                !currentStatus.includes("Aguardando geração do layout")) {
-                 // Não definir para "Pronto" aqui, pode confundir. Deixar o status do último plot ou ação.
-            }
+             // Lógica de status idle
         }
-    } else { // plotType === '3D'
+    } else { // plotType === '3D' (Full Data)
         const currentStatus = statusDiv ? statusDiv.textContent : "";
         if (!processedSuccessfully && statusDiv &&
             !currentStatus.startsWith("Erro") &&
             !currentStatus.startsWith("Falha") &&
-            (!currentStatus.startsWith("Visualização 3D") || !currentStatus.endsWith("pronta. Interaja com controles."))) {
-            statusDiv.textContent = "Falha ao gerar plot 3D. Verifique o console e tente novamente.";
+            !currentStatus.includes("pronta") &&
+            !currentStatus.includes("atualizado")) {
+            statusDiv.textContent = "Falha ao gerar plot. Verifique o console e tente novamente.";
         }
     }
 }
@@ -803,8 +943,9 @@ function setupWorkers() {
                 }
                 let plotSuccessful = false;
                 if (type === 'progress') { // Mensagem de progresso do worker
-                    if (statusDiv && data && (!visualize3DBtn || !visualize3DBtn.disabled) && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Falha")) {
-                         statusDiv.textContent = data; // Atualiza status com progresso
+                    // Apenas mostra progresso se 2D estiver ativo
+                    if (statusDiv && data && visualize2DBtn && visualize2DBtn.classList.contains('primary') && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Falha")) {
+                         statusDiv.textContent = data;
                     }
                     return;
                 }
@@ -813,7 +954,6 @@ function setupWorkers() {
                     const { phi: plotPhi, scale: plotScale } = storedWorkerPlotParams;
                     // Downsample dos dados se houver muitos pontos
                     if (thetaValues.length > MAX_PLOT_POINTS_BEAM) {
-                        if (statusDiv && !statusDiv.textContent.startsWith("Erro") && !statusDiv.textContent.startsWith("Falha")) statusDiv.textContent = `Amostrando ${thetaValues.length} pontos (2D) para ${MAX_PLOT_POINTS_BEAM}...`;
                         const downsampled = downsampleData(thetaValues, resultingMagnitude, MAX_PLOT_POINTS_BEAM);
                         thetaValues = downsampled.x; resultingMagnitude = downsampled.y;
                     }
@@ -865,7 +1005,17 @@ function setupWorkers() {
                 }
                 if (type === 'result3D') { // Resultado do cálculo 3D
                     const { uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized } = data;
-                    plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, stored3DScaleType);
+
+                    // Armazena no cache para uso futuro (troca de views/escalas sem recálculo)
+                    cachedCalculationResult3D = data;
+
+                    // Decide qual plot renderizar com base no botão ativo
+                    if (visualizeHeatmapBtn && visualizeHeatmapBtn.classList.contains('primary')) {
+                        plotBeamHeatmap(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
+                    } else {
+                        // Default fallback to 3D if no specific button (or if 3D is active)
+                        plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
+                    }
                     plotSuccessful = true;
                 } else if (type === 'error') {
                     console.error("Erro do Web Worker 3D:", error);
@@ -911,121 +1061,120 @@ function initBeamPatternControls() {
     // Obtém referências aos elementos DOM
     phiSlider = document.getElementById('beam-phi-slider');
     phiInput = document.getElementById('beam-phi-input');
-    scaleRadios = document.querySelectorAll('input[name="beamScale"]');
+    scaleSelect = document.getElementById('beam-scale-select');
     visualize3DBtn = document.getElementById('visualize-3d-btn');
     visualize2DBtn = document.getElementById('visualize-2d-btn');
+    visualizeHeatmapBtn = document.getElementById('visualize-heatmap-btn');
     statusDiv = document.getElementById('beam-status');
 
     // Verifica se todos os elementos foram encontrados
-    if (!phiSlider || !phiInput || !scaleRadios || scaleRadios.length === 0 || !statusDiv || !visualize3DBtn || !visualize2DBtn) {
+    if (!phiSlider || !phiInput || !scaleSelect || !statusDiv || !visualize3DBtn || !visualize2DBtn || !visualizeHeatmapBtn) {
         console.error("Falha na inicialização dos controles do padrão de feixe: Um ou mais elementos DOM não foram encontrados.");
         if(statusDiv) statusDiv.textContent = "Erro crítico: Controles do gráfico ausentes no DOM.";
-        if(visualize2DBtn) visualize2DBtn.disabled = true;
-        if(visualize3DBtn) visualize3DBtn.disabled = true;
+        // Desabilita botões se possível
+        [visualize2DBtn, visualize3DBtn, visualizeHeatmapBtn].forEach(btn => { if(btn) btn.disabled = true; });
         return;
     }
 
     setupWorkers(); // Inicializa os Web Workers
 
     // Função para acionar a atualização do plot 2D
-    const trigger2DPlotUpdate = () => {
-        schedulePlotUpdate(); // Agenda a atualização (com debounce)
-        // Atualiza a aparência dos botões 2D/3D para indicar o modo ativo
-        visualize2DBtn.classList.add('primary');
-        visualize2DBtn.classList.remove('secondary');
-        visualize3DBtn.classList.add('secondary');
-        visualize3DBtn.classList.remove('primary');
+    const activate2DMode = () => {
+        // Atualiza classes dos botões
+        visualize2DBtn.classList.add('primary'); visualize2DBtn.classList.remove('secondary');
+        visualize3DBtn.classList.add('secondary'); visualize3DBtn.classList.remove('primary');
+        visualizeHeatmapBtn.classList.add('secondary'); visualizeHeatmapBtn.classList.remove('primary');
+        schedulePlotUpdate(); // Agenda 2D
+    };
+
+    const activate3DMode = () => {
+        visualize3DBtn.classList.add('primary'); visualize3DBtn.classList.remove('secondary');
+        visualize2DBtn.classList.add('secondary'); visualize2DBtn.classList.remove('primary');
+        visualizeHeatmapBtn.classList.add('secondary'); visualizeHeatmapBtn.classList.remove('primary');
+        processFullDataPlotRequest(); // Solicita 3D
+    };
+
+    const activateHeatmapMode = () => {
+        visualizeHeatmapBtn.classList.add('primary'); visualizeHeatmapBtn.classList.remove('secondary');
+        visualize3DBtn.classList.add('secondary'); visualize3DBtn.classList.remove('primary');
+        visualize2DBtn.classList.add('secondary'); visualize2DBtn.classList.remove('primary');
+        processFullDataPlotRequest(); // Solicita Full Data (Heatmap)
     };
 
     // Event listeners para os controles de Phi (slider e input numérico)
     phiSlider.addEventListener('input', () => {
-        phiInput.value = phiSlider.value; // Sincroniza input com slider
-        trigger2DPlotUpdate();
+        phiInput.value = phiSlider.value;
+        if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
     });
     phiInput.addEventListener('input', () => {
         let value = parseFloat(phiInput.value);
-        // Valida o valor e, se válido, atualiza o slider
         if (!isNaN(value)) {
             const min = parseFloat(phiSlider.min); const max = parseFloat(phiSlider.max);
             if (value >= min && value <= max) {
                 phiSlider.value = value;
             }
         }
-        trigger2DPlotUpdate();
+        if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
     });
-    phiInput.addEventListener('change', () => { // Ao perder o foco ou Enter
+    phiInput.addEventListener('change', () => {
         let value = parseFloat(phiInput.value);
         const min = parseFloat(phiSlider.min); const max = parseFloat(phiSlider.max);
-        // Garante que o valor esteja dentro dos limites min/max
         if (isNaN(value) || value < min) { value = min; }
         if (value > max) { value = max; }
-        phiInput.value = value; // Corrige o valor no input
-        phiSlider.value = value; // Sincroniza o slider
-        trigger2DPlotUpdate();
+        phiInput.value = value;
+        phiSlider.value = value;
+        if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
     });
 
-    // Event listener para o botão de visualização 2D
-    visualize2DBtn.addEventListener('click', () => {
-        trigger2DPlotUpdate();
-    });
+    // Event Listeners para botões de modo
+    visualize2DBtn.addEventListener('click', activate2DMode);
+    visualize3DBtn.addEventListener('click', activate3DMode);
+    visualizeHeatmapBtn.addEventListener('click', activateHeatmapMode);
 
-    // Event listener para o botão de visualização 3D
-    visualize3DBtn.addEventListener('click', () => {
-        process3DPlotRequest(); // Inicia o processamento do plot 3D
-        // Atualiza a aparência dos botões
-        visualize3DBtn.classList.add('primary');
-        visualize3DBtn.classList.remove('secondary');
-        visualize2DBtn.classList.add('secondary');
-        visualize2DBtn.classList.remove('primary');
-    });
-
-    // Event listeners para os seletores de escala (dB/Linear)
-    scaleRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-            if (radio.checked) {
-                const plotDivCurrent = document.getElementById(plotDivId);
-                const isPlotDisplayed = plotDivCurrent && plotDivCurrent.data && plotDivCurrent.data.length > 0;
-                const is3DPlotCurrentlyDisplayed = isPlotDisplayed && plotDivCurrent.data[0].type === 'surface';
-                // Redesenha o plot atual (2D ou 3D) com a nova escala
-                if (is3DPlotCurrentlyDisplayed) {
-                    process3DPlotRequest();
-                } else {
-                    trigger2DPlotUpdate();
-                }
-            }
-        });
-    });
-
-    // Listener para o evento 'layoutGenerated' (disparado pelo generator.js)
-    window.addEventListener('layoutGenerated', () => {
-        // Aciona o plot 2D se o botão 2D estiver ativo
-        if(visualize2DBtn && visualize2DBtn.classList.contains('primary')) {
-            trigger2DPlotUpdate(); 
+    // Event listener para o Dropdown de Escala
+    scaleSelect.addEventListener('change', () => {
+        if (visualize2DBtn.classList.contains('primary')) {
+            schedulePlotUpdate();
+        } else {
+            // Se estiver em modo 3D ou Heatmap, redesenha
+            processFullDataPlotRequest();
         }
     });
 
-    // Listener para o evento 'themeChanged' (disparado pelo main.js)
+    // Listener para o evento 'layoutGenerated'
+    window.addEventListener('layoutGenerated', () => {
+        // Se estiver em modo 2D, atualiza.
+        if(visualize2DBtn.classList.contains('primary')) {
+            schedulePlotUpdate();
+        } else {
+            // Se estiver em Heatmap ou 3D, também atualiza pois os dados mudaram
+            processFullDataPlotRequest();
+        }
+    });
+
+    // Listener para 'themeChanged'
     window.addEventListener('themeChanged', () => {
         const hasAntennas = window.antennaGenerator?.getAllAntennas().length > 0;
         const plotDivCurrent = document.getElementById(plotDivId);
         const isPlotDisplayed = plotDivCurrent && plotDivCurrent.data && plotDivCurrent.data.length > 0;
-        const is3DPlotDisplayed = isPlotDisplayed && plotDivCurrent.data[0].type === 'surface';
-        // Redesenha o plot atual com as cores do novo tema
-        if (is3DPlotDisplayed) { // Se for 3D
-            if (hasAntennas) { process3DPlotRequest(); } // Redesenha se houver antenas
-            else { if (isPlotDisplayed) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible');} } // Limpa se não houver
-        } else if (isPlotDisplayed && hasAntennas) { // Se for 2D e houver antenas
-            schedulePlotUpdate(); // Redesenha
-        } else { // Se não houver plot ou antenas
-            if (isPlotDisplayed) { Plotly.purge(plotDivCurrent); plotDivCurrent.classList.remove('visible');} // Limpa
+
+        if (!hasAntennas && isPlotDisplayed) {
+            Plotly.purge(plotDivCurrent);
+            plotDivCurrent.classList.remove('visible');
+            return;
+        }
+
+        if (visualize2DBtn.classList.contains('primary')) {
+            schedulePlotUpdate();
+        } else {
+             processFullDataPlotRequest();
         }
     });
 
-    // Define o estado inicial dos botões 2D/3D (2D como padrão)
-    visualize2DBtn.classList.add('primary');
-    visualize2DBtn.classList.remove('secondary');
-    visualize3DBtn.classList.add('secondary');
-    visualize3DBtn.classList.remove('primary');
+    // Define o estado inicial: Heatmap como padrão
+    visualizeHeatmapBtn.classList.add('primary'); visualizeHeatmapBtn.classList.remove('secondary');
+    visualize3DBtn.classList.add('secondary'); visualize3DBtn.classList.remove('primary');
+    visualize2DBtn.classList.add('secondary'); visualize2DBtn.classList.remove('primary');
 
     console.log("Controles do padrão de feixe inicializados.");
     if (statusDiv) statusDiv.textContent = 'Aguardando geração do layout inicial...';
