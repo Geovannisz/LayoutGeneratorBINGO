@@ -87,7 +87,7 @@ function delay(ms) {
 
 function getLayoutHash(antennaCoords) {
     if (!antennaCoords) return "";
-    return JSON.stringify(antennaCoords.map(a => [Math.round(a.x*100), Math.round(a.y*100)]));
+    return JSON.stringify(antennaCoords.map(a => [Math.round(a[0]*100), Math.round(a[1]*100)]));
 }
 
 async function fetchDataFromIPFS(cidWithPath, options = {}) {
