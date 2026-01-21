@@ -64,26 +64,26 @@ function findPhiIndex(phis, phiTarget) {
     // Since phis is sorted, we can use binary search to find the lower bound index
     if (phiTarget >= phis[0] && phiTarget <= phis[phis.length-1]) {
         let idx = binarySearch(phis, phiTarget);
-        if (idx !== -1 && idx < phis.length - 1) return idx;
-        // If exact match at last element, return previous to interpolate
-        if (idx === phis.length - 1) return idx - 1;
+        if (idx !== -1) return idx;
     }
 
     // 2. Try wrapped versions
     const pMinus = phiTarget - 360;
     if (pMinus >= phis[0] && pMinus <= phis[phis.length-1]) {
         let idx = binarySearch(phis, pMinus);
-        if (idx !== -1 && idx < phis.length - 1) return idx;
-        if (idx === phis.length - 1) return idx - 1;
+        if (idx !== -1) return idx;
     }
 
     const pPlus = phiTarget + 360;
     if (pPlus >= phis[0] && pPlus <= phis[phis.length-1]) {
         let idx = binarySearch(phis, pPlus);
-        if (idx !== -1 && idx < phis.length - 1) return idx;
-        if (idx === phis.length - 1) return idx - 1;
+        if (idx !== -1) return idx;
     }
 
+    // Handle wrap-around gap (e.g., between 350 and 0/360)
+    // If the data is e.g., 0..350, and we ask for 355, standard binary search
+    // might point to 350 (last element). We need to verify if we should interpolate
+    // between last and first.
     return -1;
 }
 
@@ -100,53 +100,133 @@ function interpolateValue(grid, thetas, phis, r, phi) {
         tIdx = thetas.length - 2;
     }
 
-    // Sanity check for r range (optional, but good)
     if (r > thetas[thetas.length-1]) return 0;
 
 
     // Phi Index (Robust)
     let pIdx = findPhiIndex(phis, phi);
 
-    // Fallback if not found
-    if (pIdx === -1) {
-        const minPhi = phis[0];
-        const maxPhi = phis[phis.length-1];
+    // Logic for Wrap-Around Interpolation
+    let p0, p1;
+    let v;
 
-        if (phi < minPhi) pIdx = 0;
-        else if (phi > maxPhi) pIdx = phis.length - 2;
-        else pIdx = 0;
+    if (pIdx === -1) {
+        // Not found in any standard range. Check if we are in the "gap"
+        // between the last phi and the first phi (wrapped).
+        // e.g. phis=[0, ..., 350], phi=355.
+        // We assume symmetry/continuity around 360 degrees.
+
+        // Find the "last" index in the array
+        pIdx = phis.length - 1;
+        p0 = phis[pIdx];
+
+        // The "next" theoretical point is the first point + 360
+        let pNextVal = phis[0] + 360;
+
+        // Check if phi is between p0 and pNextVal
+        // We normalize phi to be positive 0..360 first in the caller loop.
+        // But let's check both phi and phi+360 just in case.
+        let effPhi = phi;
+        if (effPhi < p0) effPhi += 360; // Should move it up if it was e.g. -10 and range is 0..350
+
+        if (effPhi >= p0 && effPhi <= pNextVal) {
+             p1 = phis[0]; // The grid value index is 0
+             // But for interpolation math we use pNextVal
+             const dp = pNextVal - p0;
+             v = (effPhi - p0) / (dp || 1);
+        } else {
+            // Fallback: Clamp to nearest valid
+            // If we are here, we are lost. Return nearest.
+             return grid[tIdx][0]; // Dummy fallback
+        }
+    } else {
+        // Standard Case
+        // If pIdx is the last element, we might still be in the wrap gap if exact match didn't happen
+        if (pIdx >= phis.length - 1) {
+             // We are at the last element. We need to interpolate towards the first element (wrapped)
+             p0 = phis[phis.length - 1];
+             let pNextVal = phis[0] + 360;
+             p1 = phis[0]; // Grid index
+
+             // Check if we are indeed in this upper interval
+             let effPhi = phi;
+             if (effPhi < p0) effPhi += 360;
+
+             // The binary search returns the index LEQ target.
+             // If target is 355 and phis ends at 350, idx is last.
+             // So we are interpolating between last and (first+360).
+
+             const dp = pNextVal - p0;
+             v = (effPhi - p0) / (dp || 1);
+        } else {
+            // Normal interpolation between pIdx and pIdx+1
+             p0 = phis[pIdx];
+             p1 = phis[pIdx+1]; // Grid value index is pIdx+1
+             let gridP1Index = pIdx + 1;
+
+             // Determine effective phi
+             let effPhi = phi;
+
+             // Adjust effPhi to be close to p0 (handle simple wrapping offsets)
+             // e.g. p0=350, p1=360 (if exists). phi=355.
+             // e.g. p0=-10, p1=0. phi=-5.
+             // If we found pIdx via a wrapped search (e.g. pMinus), we need to shift effPhi?
+             // Actually findPhiIndex just returns the index in the array.
+             // We need to verify which "version" of phi matched.
+
+             // Heuristic: Make effPhi close to p0
+             if (effPhi < p0 - 180) effPhi += 360;
+             else if (effPhi > p0 + 180) effPhi -= 360;
+
+             // If still out of bounds of [p0, next_val], something is odd, likely the wrap logic above
+             // But assuming strict ordering in phis:
+             let pNextVal = phis[pIdx+1];
+
+             // If we are interpolating across the -180/180 cut in a -180..180 dataset:
+             // e.g. phis=[-180, ...], p0=-180.
+             // If we needed to wrap 180 to -180, that's the "gap" logic handled in the `if (pIdx >= length-1)` block?
+             // No, standard `binarySearch` handles finding the lower bound.
+
+             // Let's stick to the simplest math:
+             const dp = pNextVal - p0;
+             v = (effPhi - p0) / (dp || 1);
+
+             // If v is outside 0..1, it means our assumption about "effPhi" being inside is wrong.
+             // This happens if phi was found via "pPlus" or "pMinus".
+             // We should normalize v to [0,1].
+             if (v < 0) v = 0;
+             if (v > 1) v = 1;
+
+             // Assign the grid index for the second point
+             p1 = phis[gridP1Index]; // Used for value lookup? No, we need the INDEX.
+             // Reassign p1 to be the INDEX for lookup later, not the value.
+             // Actually, let's restructure variables.
+        }
     }
 
-    const t0 = thetas[tIdx];
-    const t1 = thetas[tIdx+1];
+    // Now we have tIdx, and we need pIdx_0 and pIdx_1, and interpolation factors u, v.
 
-    // Determine effective phi for interpolation
-    let effPhi = phi;
-    // Normalize effPhi relative to the found segment pIdx
-    // We expect phis[pIdx] <= effPhi <= phis[pIdx+1] approximately
-    // If we matched a wrapped value, we need to adjust effPhi to match that wrap
+    // T-dimension
+    const t0_val = thetas[tIdx];
+    const t1_val = thetas[tIdx+1];
+    const dt = t1_val - t0_val;
+    const u = (r - t0_val) / (dt || 1);
 
-    const p0 = phis[pIdx];
-    const p1 = phis[pIdx+1];
+    // P-dimension logic refined
+    // We determined v above.
+    // We need the GRID INDICES for the two phi columns.
+    let pIdx0 = pIdx;
+    let pIdx1 = (pIdx + 1);
 
-    // Adjust effPhi to be close to p0
-    if (effPhi < p0 - 180) effPhi += 360;
-    else if (effPhi > p1 + 180) effPhi -= 360;
+    // Wrap pIdx1 if it goes past end
+    if (pIdx1 >= phis.length) {
+        pIdx1 = 0; // Wrap to first element
+    }
 
-    // Clamp for safety
-    if (effPhi < p0) effPhi = p0;
-    if (effPhi > p1) effPhi = p1;
-
-    const dt = t1 - t0;
-    const dp = p1 - p0;
-
-    const u = (r - t0) / (dt || 1);
-    const v = (effPhi - p0) / (dp || 1);
-
-    const v00 = grid[tIdx][pIdx];
-    const v10 = grid[tIdx+1][pIdx];
-    const v01 = grid[tIdx][pIdx+1];
-    const v11 = grid[tIdx+1][pIdx+1];
+    const v00 = grid[tIdx][pIdx0];
+    const v10 = grid[tIdx+1][pIdx0];
+    const v01 = grid[tIdx][pIdx1];
+    const v11 = grid[tIdx+1][pIdx1];
 
     return (1 - u) * (1 - v) * v00 +
            u * (1 - v) * v10 +
