@@ -64,7 +64,7 @@ let layoutUpdateTimeout = null; // Debounce for layout updates
 let phiSlider, phiInput, scaleSelect;
 let visualize3DBtn, visualize2DBtn, visualizeHeatmapBtn;
 let plotDivId = 'beam-pattern-plot'; // Plotly Div
-let heatmapContainer, heatmapCanvas, heatmapTooltip;
+let heatmapContainer, heatmapCanvas, heatmapTooltip, heatmapLegendCanvas;
 let statusDiv = null;
 
 // === EXPORT FOR EXTERNAL MODULES (PSF) ===
@@ -382,6 +382,7 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
     }
 
     toggleViews('heatmap');
+    drawColorbar(scaleType); // Update legend
 
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
@@ -410,9 +411,91 @@ function drawHeatmapToCanvas(pixels, width, height) {
     if (statusDiv) statusDiv.textContent = `Heatmap renderizado (${width}x${height}).`;
 }
 
+// === Colorbar / Legend ===
+// Viridis colormap reference for the legend (simplified)
+// Ideally we share the exact same LUT, but drawing a gradient is easier for legend.
+// Steps from heatmap_worker.js:
+// [68, 1, 84], [72, 35, 116], [64, 67, 135], [52, 94, 141],
+// [41, 120, 142], [32, 144, 140], [34, 167, 132], [68, 190, 112],
+// [121, 209, 81], [189, 222, 38], [253, 231, 36]
+function drawColorbar(scaleType) {
+    if (!heatmapLegendCanvas) return;
+
+    const ctx = heatmapLegendCanvas.getContext('2d');
+    const width = heatmapLegendCanvas.width;
+    const height = heatmapLegendCanvas.height;
+
+    // Clear
+    ctx.clearRect(0, 0, width, height);
+
+    // Create Gradient
+    const grad = ctx.createLinearGradient(0, height, 0, 0); // Bottom to Top
+    grad.addColorStop(0, 'rgb(68, 1, 84)');
+    grad.addColorStop(0.1, 'rgb(72, 35, 116)');
+    grad.addColorStop(0.2, 'rgb(64, 67, 135)');
+    grad.addColorStop(0.3, 'rgb(52, 94, 141)');
+    grad.addColorStop(0.4, 'rgb(41, 120, 142)');
+    grad.addColorStop(0.5, 'rgb(32, 144, 140)');
+    grad.addColorStop(0.6, 'rgb(34, 167, 132)');
+    grad.addColorStop(0.7, 'rgb(68, 190, 112)');
+    grad.addColorStop(0.8, 'rgb(121, 209, 81)');
+    grad.addColorStop(0.9, 'rgb(189, 222, 38)');
+    grad.addColorStop(1, 'rgb(253, 231, 36)');
+
+    // Draw Bar
+    const barWidth = 20;
+    const xPos = width - barWidth - 35; // Space for text
+    ctx.fillStyle = grad;
+    ctx.fillRect(xPos, 10, barWidth, height - 20);
+
+    // Draw Labels
+    ctx.fillStyle = '#333';
+    ctx.font = '10px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+
+    const numTicks = 5;
+    let minVal = 0, maxVal = 1;
+    let unit = '';
+
+    if (scaleType === 'dB') {
+        minVal = -60; maxVal = 0; unit = ' dB';
+    } else {
+        // Normalized 0-1 for others
+        minVal = 0; maxVal = 1;
+    }
+
+    for (let i = 0; i <= numTicks; i++) {
+        const t = i / numTicks;
+        const y = (height - 20) * (1 - t) + 10;
+        let val = minVal + t * (maxVal - minVal);
+        let label = val.toFixed(1);
+        if (scaleType === 'dB') label = Math.round(val);
+
+        ctx.fillText(label + unit, xPos + barWidth + 5, y);
+    }
+}
+
+
 // === Interaction: Tooltip ===
 function setupHeatmapInteraction() {
     if (!heatmapCanvas || !heatmapContainer) return;
+
+    // Create Legend Canvas if not exists
+    if (!document.getElementById('heatmap-legend-canvas')) {
+        heatmapLegendCanvas = document.createElement('canvas');
+        heatmapLegendCanvas.id = 'heatmap-legend-canvas';
+        heatmapLegendCanvas.width = 70;
+        heatmapLegendCanvas.height = 300;
+        heatmapLegendCanvas.style.position = 'absolute';
+        heatmapLegendCanvas.style.right = '10px';
+        heatmapLegendCanvas.style.top = '10px';
+        heatmapLegendCanvas.style.pointerEvents = 'none';
+        heatmapLegendCanvas.style.zIndex = '15';
+        heatmapContainer.appendChild(heatmapLegendCanvas);
+    } else {
+        heatmapLegendCanvas = document.getElementById('heatmap-legend-canvas');
+    }
 
     heatmapCanvas.addEventListener('mousemove', (e) => {
         if (!cachedCalculationResult3D) return;
@@ -539,9 +622,13 @@ function refreshVisualization() {
         // 3D Mode
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     } else {
-         // Default Fallback (auto-refresh context)
-         // If no specific 3D/Heatmap button is active, default to 3D now
-         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
+         // Default Fallback: Force Heatmap as per user request (reverted from 3D)
+         triggerHeatmapGeneration(
+            uniquePhis_deg,
+            uniqueThetas_deg,
+            magnitudes_grid_linear_normalized,
+            storedFullDataScaleType
+        );
     }
 }
 
@@ -675,20 +762,15 @@ function initBeamPatternControls() {
     window.addEventListener('layoutGenerated', () => {
         clearTimeout(layoutUpdateTimeout);
         layoutUpdateTimeout = setTimeout(() => {
-            // User requested switch to 3D on parameters change to avoid heatmap delay
-            if (visualizeHeatmapBtn.classList.contains('primary')) {
-                 console.log("Auto-switching to 3D view for performance preference.");
-                 setMode('3d');
-            } else {
-                 if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
-                 else processFullDataPlotRequest();
-            }
+            // Reverted auto-switch to 3D. Now just triggers update.
+            if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
+            else processFullDataPlotRequest();
         }, 200);
     });
 
     console.log("Controles do padrão de feixe inicializados.");
-    // Initial State - 3D as default per user request
-    setMode('3d');
+    // Initial State - Heatmap (reverted)
+    setMode('heatmap');
 }
 
 document.addEventListener('DOMContentLoaded', initBeamPatternControls);
