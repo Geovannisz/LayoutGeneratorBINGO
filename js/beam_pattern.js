@@ -45,6 +45,7 @@ let heatmapWorker = null;          // New Native Heatmap Worker
 
 let currentCalculationId = 0;
 let current3DCalculationId = 0;
+let currentHeatmapRenderId = 0;    // ID for heatmap requests
 
 let storedWorkerPlotParams = {};
 let storedFullDataScaleType = 'sqrt'; // default
@@ -57,6 +58,7 @@ let cachedCalculationParams3D = null;
 let latestPlotRequestParams = null;
 let currentlyProcessingRequestTimestamp = null;
 let processRequestTimeoutId = null;
+let layoutUpdateTimeout = null; // Debounce for layout updates
 
 // === DOM Element References ===
 let phiSlider, phiInput, scaleSelect;
@@ -383,13 +385,15 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
 
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
+    currentHeatmapRenderId++;
     heatmapWorker.postMessage({
         width: HEATMAP_RESOLUTION,
         height: HEATMAP_RESOLUTION,
         scaleType: scaleType,
         magnitudesLinear: mags_linear,
         uniqueThetas: uniqueThetas,
-        uniquePhis: uniquePhis
+        uniquePhis: uniquePhis,
+        renderId: currentHeatmapRenderId
     });
 }
 
@@ -498,6 +502,12 @@ function setupWorkers() {
         // Heatmap Worker
         heatmapWorker = new Worker('js/heatmap_worker.js');
         heatmapWorker.onmessage = (e) => {
+             // Check if this result matches the latest request
+            if (e.data.renderId && e.data.renderId !== currentHeatmapRenderId) {
+                console.warn("Ignorando resultado de heatmap obsoleto (RenderID mismatch).");
+                return;
+            }
+
             if (e.data.pixels) {
                 drawHeatmapToCanvas(e.data.pixels, e.data.width, e.data.height);
             } else if (e.data.error) {
@@ -530,13 +540,8 @@ function refreshVisualization() {
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     } else {
          // Default Fallback (auto-refresh context)
-         // If no specific 3D/Heatmap button is active (shouldn't happen), force Heatmap
-         triggerHeatmapGeneration(
-            uniquePhis_deg,
-            uniqueThetas_deg,
-            magnitudes_grid_linear_normalized,
-            storedFullDataScaleType
-        );
+         // If no specific 3D/Heatmap button is active, default to 3D now
+         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     }
 }
 
@@ -668,13 +673,22 @@ function initBeamPatternControls() {
     };
 
     window.addEventListener('layoutGenerated', () => {
-        if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
-        else processFullDataPlotRequest();
+        clearTimeout(layoutUpdateTimeout);
+        layoutUpdateTimeout = setTimeout(() => {
+            // User requested switch to 3D on parameters change to avoid heatmap delay
+            if (visualizeHeatmapBtn.classList.contains('primary')) {
+                 console.log("Auto-switching to 3D view for performance preference.");
+                 setMode('3d');
+            } else {
+                 if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
+                 else processFullDataPlotRequest();
+            }
+        }, 200);
     });
 
     console.log("Controles do padrão de feixe inicializados.");
-    // Initial State
-    setMode('heatmap');
+    // Initial State - 3D as default per user request
+    setMode('3d');
 }
 
 document.addEventListener('DOMContentLoaded', initBeamPatternControls);

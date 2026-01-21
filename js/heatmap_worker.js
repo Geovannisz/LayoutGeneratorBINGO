@@ -40,22 +40,48 @@ function generateColormapLUT() {
     }
 }
 
+// Binary Search for sorted arrays
+function binarySearch(arr, target) {
+    let left = 0;
+    let right = arr.length - 1;
+    let idx = -1;
+
+    while (left <= right) {
+        const mid = (left + right) >>> 1;
+        if (arr[mid] <= target) {
+            idx = mid;
+            left = mid + 1;
+        } else {
+            right = mid - 1;
+        }
+    }
+    return idx;
+}
+
 // Robust Phi Search to handle [0, 360], [-180, 180] or any wrapping
 function findPhiIndex(phis, phiTarget) {
-    // Try direct match
-    for (let i = 0; i < phis.length - 1; i++) {
-        if (phiTarget >= phis[i] && phiTarget <= phis[i+1]) return i;
+    // 1. Try direct match in range
+    // Since phis is sorted, we can use binary search to find the lower bound index
+    if (phiTarget >= phis[0] && phiTarget <= phis[phis.length-1]) {
+        let idx = binarySearch(phis, phiTarget);
+        if (idx !== -1 && idx < phis.length - 1) return idx;
+        // If exact match at last element, return previous to interpolate
+        if (idx === phis.length - 1) return idx - 1;
     }
 
-    // Try wrapped versions (phi - 360, phi + 360)
+    // 2. Try wrapped versions
     const pMinus = phiTarget - 360;
-    for (let i = 0; i < phis.length - 1; i++) {
-        if (pMinus >= phis[i] && pMinus <= phis[i+1]) return i;
+    if (pMinus >= phis[0] && pMinus <= phis[phis.length-1]) {
+        let idx = binarySearch(phis, pMinus);
+        if (idx !== -1 && idx < phis.length - 1) return idx;
+        if (idx === phis.length - 1) return idx - 1;
     }
 
     const pPlus = phiTarget + 360;
-    for (let i = 0; i < phis.length - 1; i++) {
-        if (pPlus >= phis[i] && pPlus <= phis[i+1]) return i;
+    if (pPlus >= phis[0] && pPlus <= phis[phis.length-1]) {
+        let idx = binarySearch(phis, pPlus);
+        if (idx !== -1 && idx < phis.length - 1) return idx;
+        if (idx === phis.length - 1) return idx - 1;
     }
 
     return -1;
@@ -63,36 +89,26 @@ function findPhiIndex(phis, phiTarget) {
 
 
 function interpolateValue(grid, thetas, phis, r, phi) {
-    // Theta Index
-    let tIdx = -1;
-    for (let i = 0; i < thetas.length - 1; i++) {
-        if (r >= thetas[i] && r <= thetas[i+1]) {
-            tIdx = i;
-            break;
-        }
-    }
+    // Theta Index (Binary Search)
+    let tIdx = binarySearch(thetas, r);
+
+    // Boundary checks
     if (tIdx === -1) {
         if (r <= thetas[0]) tIdx = 0;
-        else if (r >= thetas[thetas.length-1]) tIdx = thetas.length - 2;
-        else return 0;
+        else return 0; // Should not happen if r is within maxTheta
+    } else if (tIdx >= thetas.length - 1) {
+        tIdx = thetas.length - 2;
     }
+
+    // Sanity check for r range (optional, but good)
+    if (r > thetas[thetas.length-1]) return 0;
+
 
     // Phi Index (Robust)
     let pIdx = findPhiIndex(phis, phi);
 
-    // Fallback/Clamp if still not found (e.g. slight precision errors at boundaries)
-    // Note: If data is -180..180 and we ask for 180.0001, findPhiIndex might fail.
+    // Fallback if not found
     if (pIdx === -1) {
-        // Simple clamp to nearest valid range for visualization continuity
-        // But we must be careful not to clamp across the cut.
-        // For now, let's clamp to last segment if it looks close, or first.
-        // Heuristic: check distance to first and last.
-        // Actually, for beam patterns, 0 and 360 should ideally meet.
-        // If we fail, just return 0 to avoid artifacts, or clamp to 0 index.
-        // Let's try wrapping via modulo logic for strict 0..360 data sets.
-
-        // As a safe fallback for the "missing top half" issue:
-        // Try normalizing phi to the data's range.
         const minPhi = phis[0];
         const maxPhi = phis[phis.length-1];
 
@@ -104,25 +120,22 @@ function interpolateValue(grid, thetas, phis, r, phi) {
     const t0 = thetas[tIdx];
     const t1 = thetas[tIdx+1];
 
-    // For Phi, we need the actual values at pIdx to interpolate
-    // CAUTION: If we matched using a wrapped version (e.g. pMinus), we must interpolate
-    // relative to that wrapped version range, OR normalize the input phi to that range.
-    // Simplification: We found pIdx such that phis[pIdx] <= matching_phi <= phis[pIdx+1].
-    // We need to know WHICH matching_phi it was.
-
-    // Let's re-determine the effective phi for interpolation
+    // Determine effective phi for interpolation
     let effPhi = phi;
-    if (effPhi < phis[pIdx]) effPhi += 360; // Try shifting up
-    if (effPhi > phis[pIdx+1]) effPhi -= 360; // Try shifting down
-
-    // Double check if effPhi is now in range
-    if (effPhi < phis[pIdx] || effPhi > phis[pIdx+1]) {
-        // If still out of range (maybe it was a clamp fallback), force it to boundary
-        effPhi = (effPhi < phis[pIdx]) ? phis[pIdx] : phis[pIdx+1];
-    }
+    // Normalize effPhi relative to the found segment pIdx
+    // We expect phis[pIdx] <= effPhi <= phis[pIdx+1] approximately
+    // If we matched a wrapped value, we need to adjust effPhi to match that wrap
 
     const p0 = phis[pIdx];
     const p1 = phis[pIdx+1];
+
+    // Adjust effPhi to be close to p0
+    if (effPhi < p0 - 180) effPhi += 360;
+    else if (effPhi > p1 + 180) effPhi -= 360;
+
+    // Clamp for safety
+    if (effPhi < p0) effPhi = p0;
+    if (effPhi > p1) effPhi = p1;
 
     const dt = t1 - t0;
     const dp = p1 - p0;
@@ -142,10 +155,10 @@ function interpolateValue(grid, thetas, phis, r, phi) {
 }
 
 self.onmessage = function(e) {
-    const { width, height, scaleType, magnitudesLinear, uniqueThetas, uniquePhis } = e.data;
+    const { width, height, scaleType, magnitudesLinear, uniqueThetas, uniquePhis, renderId } = e.data;
 
     if (!magnitudesLinear || !uniqueThetas || !uniquePhis) {
-        self.postMessage({ error: "Missing data for heatmap generation" });
+        self.postMessage({ error: "Missing data for heatmap generation", renderId });
         return;
     }
 
@@ -171,14 +184,8 @@ self.onmessage = function(e) {
 
             const theta = (rPx / maxRadiusPx) * maxTheta;
 
-            // Coordinate System:
-            // Standard Math: 0 deg = X+ (Right), 90 deg = Y+ (Up).
-            // Screen: Y is Down. So Y+ (Up) is -dy.
-            // Result: 0=Right, 90=Up, 180=Left, 270=Down.
             let angleRad = Math.atan2(-dy, dx);
             let angleDeg = angleRad * 180 / Math.PI;
-
-            // Normalize to 0..360 for consistent querying
             if (angleDeg < 0) angleDeg += 360;
 
             let val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
@@ -213,5 +220,5 @@ self.onmessage = function(e) {
         }
     }
 
-    self.postMessage({ pixels: pixels, width: width, height: height }, [pixels.buffer]);
+    self.postMessage({ pixels: pixels, width: width, height: height, renderId: renderId }, [pixels.buffer]);
 };
