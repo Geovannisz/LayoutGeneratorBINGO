@@ -486,14 +486,20 @@ function setupHeatmapInteraction() {
     if (!document.getElementById('heatmap-legend-canvas')) {
         heatmapLegendCanvas = document.createElement('canvas');
         heatmapLegendCanvas.id = 'heatmap-legend-canvas';
-        heatmapLegendCanvas.width = 70;
-        heatmapLegendCanvas.height = 300;
+        // Remove fixed height, use 100% of container via CSS, then sync internal size
         heatmapLegendCanvas.style.position = 'absolute';
-        heatmapLegendCanvas.style.right = '10px';
-        heatmapLegendCanvas.style.top = '10px';
+        heatmapLegendCanvas.style.right = '0';
+        heatmapLegendCanvas.style.top = '0';
+        heatmapLegendCanvas.style.bottom = '0';
+        heatmapLegendCanvas.style.height = '100%';
+        heatmapLegendCanvas.style.width = '70px';
         heatmapLegendCanvas.style.pointerEvents = 'none';
         heatmapLegendCanvas.style.zIndex = '15';
         heatmapContainer.appendChild(heatmapLegendCanvas);
+
+        // Add padding to container to shift plot left
+        heatmapContainer.style.boxSizing = 'border-box';
+        heatmapContainer.style.paddingRight = '80px';
     } else {
         heatmapLegendCanvas = document.getElementById('heatmap-legend-canvas');
     }
