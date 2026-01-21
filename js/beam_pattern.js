@@ -420,7 +420,11 @@ function drawHeatmapToCanvas(pixels, width, height) {
 // [41, 120, 142], [32, 144, 140], [34, 167, 132], [68, 190, 112],
 // [121, 209, 81], [189, 222, 38], [253, 231, 36]
 function drawColorbar(scaleType) {
-    if (!heatmapLegendCanvas) return;
+    if (!heatmapLegendCanvas || !heatmapContainer) return;
+
+    // Sync internal resolution with display size
+    heatmapLegendCanvas.width = heatmapLegendCanvas.clientWidth || 120;
+    heatmapLegendCanvas.height = heatmapContainer.clientHeight || 300;
 
     const ctx = heatmapLegendCanvas.getContext('2d');
     const width = heatmapLegendCanvas.width;
@@ -444,14 +448,14 @@ function drawColorbar(scaleType) {
     grad.addColorStop(1, 'rgb(253, 231, 36)');
 
     // Draw Bar
-    const barWidth = 20;
-    const xPos = width - barWidth - 35; // Space for text
+    const barWidth = 40;
+    const xPos = width - barWidth - 55; // Space for text
     ctx.fillStyle = grad;
     ctx.fillRect(xPos, 10, barWidth, height - 20);
 
     // Draw Labels
     ctx.fillStyle = '#333';
-    ctx.font = '10px Arial';
+    ctx.font = '12px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
@@ -492,14 +496,14 @@ function setupHeatmapInteraction() {
         heatmapLegendCanvas.style.top = '0';
         heatmapLegendCanvas.style.bottom = '0';
         heatmapLegendCanvas.style.height = '100%';
-        heatmapLegendCanvas.style.width = '70px';
+        heatmapLegendCanvas.style.width = '120px';
         heatmapLegendCanvas.style.pointerEvents = 'none';
         heatmapLegendCanvas.style.zIndex = '15';
         heatmapContainer.appendChild(heatmapLegendCanvas);
 
         // Add padding to container to shift plot left
         heatmapContainer.style.boxSizing = 'border-box';
-        heatmapContainer.style.paddingRight = '80px';
+        heatmapContainer.style.paddingRight = '130px';
     } else {
         heatmapLegendCanvas = document.getElementById('heatmap-legend-canvas');
     }
