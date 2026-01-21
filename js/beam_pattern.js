@@ -39,6 +39,7 @@ let fullEFieldDataLoadingState = 'idle';
 let fetchFullDataPromiseActive = null;
 
 let isProcessingPlot = false;
+let pendingRequestFn = null; // Store pending request if worker is busy
 let beamCalculationWorker = null;  // 2D Worker
 let beamCalculationWorker3D = null;// 3D Data Worker
 let heatmapWorker = null;          // New Native Heatmap Worker
@@ -561,8 +562,18 @@ function setupWorkers() {
                 const { thetaValues, resultingMagnitude } = e.data.data;
                 plotBeamPattern2D(thetaValues, resultingMagnitude, storedWorkerPlotParams.phi, storedWorkerPlotParams.scale);
                 isProcessingPlot = false;
+                if (pendingRequestFn) {
+                    const fn = pendingRequestFn;
+                    pendingRequestFn = null;
+                    fn();
+                }
             } else if (e.data.type === 'error') {
                 isProcessingPlot = false;
+                if (pendingRequestFn) {
+                    const fn = pendingRequestFn;
+                    pendingRequestFn = null;
+                    fn();
+                }
             }
         };
 
@@ -576,9 +587,19 @@ function setupWorkers() {
                 cachedCalculationResult3D = e.data.data;
                 refreshVisualization();
                 isProcessingPlot = false;
+                if (pendingRequestFn) {
+                    const fn = pendingRequestFn;
+                    pendingRequestFn = null;
+                    fn();
+                }
             } else if (e.data.type === 'error') {
                  if(statusDiv) statusDiv.textContent = e.data.error;
                  isProcessingPlot = false;
+                 if (pendingRequestFn) {
+                    const fn = pendingRequestFn;
+                    pendingRequestFn = null;
+                    fn();
+                }
             }
         };
 
@@ -633,7 +654,10 @@ function refreshVisualization() {
 }
 
 async function processFullDataPlotRequest() {
-    if (isProcessingPlot) return;
+    if (isProcessingPlot) {
+        pendingRequestFn = processFullDataPlotRequest;
+        return;
+    }
 
     const antennaCoords = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
     if (antennaCoords.length === 0) return;
@@ -670,6 +694,11 @@ async function processFullDataPlotRequest() {
 
 // 2D Trigger
 function schedulePlotUpdate() {
+    if (isProcessingPlot) {
+        pendingRequestFn = schedulePlotUpdate;
+        return;
+    }
+
     // Similar to previous implementation, tailored for 2D
     const currentPhi = parseFloat(phiInput.value);
     const scale = scaleSelect.value;
