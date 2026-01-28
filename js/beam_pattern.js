@@ -407,9 +407,21 @@ function drawHeatmapToCanvas(pixels, width, height) {
 
     const ctx = heatmapCanvas.getContext('2d');
     const imageData = new ImageData(pixels, width, height);
-    ctx.putImageData(imageData, 0, 0);
 
-    if (statusDiv) statusDiv.textContent = `Heatmap renderizado (${width}x${height}).`;
+    // First, draw to a temporary canvas for processing
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tempCtx = tempCanvas.getContext('2d');
+    tempCtx.putImageData(imageData, 0, 0);
+
+    // Apply Gaussian blur to smooth out interference patterns
+    // blur radius of 2-4px works well for 2048x2048 resolution
+    ctx.filter = 'blur(3px)';
+    ctx.drawImage(tempCanvas, 0, 0);
+    ctx.filter = 'none';
+
+    if (statusDiv) statusDiv.textContent = `Heatmap renderizado (${width}x${height}) com suavização.`;
 }
 
 // === Colorbar / Legend ===
