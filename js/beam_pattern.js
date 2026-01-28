@@ -387,16 +387,10 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
 
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
-    // Calculate adaptive resolution based on source data
-    // Use 2x the angular resolution to avoid aliasing (Nyquist)
-    // but cap at a reasonable maximum for performance
-    const dataResolution = Math.max(uniquePhis.length, uniqueThetas.length);
-    const adaptiveResolution = Math.min(Math.max(dataResolution * 2, 512), 1024);
-
     currentHeatmapRenderId++;
     heatmapWorker.postMessage({
-        width: adaptiveResolution,
-        height: adaptiveResolution,
+        width: HEATMAP_RESOLUTION,
+        height: HEATMAP_RESOLUTION,
         scaleType: scaleType,
         magnitudesLinear: mags_linear,
         uniqueThetas: uniqueThetas,

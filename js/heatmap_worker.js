@@ -263,45 +263,86 @@ self.onmessage = function (e) {
     const cy = height / 2;
     const maxRadiusPx = Math.min(cx, cy) - 2;
 
+    // Supersampling Anti-Aliasing: 3x3 samples per pixel to eliminate Moiré patterns
+    const SSAA_SAMPLES = 3;
+    const sampleOffsets = [];
+    for (let sy = 0; sy < SSAA_SAMPLES; sy++) {
+        for (let sx = 0; sx < SSAA_SAMPLES; sx++) {
+            sampleOffsets.push({
+                dx: (sx + 0.5) / SSAA_SAMPLES - 0.5,
+                dy: (sy + 0.5) / SSAA_SAMPLES - 0.5
+            });
+        }
+    }
+    const numSamples = sampleOffsets.length;
+
+    // Helper function to apply scaling to a value
+    function applyScale(val, scaleType) {
+        if (scaleType === 'dB') {
+            if (val <= 1e-10) val = 1e-10;
+            let db = 20 * Math.log10(val);
+            const minDb = -60;
+            if (db < minDb) db = minDb;
+            if (db > 0) db = 0;
+            return (db - minDb) / (0 - minDb);
+        } else if (scaleType === 'sqrt') {
+            return Math.sqrt(val);
+        } else if (scaleType === 'quadratic') {
+            return val * val;
+        } else if (scaleType === 'fourth_root') {
+            return Math.pow(val, 0.25);
+        }
+        return val;
+    }
+
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            const dx = x - cx;
-            const dy = y - cy;
-            const rPx = Math.sqrt(dx * dx + dy * dy);
             const idx = (y * width + x) * 4;
 
-            if (rPx > maxRadiusPx) {
+            // Check if center is outside circle first (optimization)
+            const centerDx = x - cx;
+            const centerDy = y - cy;
+            const centerRPx = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
+
+            if (centerRPx > maxRadiusPx + 1) {
                 pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
                 continue;
             }
 
-            const theta = (rPx / maxRadiusPx) * maxTheta;
+            // Supersample: average multiple sub-pixel samples
+            let sumVal = 0;
+            let validSamples = 0;
 
-            let angleRad = Math.atan2(-dy, dx);
-            let angleDeg = angleRad * 180 / Math.PI;
-            if (angleDeg < 0) angleDeg += 360;
+            for (let s = 0; s < numSamples; s++) {
+                const sampleX = x + sampleOffsets[s].dx;
+                const sampleY = y + sampleOffsets[s].dy;
 
-            let val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
+                const dx = sampleX - cx;
+                const dy = sampleY - cy;
+                const rPx = Math.sqrt(dx * dx + dy * dy);
 
-            // Scale Logic
-            let normalizedVal = 0;
-            if (scaleType === 'dB') {
-                if (val <= 1e-10) val = 1e-10;
-                let db = 20 * Math.log10(val);
-                const minDb = -60;
-                if (db < minDb) db = minDb;
-                if (db > 0) db = 0;
-                normalizedVal = (db - minDb) / (0 - minDb);
-            } else if (scaleType === 'sqrt') {
-                normalizedVal = Math.sqrt(val);
-            } else if (scaleType === 'quadratic') {
-                normalizedVal = val * val;
-            } else if (scaleType === 'fourth_root') {
-                normalizedVal = Math.pow(val, 0.25);
-            } else {
-                normalizedVal = val;
+                if (rPx > maxRadiusPx) {
+                    continue; // This sample is outside
+                }
+
+                const theta = (rPx / maxRadiusPx) * maxTheta;
+                let angleRad = Math.atan2(-dy, dx);
+                let angleDeg = angleRad * 180 / Math.PI;
+                if (angleDeg < 0) angleDeg += 360;
+
+                const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
+                const scaledVal = applyScale(val, scaleType);
+
+                sumVal += scaledVal;
+                validSamples++;
             }
 
+            if (validSamples === 0) {
+                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
+                continue;
+            }
+
+            let normalizedVal = sumVal / validSamples;
             if (normalizedVal < 0) normalizedVal = 0;
             if (normalizedVal > 1) normalizedVal = 1;
 
