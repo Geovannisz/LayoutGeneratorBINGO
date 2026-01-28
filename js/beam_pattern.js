@@ -419,12 +419,12 @@ function drawHeatmapToCanvas(pixels, width, height) {
 }
 
 /**
- * Draws a professional circular axis overlay for scientific publications.
+ * Draws a clean circular axis overlay for scientific publications.
  * Features:
- * - White circular border contrasting with Viridis colormap
- * - θ (theta) angle labels at concentric circles (30°, 60°, 90°)
- * - φ (phi) angle labels at cardinal directions
- * - Clean, publication-ready aesthetic
+ * - Outer ring at θ = 90° (white border)
+ * - Radial tick marks pointing inward with φ angle labels (every 30°)
+ * - θ scale labels along one radial direction
+ * - NO internal grids to avoid obstructing the beam pattern
  */
 function drawCircularAxisOverlay(ctx, width, height) {
     const centerX = width / 2;
@@ -432,112 +432,109 @@ function drawCircularAxisOverlay(ctx, width, height) {
     const maxRadius = Math.min(width, height) / 2;
 
     // Style settings for publication quality
-    const axisColor = 'rgba(255, 255, 255, 0.95)';
-    const tickColor = 'rgba(255, 255, 255, 0.8)';
+    const axisColor = 'rgba(255, 255, 255, 1)';
     const labelColor = 'rgba(255, 255, 255, 1)';
-    const shadowColor = 'rgba(0, 0, 0, 0.7)';
+    const shadowColor = 'rgba(0, 0, 0, 0.8)';
+
+    // Font sizes scaled to canvas resolution
+    const baseFontSize = Math.max(16, Math.round(maxRadius / 40));
+    const tickLength = Math.max(12, Math.round(maxRadius / 80));
+    const labelOffset = Math.max(20, Math.round(maxRadius / 30));
 
     ctx.save();
 
-    // === Draw concentric θ circles (30°, 60°, 90°) ===
-    const thetaAngles = [30, 60, 90];
-    const maxThetaDisplayed = 90; // The heatmap shows 0-90° theta
+    // === Draw outer ring (θ = 90°) ===
+    ctx.strokeStyle = axisColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, maxRadius - 1, 0, 2 * Math.PI);
+    ctx.stroke();
 
-    thetaAngles.forEach((theta, index) => {
-        const radius = (theta / maxThetaDisplayed) * maxRadius;
+    // === Draw φ tick marks and labels (every 30°) ===
+    const phiAngles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];
 
-        // Draw circle
+    phiAngles.forEach(phi => {
+        // Convert to canvas angle (0° is right, counter-clockwise positive)
+        // In our heatmap, phi=0° is at the right, increasing counter-clockwise
+        const radians = (-phi + 90) * Math.PI / 180;
+
+        // Tick mark from outer edge pointing inward
+        const outerX = centerX + Math.cos(radians) * maxRadius;
+        const outerY = centerY + Math.sin(radians) * maxRadius;
+        const innerX = centerX + Math.cos(radians) * (maxRadius - tickLength);
+        const innerY = centerY + Math.sin(radians) * (maxRadius - tickLength);
+
         ctx.strokeStyle = axisColor;
-        ctx.lineWidth = index === 2 ? 3 : 1.5; // Thicker outer circle
-        ctx.setLineDash(index === 2 ? [] : [8, 4]);
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.moveTo(outerX, outerY);
+        ctx.lineTo(innerX, innerY);
         ctx.stroke();
-        ctx.setLineDash([]);
 
-        // θ label on right side (at φ = 0°)
-        if (theta < 90) {
-            const labelX = centerX + radius + 8;
-            const labelY = centerY;
-
-            // Text shadow for readability
-            ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.shadowColor = shadowColor;
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 1;
-            ctx.shadowOffsetY = 1;
-            ctx.fillStyle = labelColor;
-            ctx.fillText(`${theta}°`, labelX, labelY);
-            ctx.shadowBlur = 0;
-        }
-    });
-
-    // === Draw φ (azimuth) radial lines and labels ===
-    const phiAngles = [
-        { angle: 0, label: 'φ = 0°', align: 'left' },
-        { angle: 90, label: '90°', align: 'center' },
-        { angle: 180, label: '180°', align: 'right' },
-        { angle: 270, label: '270°', align: 'center' }
-    ];
-
-    phiAngles.forEach(({ angle, label, align }) => {
-        const radians = (angle - 90) * Math.PI / 180; // -90 because 0° is right
-        const x1 = centerX;
-        const y1 = centerY;
-        const x2 = centerX + Math.cos(radians) * maxRadius;
-        const y2 = centerY + Math.sin(radians) * maxRadius;
-
-        // Draw radial line
-        ctx.strokeStyle = tickColor;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        // φ label at outer edge
-        const labelRadius = maxRadius + 20;
+        // φ label outside the ring
+        const labelRadius = maxRadius + labelOffset;
         const labelX = centerX + Math.cos(radians) * labelRadius;
         const labelY = centerY + Math.sin(radians) * labelRadius;
 
-        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
-        ctx.textAlign = align;
-        ctx.textBaseline = angle === 90 ? 'top' : (angle === 270 ? 'bottom' : 'middle');
+        // Determine text alignment based on position
+        let textAlign = 'center';
+        let textBaseline = 'middle';
+
+        if (phi === 0) { textAlign = 'center'; textBaseline = 'bottom'; }
+        else if (phi === 180) { textAlign = 'center'; textBaseline = 'top'; }
+        else if (phi > 0 && phi < 180) { textAlign = 'left'; }
+        else if (phi > 180 && phi < 360) { textAlign = 'right'; }
+
+        if (phi === 90) { textAlign = 'left'; textBaseline = 'middle'; }
+        if (phi === 270) { textAlign = 'right'; textBaseline = 'middle'; }
+
+        ctx.font = `bold ${baseFontSize}px "Segoe UI", Arial, sans-serif`;
+        ctx.textAlign = textAlign;
+        ctx.textBaseline = textBaseline;
         ctx.shadowColor = shadowColor;
         ctx.shadowBlur = 4;
         ctx.shadowOffsetX = 1;
         ctx.shadowOffsetY = 1;
         ctx.fillStyle = labelColor;
-        ctx.fillText(label, labelX, labelY);
+        ctx.fillText(`${phi}°`, labelX, labelY);
         ctx.shadowBlur = 0;
     });
 
-    // === Draw center marker (θ = 0°) ===
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
-    ctx.fillStyle = labelColor;
-    ctx.fill();
+    // === Draw θ scale along the φ = 0° direction (top) ===
+    const thetaAngles = [0, 10, 20, 30, 40, 50, 60, 70, 80];
+    const maxThetaDisplayed = 90;
+    const phiForThetaLabels = 0; // Display θ labels along φ = 0° (top)
+    const radiansForTheta = (-phiForThetaLabels + 90) * Math.PI / 180;
 
-    // "θ = 0°" label near center
-    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'bottom';
-    ctx.shadowColor = shadowColor;
-    ctx.shadowBlur = 4;
-    ctx.fillStyle = labelColor;
-    ctx.fillText('θ = 0°', centerX, centerY - 15);
-    ctx.shadowBlur = 0;
+    thetaAngles.forEach(theta => {
+        const radius = (theta / maxThetaDisplayed) * maxRadius;
+        const labelX = centerX + Math.cos(radiansForTheta) * radius;
+        const labelY = centerY + Math.sin(radiansForTheta) * radius;
 
-    // === Draw outer border ===
-    ctx.strokeStyle = axisColor;
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(centerX, centerY, maxRadius - 2, 0, 2 * Math.PI);
-    ctx.stroke();
+        // Small tick mark
+        const tickRadians = radiansForTheta + Math.PI / 2; // Perpendicular
+        const tickHalfLen = 4;
+        ctx.strokeStyle = axisColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(labelX - Math.cos(tickRadians) * tickHalfLen, labelY - Math.sin(tickRadians) * tickHalfLen);
+        ctx.lineTo(labelX + Math.cos(tickRadians) * tickHalfLen, labelY + Math.sin(tickRadians) * tickHalfLen);
+        ctx.stroke();
+
+        // θ label (offset to the side)
+        const thetaLabelOffset = baseFontSize * 0.8;
+        const thetaLabelX = labelX + thetaLabelOffset;
+        const thetaLabelY = labelY;
+
+        ctx.font = `${Math.round(baseFontSize * 0.85)}px "Segoe UI", Arial, sans-serif`;
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.shadowColor = shadowColor;
+        ctx.shadowBlur = 3;
+        ctx.fillStyle = labelColor;
+        ctx.fillText(`${theta}`, thetaLabelX, thetaLabelY);
+        ctx.shadowBlur = 0;
+    });
 
     ctx.restore();
 }
