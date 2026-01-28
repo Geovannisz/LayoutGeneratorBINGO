@@ -263,18 +263,32 @@ self.onmessage = function (e) {
     const cy = height / 2;
     const maxRadiusPx = Math.min(cx, cy) - 2;
 
-    // Supersampling Anti-Aliasing: 3x3 samples per pixel to eliminate Moiré patterns
-    const SSAA_SAMPLES = 3;
-    const sampleOffsets = [];
-    for (let sy = 0; sy < SSAA_SAMPLES; sy++) {
-        for (let sx = 0; sx < SSAA_SAMPLES; sx++) {
-            sampleOffsets.push({
-                dx: (sx + 0.5) / SSAA_SAMPLES - 0.5,
-                dy: (sy + 0.5) / SSAA_SAMPLES - 0.5
-            });
+    // Adaptive Supersampling Anti-Aliasing:
+    // - Standard: 3x3 samples (9 total) for most of the image
+    // - High density: 7x7 samples (49 total) near center where polar singularity causes issues
+    const SSAA_STANDARD = 3;
+    const SSAA_HIGH = 7;
+
+    // Threshold: use high density when theta < 5 degrees
+    // Convert to pixel radius threshold
+    const highDensityThreshold = (5 / maxTheta) * maxRadiusPx;
+
+    // Pre-generate sample offsets for both densities
+    function generateSampleOffsets(n) {
+        const offsets = [];
+        for (let sy = 0; sy < n; sy++) {
+            for (let sx = 0; sx < n; sx++) {
+                offsets.push({
+                    dx: (sx + 0.5) / n - 0.5,
+                    dy: (sy + 0.5) / n - 0.5
+                });
+            }
         }
+        return offsets;
     }
-    const numSamples = sampleOffsets.length;
+
+    const standardOffsets = generateSampleOffsets(SSAA_STANDARD);
+    const highDensityOffsets = generateSampleOffsets(SSAA_HIGH);
 
     // Helper function to apply scaling to a value
     function applyScale(val, scaleType) {
@@ -310,6 +324,10 @@ self.onmessage = function (e) {
             }
 
             // Supersample: average multiple sub-pixel samples
+            // Use higher density near center to handle polar singularity
+            const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
+            const numSamples = sampleOffsets.length;
+
             let sumVal = 0;
             let validSamples = 0;
 
