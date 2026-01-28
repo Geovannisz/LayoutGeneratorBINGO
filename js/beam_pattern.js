@@ -426,6 +426,15 @@ function drawHeatmapToCanvas(pixels, width, height) {
  * - θ scale labels along one radial direction
  * - NO internal grids to avoid obstructing the beam pattern
  */
+/**
+ * Draws a clean circular axis overlay for scientific publications.
+ * Features:
+ * - Outer ring at θ = 90° (white border)
+ * - Radial tick marks pointing inward with φ angle labels (every 30°)
+ * - NO θ scale labels (removed as per request)
+ * - Large BLACK φ labels for high visibility
+ * - Clean, unobstructed view of beam pattern
+ */
 function drawCircularAxisOverlay(ctx, width, height) {
     const centerX = width / 2;
     const centerY = height / 2;
@@ -433,13 +442,14 @@ function drawCircularAxisOverlay(ctx, width, height) {
 
     // Style settings for publication quality
     const axisColor = 'rgba(255, 255, 255, 1)';
-    const labelColor = 'rgba(255, 255, 255, 1)';
-    const shadowColor = 'rgba(0, 0, 0, 0.8)';
+    const labelColor = 'rgba(0, 0, 0, 1)'; // BLACK labels
 
-    // Font sizes scaled to canvas resolution
-    const baseFontSize = Math.max(16, Math.round(maxRadius / 40));
+    // Font sizes scaled to canvas resolution - INCREASED SIZE
+    // Previous: Math.max(16, Math.round(maxRadius / 40))
+    // New: Significantly larger to match legend size
+    const baseFontSize = Math.max(24, Math.round(maxRadius / 25));
     const tickLength = Math.max(12, Math.round(maxRadius / 80));
-    const labelOffset = Math.max(20, Math.round(maxRadius / 30));
+    const labelOffset = Math.max(25, Math.round(maxRadius / 25));
 
     ctx.save();
 
@@ -471,7 +481,13 @@ function drawCircularAxisOverlay(ctx, width, height) {
         ctx.lineTo(innerX, innerY);
         ctx.stroke();
 
-        // φ label outside the ring
+        // φ label outside the ring (Black, no shadow for clean look against white background assumption? 
+        // Wait, the background is the canvas which might be transparent or white around the circle.
+        // Heatmap is circular but fills the square canvas? 
+        // No, heatmap is usually circular but the canvas is rectangular.
+        // The background outside the circle is white in the container.
+        // So black text is perfect.)
+
         const labelRadius = maxRadius + labelOffset;
         const labelX = centerX + Math.cos(radians) * labelRadius;
         const labelY = centerY + Math.sin(radians) * labelRadius;
@@ -491,49 +507,9 @@ function drawCircularAxisOverlay(ctx, width, height) {
         ctx.font = `bold ${baseFontSize}px "Segoe UI", Arial, sans-serif`;
         ctx.textAlign = textAlign;
         ctx.textBaseline = textBaseline;
-        ctx.shadowColor = shadowColor;
-        ctx.shadowBlur = 4;
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 1;
+        // Removed shadow for black text on white background
         ctx.fillStyle = labelColor;
-        ctx.fillText(`${phi}°`, labelX, labelY);
-        ctx.shadowBlur = 0;
-    });
-
-    // === Draw θ scale along the φ = 0° direction (top) ===
-    const thetaAngles = [0, 10, 20, 30, 40, 50, 60, 70, 80];
-    const maxThetaDisplayed = 90;
-    const phiForThetaLabels = 0; // Display θ labels along φ = 0° (top)
-    const radiansForTheta = (-phiForThetaLabels + 90) * Math.PI / 180;
-
-    thetaAngles.forEach(theta => {
-        const radius = (theta / maxThetaDisplayed) * maxRadius;
-        const labelX = centerX + Math.cos(radiansForTheta) * radius;
-        const labelY = centerY + Math.sin(radiansForTheta) * radius;
-
-        // Small tick mark
-        const tickRadians = radiansForTheta + Math.PI / 2; // Perpendicular
-        const tickHalfLen = 4;
-        ctx.strokeStyle = axisColor;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(labelX - Math.cos(tickRadians) * tickHalfLen, labelY - Math.sin(tickRadians) * tickHalfLen);
-        ctx.lineTo(labelX + Math.cos(tickRadians) * tickHalfLen, labelY + Math.sin(tickRadians) * tickHalfLen);
-        ctx.stroke();
-
-        // θ label (offset to the side)
-        const thetaLabelOffset = baseFontSize * 0.8;
-        const thetaLabelX = labelX + thetaLabelOffset;
-        const thetaLabelY = labelY;
-
-        ctx.font = `${Math.round(baseFontSize * 0.85)}px "Segoe UI", Arial, sans-serif`;
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'middle';
-        ctx.shadowColor = shadowColor;
-        ctx.shadowBlur = 3;
-        ctx.fillStyle = labelColor;
-        ctx.fillText(`${theta}`, thetaLabelX, thetaLabelY);
-        ctx.shadowBlur = 0;
+        ctx.fillText(`${phi}`, labelX, labelY); // Removed ° symbol if it makes it cleaner, but kept numeric
     });
 
     ctx.restore();
