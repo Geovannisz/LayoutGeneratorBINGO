@@ -309,14 +309,13 @@ self.onmessage = function (e) {
         return val;
     }
 
-    // Optimization: render only top-right quadrant and mirror to other 3 quadrants
-    // This exploits the radial symmetry of the beam pattern data (4x speedup)
-    const halfW = Math.ceil(width / 2);
+    // Optimization: render only top half and mirror to bottom half
+    // This exploits the vertical symmetry of the beam pattern data (2x speedup)
     const halfH = Math.ceil(height / 2);
 
     for (let y = 0; y < halfH; y++) {
-        for (let x = halfW; x < width; x++) {
-            // Calculate for top-right quadrant pixel
+        for (let x = 0; x < width; x++) {
+            // Calculate for top half pixel
             const centerDx = x - cx;
             const centerDy = y - cy;
             const centerRPx = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
@@ -364,25 +363,16 @@ self.onmessage = function (e) {
                 }
             }
 
-            // Mirror to all 4 quadrants
-            const mirrorX = width - 1 - x;
+            // Mirror vertically: top to bottom
             const mirrorY = height - 1 - y;
 
-            // Top-right (original)
+            // Top (original)
             const idx1 = (y * width + x) * 4;
             pixels[idx1] = r; pixels[idx1 + 1] = g; pixels[idx1 + 2] = b; pixels[idx1 + 3] = a;
 
-            // Top-left (horizontal mirror)
-            const idx2 = (y * width + mirrorX) * 4;
+            // Bottom (vertical mirror)
+            const idx2 = (mirrorY * width + x) * 4;
             pixels[idx2] = r; pixels[idx2 + 1] = g; pixels[idx2 + 2] = b; pixels[idx2 + 3] = a;
-
-            // Bottom-right (vertical mirror)
-            const idx3 = (mirrorY * width + x) * 4;
-            pixels[idx3] = r; pixels[idx3 + 1] = g; pixels[idx3 + 2] = b; pixels[idx3 + 3] = a;
-
-            // Bottom-left (both mirrors)
-            const idx4 = (mirrorY * width + mirrorX) * 4;
-            pixels[idx4] = r; pixels[idx4 + 1] = g; pixels[idx4 + 2] = b; pixels[idx4 + 3] = a;
         }
     }
 
