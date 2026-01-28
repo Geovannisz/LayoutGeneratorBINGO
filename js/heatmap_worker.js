@@ -6,36 +6,36 @@
  * Returns Uint8ClampedArray for Canvas ImageData.
  */
 
-// DS9 "a" Colormap (64 steps, RGB) - SAOImageDS9 "a" palette
-// Transitions: Black → Lime Green → Magenta → Red → Orange → Yellow
-// Matched to SAOImageDS9 reference colorbar
-const DS9_A_MAP = [
-    [0, 0, 0], [0, 4, 0], [0, 8, 0], [0, 12, 0],
-    [0, 16, 0], [0, 24, 0], [0, 32, 0], [0, 48, 0],
-    [0, 64, 0], [0, 80, 0], [0, 96, 0], [0, 112, 0],
-    [0, 128, 0], [0, 144, 0], [0, 160, 0], [0, 176, 0],
-    [0, 192, 0], [0, 208, 0], [0, 224, 0], [0, 240, 0],
-    [0, 255, 0], [16, 255, 16], [32, 255, 32], [64, 255, 64],
-    [96, 240, 96], [128, 208, 128], [160, 160, 160], [192, 96, 160],
-    [224, 32, 160], [255, 0, 160], [255, 0, 176], [255, 0, 192],
-    [255, 0, 208], [255, 0, 224], [255, 0, 240], [255, 0, 255],
-    [255, 0, 224], [255, 0, 192], [255, 0, 160], [255, 0, 128],
-    [255, 0, 96], [255, 0, 64], [255, 0, 32], [255, 0, 0],
-    [255, 16, 0], [255, 32, 0], [255, 48, 0], [255, 64, 0],
-    [255, 80, 0], [255, 96, 0], [255, 112, 0], [255, 128, 0],
-    [255, 144, 0], [255, 160, 0], [255, 176, 0], [255, 192, 0],
-    [255, 208, 0], [255, 224, 0], [255, 240, 0], [255, 255, 0],
-    [255, 255, 0], [255, 255, 0], [255, 255, 0], [255, 255, 0]
+// HSV Colormap (64 steps, RGB) - SAOImageDS9 HSV/Rainbow palette
+// Transitions: Black → Gray → Blue → Cyan → Green → Yellow → Orange → Red → Pink → White
+// Full spectrum coverage for maximum data discrimination
+const HSV_MAP = [
+    [0, 0, 0], [8, 8, 16], [16, 16, 32], [24, 24, 48],
+    [32, 32, 64], [40, 40, 96], [48, 48, 128], [48, 48, 160],
+    [48, 48, 192], [32, 64, 224], [16, 80, 255], [0, 96, 255],
+    [0, 112, 255], [0, 128, 255], [0, 160, 255], [0, 192, 255],
+    [0, 224, 255], [0, 255, 255], [0, 255, 224], [0, 255, 192],
+    [0, 255, 160], [0, 255, 128], [0, 255, 96], [0, 255, 64],
+    [0, 255, 32], [0, 255, 0], [32, 255, 0], [64, 255, 0],
+    [96, 255, 0], [128, 255, 0], [160, 255, 0], [192, 255, 0],
+    [224, 255, 0], [255, 255, 0], [255, 240, 0], [255, 224, 0],
+    [255, 208, 0], [255, 192, 0], [255, 176, 0], [255, 160, 0],
+    [255, 144, 0], [255, 128, 0], [255, 112, 0], [255, 96, 0],
+    [255, 80, 0], [255, 64, 0], [255, 48, 0], [255, 32, 0],
+    [255, 16, 0], [255, 0, 0], [255, 0, 32], [255, 0, 64],
+    [255, 0, 96], [255, 0, 128], [255, 32, 160], [255, 64, 192],
+    [255, 96, 208], [255, 128, 224], [255, 160, 240], [255, 192, 255],
+    [255, 208, 255], [255, 224, 255], [255, 240, 255], [255, 255, 255]
 ];
 
-function getDS9AColor(t) {
-    if (t <= 0) return DS9_A_MAP[0];
-    if (t >= 1) return DS9_A_MAP[DS9_A_MAP.length - 1];
-    const pos = t * (DS9_A_MAP.length - 1);
+function getHSVColor(t) {
+    if (t <= 0) return HSV_MAP[0];
+    if (t >= 1) return HSV_MAP[HSV_MAP.length - 1];
+    const pos = t * (HSV_MAP.length - 1);
     const idx = Math.floor(pos);
     const frac = pos - idx;
-    const c1 = DS9_A_MAP[idx];
-    const c2 = DS9_A_MAP[idx + 1];
+    const c1 = HSV_MAP[idx];
+    const c2 = HSV_MAP[idx + 1];
     return [
         Math.round(c1[0] + (c2[0] - c1[0]) * frac),
         Math.round(c1[1] + (c2[1] - c1[1]) * frac),
@@ -48,7 +48,7 @@ function generateColormapLUT() {
     if (COLORMAP_LUT) return;
     COLORMAP_LUT = new Uint8Array(256 * 3);
     for (let i = 0; i < 256; i++) {
-        const rgb = getDS9AColor(i / 255);
+        const rgb = getHSVColor(i / 255);
         COLORMAP_LUT[i * 3] = rgb[0];
         COLORMAP_LUT[i * 3 + 1] = rgb[1];
         COLORMAP_LUT[i * 3 + 2] = rgb[2];

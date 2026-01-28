@@ -358,22 +358,34 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
         zTitle = 'Linear';
     }
 
-    // DS9 "a" colorscale (SAOImageDS9: black → lime-green → magenta → red → yellow)
-    const ds9AColorscale = [
+    // HSV colorscale (SAOImageDS9: black → blue → cyan → green → yellow → red → pink → white)
+    const hsvColorscale = [
         [0.000, 'rgb(0, 0, 0)'],
-        [0.100, 'rgb(0, 128, 0)'],
-        [0.200, 'rgb(0, 255, 0)'],
-        [0.300, 'rgb(64, 255, 64)'],
-        [0.400, 'rgb(255, 0, 255)'],
-        [0.500, 'rgb(255, 0, 192)'],
-        [0.600, 'rgb(255, 0, 0)'],
-        [0.750, 'rgb(255, 128, 0)'],
-        [1.000, 'rgb(255, 255, 0)']
+        [0.050, 'rgb(32, 32, 64)'],
+        [0.100, 'rgb(48, 48, 160)'],
+        [0.150, 'rgb(0, 96, 255)'],
+        [0.200, 'rgb(0, 192, 255)'],
+        [0.250, 'rgb(0, 255, 255)'],
+        [0.300, 'rgb(0, 255, 160)'],
+        [0.350, 'rgb(0, 255, 64)'],
+        [0.400, 'rgb(0, 255, 0)'],
+        [0.450, 'rgb(96, 255, 0)'],
+        [0.500, 'rgb(192, 255, 0)'],
+        [0.550, 'rgb(255, 255, 0)'],
+        [0.600, 'rgb(255, 192, 0)'],
+        [0.650, 'rgb(255, 128, 0)'],
+        [0.700, 'rgb(255, 64, 0)'],
+        [0.750, 'rgb(255, 0, 0)'],
+        [0.800, 'rgb(255, 0, 64)'],
+        [0.850, 'rgb(255, 0, 128)'],
+        [0.900, 'rgb(255, 128, 224)'],
+        [0.950, 'rgb(255, 192, 255)'],
+        [1.000, 'rgb(255, 255, 255)']
     ];
 
     const data = [{
         type: 'surface', x: x, y: y, z: zData,
-        surfacecolor: zData, colorscale: ds9AColorscale
+        surfacecolor: zData, colorscale: hsvColorscale
     }];
 
     const layout = {
@@ -577,20 +589,32 @@ function drawColorbar(scaleType) {
             minVal = 0; maxVal = 1;
     }
 
-    // Create DS9 "a" Gradient (Black → Lime Green → Magenta → Red → Yellow)
+    // Create HSV Gradient (Black → Blue → Cyan → Green → Yellow → Red → Pink → White)
     const barTop = 40; // Leave space for top margin
     const barBottom = height - 20;
     const barHeight = barBottom - barTop;
     const grad = ctx.createLinearGradient(0, barBottom, 0, barTop); // Bottom to Top
     grad.addColorStop(0.000, 'rgb(0, 0, 0)');
-    grad.addColorStop(0.100, 'rgb(0, 128, 0)');
-    grad.addColorStop(0.200, 'rgb(0, 255, 0)');
-    grad.addColorStop(0.300, 'rgb(64, 255, 64)');
-    grad.addColorStop(0.400, 'rgb(255, 0, 255)');
-    grad.addColorStop(0.500, 'rgb(255, 0, 192)');
-    grad.addColorStop(0.600, 'rgb(255, 0, 0)');
-    grad.addColorStop(0.750, 'rgb(255, 128, 0)');
-    grad.addColorStop(1.000, 'rgb(255, 255, 0)');
+    grad.addColorStop(0.050, 'rgb(32, 32, 64)');
+    grad.addColorStop(0.100, 'rgb(48, 48, 160)');
+    grad.addColorStop(0.150, 'rgb(0, 96, 255)');
+    grad.addColorStop(0.200, 'rgb(0, 192, 255)');
+    grad.addColorStop(0.250, 'rgb(0, 255, 255)');
+    grad.addColorStop(0.300, 'rgb(0, 255, 160)');
+    grad.addColorStop(0.350, 'rgb(0, 255, 64)');
+    grad.addColorStop(0.400, 'rgb(0, 255, 0)');
+    grad.addColorStop(0.450, 'rgb(96, 255, 0)');
+    grad.addColorStop(0.500, 'rgb(192, 255, 0)');
+    grad.addColorStop(0.550, 'rgb(255, 255, 0)');
+    grad.addColorStop(0.600, 'rgb(255, 192, 0)');
+    grad.addColorStop(0.650, 'rgb(255, 128, 0)');
+    grad.addColorStop(0.700, 'rgb(255, 64, 0)');
+    grad.addColorStop(0.750, 'rgb(255, 0, 0)');
+    grad.addColorStop(0.800, 'rgb(255, 0, 64)');
+    grad.addColorStop(0.850, 'rgb(255, 0, 128)');
+    grad.addColorStop(0.900, 'rgb(255, 128, 224)');
+    grad.addColorStop(0.950, 'rgb(255, 192, 255)');
+    grad.addColorStop(1.000, 'rgb(255, 255, 255)');
 
     // Draw Bar with border
     const barWidth = 25;
