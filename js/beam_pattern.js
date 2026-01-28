@@ -69,7 +69,7 @@ let heatmapContainer, heatmapCanvas, heatmapTooltip, heatmapLegendCanvas;
 let statusDiv = null;
 
 // === EXPORT FOR EXTERNAL MODULES (PSF) ===
-window.getBeamPatternModuleData = function() {
+window.getBeamPatternModuleData = function () {
     return {
         K_CONST: K,
         parsedEFieldData3D: fullEFieldDataCache,
@@ -88,7 +88,7 @@ function delay(ms) {
 
 function getLayoutHash(antennaCoords) {
     if (!antennaCoords) return "";
-    return JSON.stringify(antennaCoords.map(a => [Math.round(a[0]*100), Math.round(a[1]*100)]));
+    return JSON.stringify(antennaCoords.map(a => [Math.round(a[0] * 100), Math.round(a[1] * 100)]));
 }
 
 async function fetchDataFromIPFS(cidWithPath, options = {}) {
@@ -100,10 +100,10 @@ async function fetchDataFromIPFS(cidWithPath, options = {}) {
     for (let i = 0; i < IPFS_GATEWAYS.length; i++) {
         const gatewayBase = IPFS_GATEWAYS[i];
         const url = gatewayBase + cidWithPath;
-        
+
         if (statusDiv && originalStatusText.startsWith("Carregando dados")) {
             const gatewayHostname = new URL(gatewayBase).hostname;
-            statusDiv.textContent = `${originalStatusText.split(' (Tentando')[0]} (Tentando ${gatewayHostname}, ${i+1}/${IPFS_GATEWAYS.length})...`;
+            statusDiv.textContent = `${originalStatusText.split(' (Tentando')[0]} (Tentando ${gatewayHostname}, ${i + 1}/${IPFS_GATEWAYS.length})...`;
             statusUpdatedForGateway = true;
         }
 
@@ -120,7 +120,7 @@ async function fetchDataFromIPFS(cidWithPath, options = {}) {
                 continue;
             }
             if (statusUpdatedForGateway && statusDiv) {
-                 statusDiv.textContent = originalStatusText.split(' (Tentando')[0] + " (Conectado!)";
+                statusDiv.textContent = originalStatusText.split(' (Tentando')[0] + " (Conectado!)";
             }
             return response;
         } catch (error) {
@@ -143,11 +143,11 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
         const lines = csvText.trim().split('\n');
 
         if (lines.length < 2 || csvText.startsWith("version")) throw new Error("CSV Inválido/LFS Pointer.");
-        
+
         const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
         const indices = {
-            theta_deg: headers.indexOf('theta [deg]'), 
-            phi_deg: headers.indexOf('phi [deg]'),     
+            theta_deg: headers.indexOf('theta [deg]'),
+            phi_deg: headers.indexOf('phi [deg]'),
             reTheta: headers.indexOf('re(retheta) [v]'),
             imTheta: headers.indexOf('im(retheta) [v]'),
             rePhi: headers.indexOf('re(rephi) [v]'),
@@ -170,7 +170,7 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
                 if (!isNaN(theta)) {
                     data.push({ theta, phi, rETheta: { re: reTheta, im: imTheta }, rEPhi: { re: rePhi, im: imPhi } });
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
         return data;
     } catch (error) {
@@ -203,20 +203,20 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
 
         const lines = csvText.trim().split('\n');
         if (lines.length < 2) throw new Error("CSV vazio.");
-        
+
         const headers = lines[0].split(',').map(h => h.replace(/"/g, '').replace(/\[.*?\]/g, '').trim().toLowerCase());
         const indices = {
-            phi: headers.indexOf('phi'), 
+            phi: headers.indexOf('phi'),
             theta: headers.indexOf('theta'),
-            re_rephi: headers.indexOf('re(rephi)'), 
+            re_rephi: headers.indexOf('re(rephi)'),
             im_rephi: headers.indexOf('im(rephi)'),
-            re_retheta: headers.indexOf('re(retheta)'), 
+            re_retheta: headers.indexOf('re(retheta)'),
             im_retheta: headers.indexOf('im(retheta)')
         };
         if (Object.values(indices).some(index => index === -1)) throw new Error("Cabeçalhos 3D inválidos.");
 
         const data = [];
-        const uniquePhiValues = new Set(); 
+        const uniquePhiValues = new Set();
         for (let i = 1; i < lines.length; i++) {
             const v = lines[i].split(',').map(val => val.replace(/"/g, '').trim());
             if (v.length !== headers.length) continue;
@@ -231,15 +231,15 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
                 uniquePhiValues.add(phi);
             }
         }
-        Object.defineProperty(data, 'uniquePhis', { value: Array.from(uniquePhiValues).sort((a,b)=>a-b), writable: false });
+        Object.defineProperty(data, 'uniquePhis', { value: Array.from(uniquePhiValues).sort((a, b) => a - b), writable: false });
         return data;
     } catch (error) { throw error; }
 }
 
-async function ensureFullEFieldData3DLoaded() { 
+async function ensureFullEFieldData3DLoaded() {
     if (fullEFieldDataLoadingState === 'loaded' && fullEFieldDataCache) return fullEFieldDataCache;
     if (fullEFieldDataLoadingState === 'loading' && fetchFullDataPromiseActive) return fetchFullDataPromiseActive;
-    
+
     fullEFieldDataLoadingState = 'loading';
     const promise = _fetchAndParseFullEFieldDataRecursive3D().then(data => {
         fullEFieldDataCache = data;
@@ -433,19 +433,25 @@ function drawColorbar(scaleType) {
     // Clear
     ctx.clearRect(0, 0, width, height);
 
-    // Create Gradient
+    // Create Gradient with more stops for smoother appearance
     const grad = ctx.createLinearGradient(0, height, 0, 0); // Bottom to Top
-    grad.addColorStop(0, 'rgb(68, 1, 84)');
-    grad.addColorStop(0.1, 'rgb(72, 35, 116)');
-    grad.addColorStop(0.2, 'rgb(64, 67, 135)');
-    grad.addColorStop(0.3, 'rgb(52, 94, 141)');
-    grad.addColorStop(0.4, 'rgb(41, 120, 142)');
-    grad.addColorStop(0.5, 'rgb(32, 144, 140)');
-    grad.addColorStop(0.6, 'rgb(34, 167, 132)');
-    grad.addColorStop(0.7, 'rgb(68, 190, 112)');
-    grad.addColorStop(0.8, 'rgb(121, 209, 81)');
-    grad.addColorStop(0.9, 'rgb(189, 222, 38)');
-    grad.addColorStop(1, 'rgb(253, 231, 36)');
+    grad.addColorStop(0.000, 'rgb(68, 1, 84)');
+    grad.addColorStop(0.063, 'rgb(71, 22, 106)');
+    grad.addColorStop(0.125, 'rgb(70, 47, 125)');
+    grad.addColorStop(0.188, 'rgb(65, 67, 132)');
+    grad.addColorStop(0.250, 'rgb(55, 90, 135)');
+    grad.addColorStop(0.313, 'rgb(45, 112, 133)');
+    grad.addColorStop(0.375, 'rgb(38, 132, 127)');
+    grad.addColorStop(0.438, 'rgb(37, 151, 115)');
+    grad.addColorStop(0.500, 'rgb(49, 169, 97)');
+    grad.addColorStop(0.563, 'rgb(68, 181, 79)');
+    grad.addColorStop(0.625, 'rgb(94, 192, 57)');
+    grad.addColorStop(0.688, 'rgb(126, 200, 35)');
+    grad.addColorStop(0.750, 'rgb(162, 206, 19)');
+    grad.addColorStop(0.813, 'rgb(190, 208, 17)');
+    grad.addColorStop(0.875, 'rgb(217, 209, 31)');
+    grad.addColorStop(0.938, 'rgb(233, 209, 51)');
+    grad.addColorStop(1.000, 'rgb(253, 231, 36)');
 
     // Draw Bar
     const barWidth = 40;
@@ -526,7 +532,7 @@ function setupHeatmapInteraction() {
         const dx = actualX - cx;
         const dy = actualY - cy;
 
-        const rPx = Math.sqrt(dx*dx + dy*dy);
+        const rPx = Math.sqrt(dx * dx + dy * dy);
         const maxRadiusPx = Math.min(cx, cy) - 2;
 
         if (rPx > maxRadiusPx) {
@@ -536,16 +542,16 @@ function setupHeatmapInteraction() {
 
         const { uniqueThetas_deg } = cachedCalculationResult3D;
         const maxTheta = uniqueThetas_deg[uniqueThetas_deg.length - 1];
-        
+
         const theta = (rPx / maxRadiusPx) * maxTheta;
         let angleRad = Math.atan2(-dy, dx);
         let angleDeg = angleRad * 180 / Math.PI;
         if (angleDeg < 0) angleDeg += 360;
-        
+
         heatmapTooltip.style.display = 'block';
         heatmapTooltip.style.left = (x + 10) + 'px';
         heatmapTooltip.style.top = (y + 10) + 'px';
-        
+
         heatmapTooltip.textContent = `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°`;
     });
 
@@ -592,7 +598,7 @@ function setupWorkers() {
         beamCalculationWorker3D.onmessage = (e) => {
             if (e.data.id !== current3DCalculationId) return;
             if (e.data.type === 'progress') {
-                if(statusDiv) statusDiv.textContent = e.data.data;
+                if (statusDiv) statusDiv.textContent = e.data.data;
             } else if (e.data.type === 'result3D') {
                 cachedCalculationResult3D = e.data.data;
                 refreshVisualization();
@@ -603,9 +609,9 @@ function setupWorkers() {
                     fn();
                 }
             } else if (e.data.type === 'error') {
-                 if(statusDiv) statusDiv.textContent = e.data.error;
-                 isProcessingPlot = false;
-                 if (pendingRequestFn) {
+                if (statusDiv) statusDiv.textContent = e.data.error;
+                isProcessingPlot = false;
+                if (pendingRequestFn) {
                     const fn = pendingRequestFn;
                     pendingRequestFn = null;
                     fn();
@@ -616,7 +622,7 @@ function setupWorkers() {
         // Heatmap Worker
         heatmapWorker = new Worker('js/heatmap_worker.js');
         heatmapWorker.onmessage = (e) => {
-             // Check if this result matches the latest request
+            // Check if this result matches the latest request
             if (e.data.renderId && e.data.renderId !== currentHeatmapRenderId) {
                 console.warn("Ignorando resultado de heatmap obsoleto (RenderID mismatch).");
                 return;
@@ -653,8 +659,8 @@ function refreshVisualization() {
         // 3D Mode
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     } else {
-         // Default Fallback: Force Heatmap as per user request (reverted from 3D)
-         triggerHeatmapGeneration(
+        // Default Fallback: Force Heatmap as per user request (reverted from 3D)
+        triggerHeatmapGeneration(
             uniquePhis_deg,
             uniqueThetas_deg,
             magnitudes_grid_linear_normalized,
@@ -751,7 +757,7 @@ function initBeamPatternControls() {
 
     if (!heatmapCanvas) {
         console.error("Heatmap Canvas missing");
-        if(statusDiv) statusDiv.textContent = "Erro: Canvas não encontrado.";
+        if (statusDiv) statusDiv.textContent = "Erro: Canvas não encontrado.";
         return;
     }
 

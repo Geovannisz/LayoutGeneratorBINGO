@@ -6,11 +6,24 @@
  * Returns Uint8ClampedArray for Canvas ImageData.
  */
 
-// Viridis Colormap (256 steps, RGB)
+// Viridis Colormap (64 steps, RGB) - High-quality for smooth gradients
 const VIRIDIS_MAP = [
-    [68, 1, 84], [72, 35, 116], [64, 67, 135], [52, 94, 141],
-    [41, 120, 142], [32, 144, 140], [34, 167, 132], [68, 190, 112],
-    [121, 209, 81], [189, 222, 38], [253, 231, 36]
+    [68, 1, 84], [69, 6, 90], [70, 12, 95], [71, 17, 101],
+    [71, 22, 106], [72, 27, 111], [72, 32, 115], [71, 37, 119],
+    [71, 42, 122], [70, 47, 125], [69, 52, 127], [68, 57, 129],
+    [66, 62, 131], [65, 67, 132], [63, 72, 133], [61, 77, 134],
+    [59, 81, 134], [57, 86, 135], [55, 90, 135], [53, 95, 135],
+    [51, 99, 135], [49, 103, 134], [47, 108, 134], [45, 112, 133],
+    [43, 116, 132], [42, 120, 131], [40, 124, 130], [39, 128, 128],
+    [38, 132, 127], [37, 136, 125], [36, 140, 123], [36, 144, 120],
+    [36, 147, 118], [37, 151, 115], [38, 155, 112], [40, 158, 109],
+    [42, 162, 105], [45, 165, 101], [49, 169, 97], [53, 172, 93],
+    [57, 175, 88], [62, 178, 84], [68, 181, 79], [74, 184, 74],
+    [80, 187, 68], [87, 189, 63], [94, 192, 57], [102, 194, 51],
+    [109, 196, 46], [118, 198, 40], [126, 200, 35], [135, 202, 30],
+    [144, 203, 26], [153, 205, 22], [162, 206, 19], [172, 207, 17],
+    [181, 208, 16], [190, 208, 17], [199, 209, 19], [208, 209, 24],
+    [217, 209, 31], [225, 209, 40], [233, 209, 51], [253, 231, 36]
 ];
 
 function getViridisColor(t) {
@@ -62,20 +75,20 @@ function binarySearch(arr, target) {
 function findPhiIndex(phis, phiTarget) {
     // 1. Try direct match in range
     // Since phis is sorted, we can use binary search to find the lower bound index
-    if (phiTarget >= phis[0] && phiTarget <= phis[phis.length-1]) {
+    if (phiTarget >= phis[0] && phiTarget <= phis[phis.length - 1]) {
         let idx = binarySearch(phis, phiTarget);
         if (idx !== -1) return idx;
     }
 
     // 2. Try wrapped versions
     const pMinus = phiTarget - 360;
-    if (pMinus >= phis[0] && pMinus <= phis[phis.length-1]) {
+    if (pMinus >= phis[0] && pMinus <= phis[phis.length - 1]) {
         let idx = binarySearch(phis, pMinus);
         if (idx !== -1) return idx;
     }
 
     const pPlus = phiTarget + 360;
-    if (pPlus >= phis[0] && pPlus <= phis[phis.length-1]) {
+    if (pPlus >= phis[0] && pPlus <= phis[phis.length - 1]) {
         let idx = binarySearch(phis, pPlus);
         if (idx !== -1) return idx;
     }
@@ -100,7 +113,7 @@ function interpolateValue(grid, thetas, phis, r, phi) {
         tIdx = thetas.length - 2;
     }
 
-    if (r > thetas[thetas.length-1]) return 0;
+    if (r > thetas[thetas.length - 1]) return 0;
 
 
     // Phi Index (Robust)
@@ -130,77 +143,77 @@ function interpolateValue(grid, thetas, phis, r, phi) {
         if (effPhi < p0) effPhi += 360; // Should move it up if it was e.g. -10 and range is 0..350
 
         if (effPhi >= p0 && effPhi <= pNextVal) {
-             p1 = phis[0]; // The grid value index is 0
-             // But for interpolation math we use pNextVal
-             const dp = pNextVal - p0;
-             v = (effPhi - p0) / (dp || 1);
+            p1 = phis[0]; // The grid value index is 0
+            // But for interpolation math we use pNextVal
+            const dp = pNextVal - p0;
+            v = (effPhi - p0) / (dp || 1);
         } else {
             // Fallback: Clamp to nearest valid
             // If we are here, we are lost. Return nearest.
-             return grid[tIdx][0]; // Dummy fallback
+            return grid[tIdx][0]; // Dummy fallback
         }
     } else {
         // Standard Case
         // If pIdx is the last element, we might still be in the wrap gap if exact match didn't happen
         if (pIdx >= phis.length - 1) {
-             // We are at the last element. We need to interpolate towards the first element (wrapped)
-             p0 = phis[phis.length - 1];
-             let pNextVal = phis[0] + 360;
-             p1 = phis[0]; // Grid index
+            // We are at the last element. We need to interpolate towards the first element (wrapped)
+            p0 = phis[phis.length - 1];
+            let pNextVal = phis[0] + 360;
+            p1 = phis[0]; // Grid index
 
-             // Check if we are indeed in this upper interval
-             let effPhi = phi;
-             if (effPhi < p0) effPhi += 360;
+            // Check if we are indeed in this upper interval
+            let effPhi = phi;
+            if (effPhi < p0) effPhi += 360;
 
-             // The binary search returns the index LEQ target.
-             // If target is 355 and phis ends at 350, idx is last.
-             // So we are interpolating between last and (first+360).
+            // The binary search returns the index LEQ target.
+            // If target is 355 and phis ends at 350, idx is last.
+            // So we are interpolating between last and (first+360).
 
-             const dp = pNextVal - p0;
-             v = (effPhi - p0) / (dp || 1);
+            const dp = pNextVal - p0;
+            v = (effPhi - p0) / (dp || 1);
         } else {
             // Normal interpolation between pIdx and pIdx+1
-             p0 = phis[pIdx];
-             p1 = phis[pIdx+1]; // Grid value index is pIdx+1
-             let gridP1Index = pIdx + 1;
+            p0 = phis[pIdx];
+            p1 = phis[pIdx + 1]; // Grid value index is pIdx+1
+            let gridP1Index = pIdx + 1;
 
-             // Determine effective phi
-             let effPhi = phi;
+            // Determine effective phi
+            let effPhi = phi;
 
-             // Adjust effPhi to be close to p0 (handle simple wrapping offsets)
-             // e.g. p0=350, p1=360 (if exists). phi=355.
-             // e.g. p0=-10, p1=0. phi=-5.
-             // If we found pIdx via a wrapped search (e.g. pMinus), we need to shift effPhi?
-             // Actually findPhiIndex just returns the index in the array.
-             // We need to verify which "version" of phi matched.
+            // Adjust effPhi to be close to p0 (handle simple wrapping offsets)
+            // e.g. p0=350, p1=360 (if exists). phi=355.
+            // e.g. p0=-10, p1=0. phi=-5.
+            // If we found pIdx via a wrapped search (e.g. pMinus), we need to shift effPhi?
+            // Actually findPhiIndex just returns the index in the array.
+            // We need to verify which "version" of phi matched.
 
-             // Heuristic: Make effPhi close to p0
-             if (effPhi < p0 - 180) effPhi += 360;
-             else if (effPhi > p0 + 180) effPhi -= 360;
+            // Heuristic: Make effPhi close to p0
+            if (effPhi < p0 - 180) effPhi += 360;
+            else if (effPhi > p0 + 180) effPhi -= 360;
 
-             // If still out of bounds of [p0, next_val], something is odd, likely the wrap logic above
-             // But assuming strict ordering in phis:
-             let pNextVal = phis[pIdx+1];
+            // If still out of bounds of [p0, next_val], something is odd, likely the wrap logic above
+            // But assuming strict ordering in phis:
+            let pNextVal = phis[pIdx + 1];
 
-             // If we are interpolating across the -180/180 cut in a -180..180 dataset:
-             // e.g. phis=[-180, ...], p0=-180.
-             // If we needed to wrap 180 to -180, that's the "gap" logic handled in the `if (pIdx >= length-1)` block?
-             // No, standard `binarySearch` handles finding the lower bound.
+            // If we are interpolating across the -180/180 cut in a -180..180 dataset:
+            // e.g. phis=[-180, ...], p0=-180.
+            // If we needed to wrap 180 to -180, that's the "gap" logic handled in the `if (pIdx >= length-1)` block?
+            // No, standard `binarySearch` handles finding the lower bound.
 
-             // Let's stick to the simplest math:
-             const dp = pNextVal - p0;
-             v = (effPhi - p0) / (dp || 1);
+            // Let's stick to the simplest math:
+            const dp = pNextVal - p0;
+            v = (effPhi - p0) / (dp || 1);
 
-             // If v is outside 0..1, it means our assumption about "effPhi" being inside is wrong.
-             // This happens if phi was found via "pPlus" or "pMinus".
-             // We should normalize v to [0,1].
-             if (v < 0) v = 0;
-             if (v > 1) v = 1;
+            // If v is outside 0..1, it means our assumption about "effPhi" being inside is wrong.
+            // This happens if phi was found via "pPlus" or "pMinus".
+            // We should normalize v to [0,1].
+            if (v < 0) v = 0;
+            if (v > 1) v = 1;
 
-             // Assign the grid index for the second point
-             p1 = phis[gridP1Index]; // Used for value lookup? No, we need the INDEX.
-             // Reassign p1 to be the INDEX for lookup later, not the value.
-             // Actually, let's restructure variables.
+            // Assign the grid index for the second point
+            p1 = phis[gridP1Index]; // Used for value lookup? No, we need the INDEX.
+            // Reassign p1 to be the INDEX for lookup later, not the value.
+            // Actually, let's restructure variables.
         }
     }
 
@@ -208,7 +221,7 @@ function interpolateValue(grid, thetas, phis, r, phi) {
 
     // T-dimension
     const t0_val = thetas[tIdx];
-    const t1_val = thetas[tIdx+1];
+    const t1_val = thetas[tIdx + 1];
     const dt = t1_val - t0_val;
     const u = (r - t0_val) / (dt || 1);
 
@@ -224,17 +237,17 @@ function interpolateValue(grid, thetas, phis, r, phi) {
     }
 
     const v00 = grid[tIdx][pIdx0];
-    const v10 = grid[tIdx+1][pIdx0];
+    const v10 = grid[tIdx + 1][pIdx0];
     const v01 = grid[tIdx][pIdx1];
-    const v11 = grid[tIdx+1][pIdx1];
+    const v11 = grid[tIdx + 1][pIdx1];
 
     return (1 - u) * (1 - v) * v00 +
-           u * (1 - v) * v10 +
-           (1 - u) * v * v01 +
-           u * v * v11;
+        u * (1 - v) * v10 +
+        (1 - u) * v * v01 +
+        u * v * v11;
 }
 
-self.onmessage = function(e) {
+self.onmessage = function (e) {
     const { width, height, scaleType, magnitudesLinear, uniqueThetas, uniquePhis, renderId } = e.data;
 
     if (!magnitudesLinear || !uniqueThetas || !uniquePhis) {
@@ -254,11 +267,11 @@ self.onmessage = function(e) {
         for (let x = 0; x < width; x++) {
             const dx = x - cx;
             const dy = y - cy;
-            const rPx = Math.sqrt(dx*dx + dy*dy);
+            const rPx = Math.sqrt(dx * dx + dy * dy);
             const idx = (y * width + x) * 4;
 
             if (rPx > maxRadiusPx) {
-                pixels[idx] = 0; pixels[idx+1] = 0; pixels[idx+2] = 0; pixels[idx+3] = 0;
+                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
                 continue;
             }
 
@@ -294,9 +307,9 @@ self.onmessage = function(e) {
 
             const colorIdx = Math.floor(normalizedVal * 255);
             pixels[idx] = COLORMAP_LUT[colorIdx * 3];
-            pixels[idx+1] = COLORMAP_LUT[colorIdx * 3 + 1];
-            pixels[idx+2] = COLORMAP_LUT[colorIdx * 3 + 2];
-            pixels[idx+3] = 255;
+            pixels[idx + 1] = COLORMAP_LUT[colorIdx * 3 + 1];
+            pixels[idx + 2] = COLORMAP_LUT[colorIdx * 3 + 2];
+            pixels[idx + 3] = 255;
         }
     }
 
