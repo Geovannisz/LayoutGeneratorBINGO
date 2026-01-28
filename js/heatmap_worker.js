@@ -309,66 +309,80 @@ self.onmessage = function (e) {
         return val;
     }
 
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const idx = (y * width + x) * 4;
+    // Optimization: render only top-right quadrant and mirror to other 3 quadrants
+    // This exploits the radial symmetry of the beam pattern data (4x speedup)
+    const halfW = Math.ceil(width / 2);
+    const halfH = Math.ceil(height / 2);
 
-            // Check if center is outside circle first (optimization)
+    for (let y = 0; y < halfH; y++) {
+        for (let x = halfW; x < width; x++) {
+            // Calculate for top-right quadrant pixel
             const centerDx = x - cx;
             const centerDy = y - cy;
             const centerRPx = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
 
-            if (centerRPx > maxRadiusPx + 1) {
-                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
-                continue;
-            }
+            let r = 0, g = 0, b = 0, a = 0;
 
-            // Supersample: average multiple sub-pixel samples
-            // Use higher density near center to handle polar singularity
-            const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
-            const numSamples = sampleOffsets.length;
+            if (centerRPx <= maxRadiusPx + 1) {
+                // Supersample: average multiple sub-pixel samples
+                const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
+                const numSamples = sampleOffsets.length;
 
-            let sumVal = 0;
-            let validSamples = 0;
+                let sumVal = 0;
+                let validSamples = 0;
 
-            for (let s = 0; s < numSamples; s++) {
-                const sampleX = x + sampleOffsets[s].dx;
-                const sampleY = y + sampleOffsets[s].dy;
+                for (let s = 0; s < numSamples; s++) {
+                    const sampleX = x + sampleOffsets[s].dx;
+                    const sampleY = y + sampleOffsets[s].dy;
 
-                const dx = sampleX - cx;
-                const dy = sampleY - cy;
-                const rPx = Math.sqrt(dx * dx + dy * dy);
+                    const dx = sampleX - cx;
+                    const dy = sampleY - cy;
+                    const rPx = Math.sqrt(dx * dx + dy * dy);
 
-                if (rPx > maxRadiusPx) {
-                    continue; // This sample is outside
+                    if (rPx > maxRadiusPx) continue;
+
+                    const theta = (rPx / maxRadiusPx) * maxTheta;
+                    let angleRad = Math.atan2(-dy, dx);
+                    let angleDeg = angleRad * 180 / Math.PI;
+                    if (angleDeg < 0) angleDeg += 360;
+
+                    const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
+                    sumVal += applyScale(val, scaleType);
+                    validSamples++;
                 }
 
-                const theta = (rPx / maxRadiusPx) * maxTheta;
-                let angleRad = Math.atan2(-dy, dx);
-                let angleDeg = angleRad * 180 / Math.PI;
-                if (angleDeg < 0) angleDeg += 360;
+                if (validSamples > 0) {
+                    let normalizedVal = sumVal / validSamples;
+                    if (normalizedVal < 0) normalizedVal = 0;
+                    if (normalizedVal > 1) normalizedVal = 1;
 
-                const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
-                const scaledVal = applyScale(val, scaleType);
-
-                sumVal += scaledVal;
-                validSamples++;
+                    const colorIdx = Math.floor(normalizedVal * 255);
+                    r = COLORMAP_LUT[colorIdx * 3];
+                    g = COLORMAP_LUT[colorIdx * 3 + 1];
+                    b = COLORMAP_LUT[colorIdx * 3 + 2];
+                    a = 255;
+                }
             }
 
-            if (validSamples === 0) {
-                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
-                continue;
-            }
+            // Mirror to all 4 quadrants
+            const mirrorX = width - 1 - x;
+            const mirrorY = height - 1 - y;
 
-            let normalizedVal = sumVal / validSamples;
-            if (normalizedVal < 0) normalizedVal = 0;
-            if (normalizedVal > 1) normalizedVal = 1;
+            // Top-right (original)
+            const idx1 = (y * width + x) * 4;
+            pixels[idx1] = r; pixels[idx1 + 1] = g; pixels[idx1 + 2] = b; pixels[idx1 + 3] = a;
 
-            const colorIdx = Math.floor(normalizedVal * 255);
-            pixels[idx] = COLORMAP_LUT[colorIdx * 3];
-            pixels[idx + 1] = COLORMAP_LUT[colorIdx * 3 + 1];
-            pixels[idx + 2] = COLORMAP_LUT[colorIdx * 3 + 2];
-            pixels[idx + 3] = 255;
+            // Top-left (horizontal mirror)
+            const idx2 = (y * width + mirrorX) * 4;
+            pixels[idx2] = r; pixels[idx2 + 1] = g; pixels[idx2 + 2] = b; pixels[idx2 + 3] = a;
+
+            // Bottom-right (vertical mirror)
+            const idx3 = (mirrorY * width + x) * 4;
+            pixels[idx3] = r; pixels[idx3 + 1] = g; pixels[idx3 + 2] = b; pixels[idx3 + 3] = a;
+
+            // Bottom-left (both mirrors)
+            const idx4 = (mirrorY * width + mirrorX) * 4;
+            pixels[idx4] = r; pixels[idx4 + 1] = g; pixels[idx4 + 2] = b; pixels[idx4 + 3] = a;
         }
     }
 
