@@ -309,70 +309,61 @@ self.onmessage = function (e) {
         return val;
     }
 
-    // Optimization: render only top half and mirror to bottom half
-    // This exploits the vertical symmetry of the beam pattern data (2x speedup)
-    const halfH = Math.ceil(height / 2);
-
-    for (let y = 0; y < halfH; y++) {
+    for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            // Calculate for top half pixel
+            const idx = (y * width + x) * 4;
+
             const centerDx = x - cx;
             const centerDy = y - cy;
             const centerRPx = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
 
-            let r = 0, g = 0, b = 0, a = 0;
-
-            if (centerRPx <= maxRadiusPx + 1) {
-                // Supersample: average multiple sub-pixel samples
-                const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
-                const numSamples = sampleOffsets.length;
-
-                let sumVal = 0;
-                let validSamples = 0;
-
-                for (let s = 0; s < numSamples; s++) {
-                    const sampleX = x + sampleOffsets[s].dx;
-                    const sampleY = y + sampleOffsets[s].dy;
-
-                    const dx = sampleX - cx;
-                    const dy = sampleY - cy;
-                    const rPx = Math.sqrt(dx * dx + dy * dy);
-
-                    if (rPx > maxRadiusPx) continue;
-
-                    const theta = (rPx / maxRadiusPx) * maxTheta;
-                    let angleRad = Math.atan2(-dy, dx);
-                    let angleDeg = angleRad * 180 / Math.PI;
-                    if (angleDeg < 0) angleDeg += 360;
-
-                    const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
-                    sumVal += applyScale(val, scaleType);
-                    validSamples++;
-                }
-
-                if (validSamples > 0) {
-                    let normalizedVal = sumVal / validSamples;
-                    if (normalizedVal < 0) normalizedVal = 0;
-                    if (normalizedVal > 1) normalizedVal = 1;
-
-                    const colorIdx = Math.floor(normalizedVal * 255);
-                    r = COLORMAP_LUT[colorIdx * 3];
-                    g = COLORMAP_LUT[colorIdx * 3 + 1];
-                    b = COLORMAP_LUT[colorIdx * 3 + 2];
-                    a = 255;
-                }
+            if (centerRPx > maxRadiusPx + 1) {
+                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
+                continue;
             }
 
-            // Mirror vertically: top to bottom
-            const mirrorY = height - 1 - y;
+            // Supersample: average multiple sub-pixel samples
+            // Use higher density near center to handle polar singularity
+            const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
+            const numSamples = sampleOffsets.length;
 
-            // Top (original)
-            const idx1 = (y * width + x) * 4;
-            pixels[idx1] = r; pixels[idx1 + 1] = g; pixels[idx1 + 2] = b; pixels[idx1 + 3] = a;
+            let sumVal = 0;
+            let validSamples = 0;
 
-            // Bottom (vertical mirror)
-            const idx2 = (mirrorY * width + x) * 4;
-            pixels[idx2] = r; pixels[idx2 + 1] = g; pixels[idx2 + 2] = b; pixels[idx2 + 3] = a;
+            for (let s = 0; s < numSamples; s++) {
+                const sampleX = x + sampleOffsets[s].dx;
+                const sampleY = y + sampleOffsets[s].dy;
+
+                const dx = sampleX - cx;
+                const dy = sampleY - cy;
+                const rPx = Math.sqrt(dx * dx + dy * dy);
+
+                if (rPx > maxRadiusPx) continue;
+
+                const theta = (rPx / maxRadiusPx) * maxTheta;
+                let angleRad = Math.atan2(-dy, dx);
+                let angleDeg = angleRad * 180 / Math.PI;
+                if (angleDeg < 0) angleDeg += 360;
+
+                const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
+                sumVal += applyScale(val, scaleType);
+                validSamples++;
+            }
+
+            if (validSamples === 0) {
+                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
+                continue;
+            }
+
+            let normalizedVal = sumVal / validSamples;
+            if (normalizedVal < 0) normalizedVal = 0;
+            if (normalizedVal > 1) normalizedVal = 1;
+
+            const colorIdx = Math.floor(normalizedVal * 255);
+            pixels[idx] = COLORMAP_LUT[colorIdx * 3];
+            pixels[idx + 1] = COLORMAP_LUT[colorIdx * 3 + 1];
+            pixels[idx + 2] = COLORMAP_LUT[colorIdx * 3 + 2];
+            pixels[idx + 3] = 255;
         }
     }
 
