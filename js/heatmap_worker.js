@@ -311,21 +311,26 @@ self.onmessage = function (e) {
         return val;
     }
 
+    // For linear scale, we need to find the actual max after interpolation
+    // to ensure the peak reaches white (1.0)
+    let scaledValues = new Float32Array(width * height);
+    let globalMax = 0;
+    let globalMin = Infinity;
+
+    // First pass: calculate all scaled values and find global min/max
     for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-            const idx = (y * width + x) * 4;
+            const idx = y * width + x;
 
             const centerDx = x - cx;
             const centerDy = y - cy;
             const centerRPx = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
 
             if (centerRPx > maxRadiusPx + 1) {
-                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
+                scaledValues[idx] = -1; // Mark as outside
                 continue;
             }
 
-            // Supersample: average multiple sub-pixel samples
-            // Use higher density near center to handle polar singularity
             const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
             const numSamples = sampleOffsets.length;
 
@@ -353,19 +358,43 @@ self.onmessage = function (e) {
             }
 
             if (validSamples === 0) {
-                pixels[idx] = 0; pixels[idx + 1] = 0; pixels[idx + 2] = 0; pixels[idx + 3] = 0;
+                scaledValues[idx] = -1; // Mark as outside
                 continue;
             }
 
-            let normalizedVal = sumVal / validSamples;
+            const avgVal = sumVal / validSamples;
+            scaledValues[idx] = avgVal;
+            if (avgVal > globalMax) globalMax = avgVal;
+            if (avgVal < globalMin && avgVal >= 0) globalMin = avgVal;
+        }
+    }
+
+    // For linear and other non-dB scales, renormalize to use full color range
+    // This ensures the peak reaches white (1.0)
+    const needsRenorm = (scaleType !== 'dB') && globalMax > 0 && globalMax < 1;
+    const renormFactor = needsRenorm ? (1.0 / globalMax) : 1.0;
+
+    // Second pass: apply renormalization and write pixels
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const pixelIdx = (y * width + x) * 4;
+            const valueIdx = y * width + x;
+            const scaledVal = scaledValues[valueIdx];
+
+            if (scaledVal < 0) {
+                pixels[pixelIdx] = 0; pixels[pixelIdx + 1] = 0; pixels[pixelIdx + 2] = 0; pixels[pixelIdx + 3] = 0;
+                continue;
+            }
+
+            let normalizedVal = scaledVal * renormFactor;
             if (normalizedVal < 0) normalizedVal = 0;
             if (normalizedVal > 1) normalizedVal = 1;
 
             const colorIdx = Math.floor(normalizedVal * 255);
-            pixels[idx] = COLORMAP_LUT[colorIdx * 3];
-            pixels[idx + 1] = COLORMAP_LUT[colorIdx * 3 + 1];
-            pixels[idx + 2] = COLORMAP_LUT[colorIdx * 3 + 2];
-            pixels[idx + 3] = 255;
+            pixels[pixelIdx] = COLORMAP_LUT[colorIdx * 3];
+            pixels[pixelIdx + 1] = COLORMAP_LUT[colorIdx * 3 + 1];
+            pixels[pixelIdx + 2] = COLORMAP_LUT[colorIdx * 3 + 2];
+            pixels[pixelIdx + 3] = 255;
         }
     }
 
