@@ -17,6 +17,10 @@ const USE_INTENSITY_FOR_PSF = true;
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
 
+// --- WebGPU Support ---
+importScripts('beam_gpu.js');
+let gpuCalculator = null;
+
 // --- Funções Auxiliares de Cálculo ---
 
 function computeAFForPoint(theta_deg, phi_deg, antennaCoords, k) {
@@ -139,7 +143,7 @@ let phiIndexMap = null;   // Maps phi value to array index
 let lastAntennaCoordsSignature = null;
 let lastPsfCalculationMethod = null;
 
-function getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K, taskId) {
+async function getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K, taskId) {
     const currentAntennaCoordsSignature = antennaCoords.length + "_" + (antennaCoords[0] ? antennaCoords[0].join(',') : "empty");
     const currentPsfCalculationMethod = USE_INTENSITY_FOR_PSF ? 'intensity' : 'magnitude';
 
@@ -152,12 +156,6 @@ function getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K, taskId) {
         return { psfGrid: calculatedPsfGridCache, uniqueThetas: uniqueThetasCache, uniquePhis: uniquePhisCache, thetaIndexMap, phiIndexMap };
     }
 
-    self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Calculando grade PSF (${currentPsfCalculationMethod}) (0%)...` });
-
-    const tempUniqueThetas = new Set();
-    const tempUniquePhis = new Set();
-    const tempPsfData = []; // Temporary storage before we know dimensions
-
     const firstQuadrantData = elementFieldData3D.filter(p =>
         p.theta_deg >= 0 && p.theta_deg <= 90 + 1e-9 &&
         p.phi_deg >= 0 && p.phi_deg <= 90 + 1e-9
@@ -167,25 +165,71 @@ function getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K, taskId) {
         throw new Error("Nenhum dado do elemento encontrado para o primeiro quadrante (Theta 0-90, Phi 0-90). Verifique os dados de E-Field.");
     }
 
-    const totalPointsToProcess = firstQuadrantData.length;
-    let pointsProcessed = 0;
-    let lastReportedProgress = 0;
+    const tempUniqueThetas = new Set();
+    const tempUniquePhis = new Set();
+    const tempPsfData = [];
 
-    firstQuadrantData.forEach(elementPoint => {
-        const af_c = computeAFForPoint(elementPoint.theta_deg, elementPoint.phi_deg, antennaCoords, K);
-        const psfVal = calculatePSFValue(elementPoint, af_c);
+    // Try WebGPU first for massive speedup
+    let useGPU = false;
+    if (typeof navigator !== 'undefined' && navigator.gpu) {
+        try {
+            if (!gpuCalculator) {
+                gpuCalculator = new BeamCalculatorGPU();
+            }
 
-        tempPsfData.push({ theta: elementPoint.theta_deg, phi: elementPoint.phi_deg, value: psfVal });
-        tempUniqueThetas.add(elementPoint.theta_deg);
-        tempUniquePhis.add(elementPoint.phi_deg);
+            self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Calculando grade PSF na GPU (WebGPU)...` });
 
-        pointsProcessed++;
-        const progress = Math.round((pointsProcessed / totalPointsToProcess) * 100);
-        if (progress > lastReportedProgress && progress % 5 === 0) {
-            self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Calculando grade PSF (${currentPsfCalculationMethod}) (${progress}%)...` });
-            lastReportedProgress = progress;
+            // GPU returns magnitudes (sqrt of intensity)
+            const gpuMagnitudes = await gpuCalculator.compute(antennaCoords, firstQuadrantData, K);
+
+            // Convert GPU results to PSF values
+            for (let i = 0; i < firstQuadrantData.length; i++) {
+                const point = firstQuadrantData[i];
+                // GPU returns magnitude, we may need intensity (magnitude^2)
+                let psfVal = gpuMagnitudes[i];
+                if (USE_INTENSITY_FOR_PSF) {
+                    psfVal = psfVal * psfVal; // Square for intensity
+                }
+
+                tempPsfData.push({ theta: point.theta_deg, phi: point.phi_deg, value: psfVal });
+                tempUniqueThetas.add(point.theta_deg);
+                tempUniquePhis.add(point.phi_deg);
+            }
+
+            useGPU = true;
+            self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Cálculo GPU concluído (${firstQuadrantData.length} pontos).` });
+
+        } catch (gpuError) {
+            console.error("PSF GPU failed, falling back to CPU:", gpuError);
+            self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: GPU falhou (${gpuError.message}), usando CPU...` });
+            useGPU = false;
         }
-    });
+    }
+
+    // CPU fallback
+    if (!useGPU) {
+        self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Calculando grade PSF na CPU (${currentPsfCalculationMethod}) (0%)...` });
+
+        const totalPointsToProcess = firstQuadrantData.length;
+        let pointsProcessed = 0;
+        let lastReportedProgress = 0;
+
+        firstQuadrantData.forEach(elementPoint => {
+            const af_c = computeAFForPoint(elementPoint.theta_deg, elementPoint.phi_deg, antennaCoords, K);
+            const psfVal = calculatePSFValue(elementPoint, af_c);
+
+            tempPsfData.push({ theta: elementPoint.theta_deg, phi: elementPoint.phi_deg, value: psfVal });
+            tempUniqueThetas.add(elementPoint.theta_deg);
+            tempUniquePhis.add(elementPoint.phi_deg);
+
+            pointsProcessed++;
+            const progress = Math.round((pointsProcessed / totalPointsToProcess) * 100);
+            if (progress > lastReportedProgress && progress % 5 === 0) {
+                self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Calculando grade PSF (CPU) (${progress}%)...` });
+                lastReportedProgress = progress;
+            }
+        });
+    }
 
     uniqueThetasCache = Array.from(tempUniqueThetas).sort((a, b) => a - b);
     uniquePhisCache = Array.from(tempUniquePhis).sort((a, b) => a - b);
@@ -216,7 +260,7 @@ function getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K, taskId) {
     lastAntennaCoordsSignature = currentAntennaCoordsSignature;
     lastPsfCalculationMethod = currentPsfCalculationMethod;
 
-    self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Grade PSF calculada (${currentPsfCalculationMethod}) (100%).` });
+    self.postMessage({ type: 'progress', id: taskId, data: `Worker PSF: Grade PSF calculada (${useGPU ? 'GPU' : 'CPU'}) (100%).` });
     return { psfGrid: calculatedPsfGridCache, uniqueThetas: uniqueThetasCache, uniquePhis: uniquePhisCache, thetaIndexMap, phiIndexMap };
 }
 
@@ -290,7 +334,7 @@ function calculateThetaPico(psfGrid, uniqueThetas, uniquePhis, thetaIndexMap, ta
 }
 
 // --- Manipulador de Mensagens da Thread Principal ---
-self.onmessage = function (e) {
+self.onmessage = async function (e) {
     const {
         id: taskId,
         command,
@@ -307,7 +351,7 @@ self.onmessage = function (e) {
             throw new Error("Dados do elemento 3D (elementFieldData3D) não fornecidos ou vazios.");
         }
 
-        const { psfGrid, uniqueThetas, uniquePhis, thetaIndexMap } = getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K_CONST, taskId);
+        const { psfGrid, uniqueThetas, uniquePhis, thetaIndexMap } = await getOrCalculatePsfGrid(antennaCoords, elementFieldData3D, K_CONST, taskId);
 
         if (command === 'calculateTotalVolumeAndThetaPico') {
             self.postMessage({ type: 'progress', id: taskId, data: 'Worker PSF: Integrando volume total...' });

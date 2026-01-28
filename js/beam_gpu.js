@@ -10,6 +10,13 @@ class BeamCalculatorGPU {
         this.device = null;
         this.pipeline = null;
         this.bindGroupLayout = null;
+
+        // Buffer caching for performance
+        this.cachedAntennaBuffer = null;
+        this.cachedAntennaSignature = null;
+        this.cachedElementBuffer = null;
+        this.cachedElementSignature = null;
+        this.cachedElementCount = 0;
     }
 
     async init() {
@@ -140,32 +147,63 @@ class BeamCalculatorGPU {
         const numAntennas = antennaCoords.length;
         const numPoints = elementFieldData3D.length;
 
-        // 1. Create Antenna Buffer
-        // Flatten [ [x,y], [x,y] ] -> [x, y, x, y...]
-        const antennaData = new Float32Array(numAntennas * 2);
-        for (let i = 0; i < numAntennas; i++) {
-            antennaData[i * 2] = antennaCoords[i][0];
-            antennaData[i * 2 + 1] = antennaCoords[i][1];
+        // 1. Create or reuse Antenna Buffer (cached)
+        const antennaSignature = numAntennas + "_" + (antennaCoords[0] ? antennaCoords[0].join(',') : "empty");
+        let antennaBuffer;
+
+        if (this.cachedAntennaBuffer && this.cachedAntennaSignature === antennaSignature) {
+            // Reuse cached buffer
+            antennaBuffer = this.cachedAntennaBuffer;
+        } else {
+            // Create new buffer
+            const antennaData = new Float32Array(numAntennas * 2);
+            for (let i = 0; i < numAntennas; i++) {
+                antennaData[i * 2] = antennaCoords[i][0];
+                antennaData[i * 2 + 1] = antennaCoords[i][1];
+            }
+
+            // Destroy old buffer if exists
+            if (this.cachedAntennaBuffer) {
+                this.cachedAntennaBuffer.destroy();
+            }
+
+            antennaBuffer = this.createBuffer(antennaData, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+            this.cachedAntennaBuffer = antennaBuffer;
+            this.cachedAntennaSignature = antennaSignature;
         }
 
-        const antennaBuffer = this.createBuffer(antennaData, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+        // 2. Create or reuse Element Data Buffer (cached)
+        // Element data is typically constant for the same element pattern
+        const elementSignature = numPoints + "_" + (elementFieldData3D[0] ? elementFieldData3D[0].theta_deg : "empty");
+        let elementBuffer;
 
-        // 2. Create Element Data Buffer
-        // Structure: phi, theta, reTheta_re, reTheta_im, rePhi_re, rePhi_im (6 floats)
+        if (this.cachedElementBuffer && this.cachedElementSignature === elementSignature && this.cachedElementCount === numPoints) {
+            // Reuse cached buffer
+            elementBuffer = this.cachedElementBuffer;
+        } else {
+            // Create new buffer
+            const elementDataFlat = new Float32Array(numPoints * 6);
+            for (let i = 0; i < numPoints; i++) {
+                const p = elementFieldData3D[i];
+                const base = i * 6;
+                elementDataFlat[base] = p.phi_deg;
+                elementDataFlat[base + 1] = p.theta_deg;
+                elementDataFlat[base + 2] = p.rETheta.re;
+                elementDataFlat[base + 3] = p.rETheta.im;
+                elementDataFlat[base + 4] = p.rEPhi.re;
+                elementDataFlat[base + 5] = p.rEPhi.im;
+            }
 
-        const elementDataFlat = new Float32Array(numPoints * 6);
-        for (let i = 0; i < numPoints; i++) {
-            const p = elementFieldData3D[i];
-            const base = i * 6;
-            elementDataFlat[base] = p.phi_deg;
-            elementDataFlat[base + 1] = p.theta_deg;
-            elementDataFlat[base + 2] = p.rETheta.re;
-            elementDataFlat[base + 3] = p.rETheta.im;
-            elementDataFlat[base + 4] = p.rEPhi.re;
-            elementDataFlat[base + 5] = p.rEPhi.im;
+            // Destroy old buffer if exists
+            if (this.cachedElementBuffer) {
+                this.cachedElementBuffer.destroy();
+            }
+
+            elementBuffer = this.createBuffer(elementDataFlat, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
+            this.cachedElementBuffer = elementBuffer;
+            this.cachedElementSignature = elementSignature;
+            this.cachedElementCount = numPoints;
         }
-
-        const elementBuffer = this.createBuffer(elementDataFlat, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST);
 
         // 3. Output Buffer
         const outputBufferSize = numPoints * 4; // 1 float per point
@@ -237,10 +275,10 @@ class BeamCalculatorGPU {
         if (data instanceof Float32Array) {
             new Float32Array(buffer.getMappedRange()).set(data);
         } else if (data instanceof ArrayBuffer) {
-             new Uint8Array(buffer.getMappedRange()).set(new Uint8Array(data));
+            new Uint8Array(buffer.getMappedRange()).set(new Uint8Array(data));
         } else {
-             // Assuming ArrayBufferView
-             new Uint8Array(buffer.getMappedRange()).set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
+            // Assuming ArrayBufferView
+            new Uint8Array(buffer.getMappedRange()).set(new Uint8Array(data.buffer, data.byteOffset, data.byteLength));
         }
 
         buffer.unmap();
