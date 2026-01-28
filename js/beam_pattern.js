@@ -358,12 +358,13 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
         zTitle = 'Linear';
     }
 
-    // HSV colorscale (SAOImageDS9: black → blue → cyan → green → yellow → red → pink → white)
+    // HSV colorscale (SAOImageDS9: black → gray → blue → cyan → green → yellow → red → pink → white)
     const hsvColorscale = [
         [0.000, 'rgb(0, 0, 0)'],
-        [0.050, 'rgb(32, 32, 64)'],
-        [0.100, 'rgb(48, 48, 160)'],
-        [0.150, 'rgb(0, 96, 255)'],
+        [0.050, 'rgb(64, 64, 64)'],
+        [0.100, 'rgb(96, 96, 96)'],
+        [0.130, 'rgb(96, 96, 160)'],
+        [0.160, 'rgb(48, 128, 255)'],
         [0.200, 'rgb(0, 192, 255)'],
         [0.250, 'rgb(0, 255, 255)'],
         [0.300, 'rgb(0, 255, 160)'],
@@ -589,15 +590,16 @@ function drawColorbar(scaleType) {
             minVal = 0; maxVal = 1;
     }
 
-    // Create HSV Gradient (Black → Blue → Cyan → Green → Yellow → Red → Pink → White)
+    // Create HSV Gradient (Black → Gray → Blue → Cyan → Green → Yellow → Red → Pink → White)
     const barTop = 40; // Leave space for top margin
     const barBottom = height - 20;
     const barHeight = barBottom - barTop;
     const grad = ctx.createLinearGradient(0, barBottom, 0, barTop); // Bottom to Top
     grad.addColorStop(0.000, 'rgb(0, 0, 0)');
-    grad.addColorStop(0.050, 'rgb(32, 32, 64)');
-    grad.addColorStop(0.100, 'rgb(48, 48, 160)');
-    grad.addColorStop(0.150, 'rgb(0, 96, 255)');
+    grad.addColorStop(0.050, 'rgb(64, 64, 64)');
+    grad.addColorStop(0.100, 'rgb(96, 96, 96)');
+    grad.addColorStop(0.130, 'rgb(96, 96, 160)');
+    grad.addColorStop(0.160, 'rgb(48, 128, 255)');
     grad.addColorStop(0.200, 'rgb(0, 192, 255)');
     grad.addColorStop(0.250, 'rgb(0, 255, 255)');
     grad.addColorStop(0.300, 'rgb(0, 255, 160)');
