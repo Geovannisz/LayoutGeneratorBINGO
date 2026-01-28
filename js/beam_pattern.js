@@ -358,9 +358,21 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
         zTitle = 'Linear';
     }
 
+    // DS9 "a" colorscale (SAOImageDS9: black → green → pink → red → yellow)
+    const ds9AColorscale = [
+        [0.000, 'rgb(0, 0, 0)'],
+        [0.150, 'rgb(0, 96, 0)'],
+        [0.300, 'rgb(0, 184, 0)'],
+        [0.400, 'rgb(128, 128, 128)'],
+        [0.500, 'rgb(255, 0, 128)'],
+        [0.600, 'rgb(255, 0, 0)'],
+        [0.750, 'rgb(255, 128, 0)'],
+        [1.000, 'rgb(255, 255, 0)']
+    ];
+
     const data = [{
         type: 'surface', x: x, y: y, z: zData,
-        surfacecolor: zData, colorscale: 'Viridis'
+        surfacecolor: zData, colorscale: ds9AColorscale
     }];
 
     const layout = {
@@ -516,12 +528,9 @@ function drawCircularAxisOverlay(ctx, width, height) {
 }
 
 // === Colorbar / Legend ===
-// Viridis colormap reference for the legend (simplified)
-// Ideally we share the exact same LUT, but drawing a gradient is easier for legend.
-// Steps from heatmap_worker.js:
-// [68, 1, 84], [72, 35, 116], [64, 67, 135], [52, 94, 141],
-// [41, 120, 142], [32, 144, 140], [34, 167, 132], [68, 190, 112],
-// [121, 209, 81], [189, 222, 38], [253, 231, 36]
+// DS9 "a" colormap reference for the legend (SAOImageDS9 heat-style)
+// Transitions: Black → Red → Orange → Yellow → White
+// Matches the colormap in heatmap_worker.js
 function drawColorbar(scaleType) {
     if (!heatmapLegendCanvas || !heatmapContainer) return;
 
@@ -567,28 +576,19 @@ function drawColorbar(scaleType) {
             minVal = 0; maxVal = 1;
     }
 
-    // Create Gradient with more stops for smoother appearance
+    // Create DS9 "a" Gradient (Black → Green → Pink → Red → Yellow)
     const barTop = 40; // Leave space for top margin
     const barBottom = height - 20;
     const barHeight = barBottom - barTop;
     const grad = ctx.createLinearGradient(0, barBottom, 0, barTop); // Bottom to Top
-    grad.addColorStop(0.000, 'rgb(68, 1, 84)');
-    grad.addColorStop(0.063, 'rgb(71, 22, 106)');
-    grad.addColorStop(0.125, 'rgb(70, 47, 125)');
-    grad.addColorStop(0.188, 'rgb(65, 67, 132)');
-    grad.addColorStop(0.250, 'rgb(55, 90, 135)');
-    grad.addColorStop(0.313, 'rgb(45, 112, 133)');
-    grad.addColorStop(0.375, 'rgb(38, 132, 127)');
-    grad.addColorStop(0.438, 'rgb(37, 151, 115)');
-    grad.addColorStop(0.500, 'rgb(49, 169, 97)');
-    grad.addColorStop(0.563, 'rgb(68, 181, 79)');
-    grad.addColorStop(0.625, 'rgb(94, 192, 57)');
-    grad.addColorStop(0.688, 'rgb(126, 200, 35)');
-    grad.addColorStop(0.750, 'rgb(162, 206, 19)');
-    grad.addColorStop(0.813, 'rgb(190, 208, 17)');
-    grad.addColorStop(0.875, 'rgb(217, 209, 31)');
-    grad.addColorStop(0.938, 'rgb(233, 209, 51)');
-    grad.addColorStop(1.000, 'rgb(253, 231, 36)');
+    grad.addColorStop(0.000, 'rgb(0, 0, 0)');
+    grad.addColorStop(0.150, 'rgb(0, 96, 0)');
+    grad.addColorStop(0.300, 'rgb(0, 184, 0)');
+    grad.addColorStop(0.400, 'rgb(128, 128, 128)');
+    grad.addColorStop(0.500, 'rgb(255, 0, 128)');
+    grad.addColorStop(0.600, 'rgb(255, 0, 0)');
+    grad.addColorStop(0.750, 'rgb(255, 128, 0)');
+    grad.addColorStop(1.000, 'rgb(255, 255, 0)');
 
     // Draw Bar with border
     const barWidth = 25;
