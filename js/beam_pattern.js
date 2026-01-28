@@ -43,6 +43,8 @@ let pendingRequestFn = null; // Store pending request if worker is busy
 let beamCalculationWorker = null;  // 2D Worker
 let beamCalculationWorker3D = null;// 3D Data Worker
 let heatmapWorker = null;          // New Native Heatmap Worker
+let heatmapGPU = null;             // GPU Renderer
+let useGPU = null;                 // GPU Support Flag (null=unknown)
 
 let currentCalculationId = 0;
 let current3DCalculationId = 0;
@@ -376,27 +378,58 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
 }
 
 // Heatmap Native (Canvas)
-function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType) {
-    if (!heatmapWorker) {
-        console.error("Heatmap Worker not init");
-        return;
-    }
-
+async function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType) {
     toggleViews('heatmap');
     drawColorbar(scaleType); // Update legend
 
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
-    currentHeatmapRenderId++;
-    heatmapWorker.postMessage({
-        width: HEATMAP_RESOLUTION,
-        height: HEATMAP_RESOLUTION,
-        scaleType: scaleType,
-        magnitudesLinear: mags_linear,
-        uniqueThetas: uniqueThetas,
-        uniquePhis: uniquePhis,
-        renderId: currentHeatmapRenderId
-    });
+    // Initialize GPU Check if needed
+    if (useGPU === null) {
+        useGPU = await HeatmapGPU.isSupported();
+        if (useGPU) {
+            heatmapGPU = new HeatmapGPU();
+            try {
+                await heatmapGPU.init(heatmapCanvas);
+                console.log("GPU Heatmap Initialized");
+            } catch (e) {
+                console.error("GPU Init Failed, falling back to CPU", e);
+                useGPU = false;
+            }
+        }
+    }
+
+    if (useGPU) {
+        // GPU Path
+        heatmapCanvas.width = HEATMAP_RESOLUTION;
+        heatmapCanvas.height = HEATMAP_RESOLUTION;
+        try {
+            heatmapGPU.render(mags_linear, HEATMAP_RESOLUTION, HEATMAP_RESOLUTION, scaleType);
+            if (statusDiv) statusDiv.textContent = `Heatmap renderizado (GPU).`;
+        } catch (e) {
+            console.error("GPU Render Error:", e);
+            // Fallback to CPU if render crashes
+            useGPU = false;
+            triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType);
+        }
+    } else {
+        // CPU Fallback
+        if (!heatmapWorker) {
+            console.error("Heatmap Worker not init");
+            return;
+        }
+
+        currentHeatmapRenderId++;
+        heatmapWorker.postMessage({
+            width: HEATMAP_RESOLUTION,
+            height: HEATMAP_RESOLUTION,
+            scaleType: scaleType,
+            magnitudesLinear: mags_linear,
+            uniqueThetas: uniqueThetas,
+            uniquePhis: uniquePhis,
+            renderId: currentHeatmapRenderId
+        });
+    }
 }
 
 function drawHeatmapToCanvas(pixels, width, height) {
