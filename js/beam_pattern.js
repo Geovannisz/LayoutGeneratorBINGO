@@ -358,13 +358,14 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
         zTitle = 'Linear';
     }
 
-    // DS9 "a" colorscale (SAOImageDS9: black → green → pink → red → yellow)
+    // DS9 "a" colorscale (SAOImageDS9: black → lime-green → magenta → red → yellow)
     const ds9AColorscale = [
         [0.000, 'rgb(0, 0, 0)'],
-        [0.150, 'rgb(0, 96, 0)'],
-        [0.300, 'rgb(0, 184, 0)'],
-        [0.400, 'rgb(128, 128, 128)'],
-        [0.500, 'rgb(255, 0, 128)'],
+        [0.100, 'rgb(0, 128, 0)'],
+        [0.200, 'rgb(0, 255, 0)'],
+        [0.300, 'rgb(64, 255, 64)'],
+        [0.400, 'rgb(255, 0, 255)'],
+        [0.500, 'rgb(255, 0, 192)'],
         [0.600, 'rgb(255, 0, 0)'],
         [0.750, 'rgb(255, 128, 0)'],
         [1.000, 'rgb(255, 255, 0)']
@@ -576,16 +577,17 @@ function drawColorbar(scaleType) {
             minVal = 0; maxVal = 1;
     }
 
-    // Create DS9 "a" Gradient (Black → Green → Pink → Red → Yellow)
+    // Create DS9 "a" Gradient (Black → Lime Green → Magenta → Red → Yellow)
     const barTop = 40; // Leave space for top margin
     const barBottom = height - 20;
     const barHeight = barBottom - barTop;
     const grad = ctx.createLinearGradient(0, barBottom, 0, barTop); // Bottom to Top
     grad.addColorStop(0.000, 'rgb(0, 0, 0)');
-    grad.addColorStop(0.150, 'rgb(0, 96, 0)');
-    grad.addColorStop(0.300, 'rgb(0, 184, 0)');
-    grad.addColorStop(0.400, 'rgb(128, 128, 128)');
-    grad.addColorStop(0.500, 'rgb(255, 0, 128)');
+    grad.addColorStop(0.100, 'rgb(0, 128, 0)');
+    grad.addColorStop(0.200, 'rgb(0, 255, 0)');
+    grad.addColorStop(0.300, 'rgb(64, 255, 64)');
+    grad.addColorStop(0.400, 'rgb(255, 0, 255)');
+    grad.addColorStop(0.500, 'rgb(255, 0, 192)');
     grad.addColorStop(0.600, 'rgb(255, 0, 0)');
     grad.addColorStop(0.750, 'rgb(255, 128, 0)');
     grad.addColorStop(1.000, 'rgb(255, 255, 0)');
