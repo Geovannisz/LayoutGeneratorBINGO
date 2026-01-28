@@ -387,10 +387,16 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
 
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
+    // Calculate adaptive resolution based on source data
+    // Use 2x the angular resolution to avoid aliasing (Nyquist)
+    // but cap at a reasonable maximum for performance
+    const dataResolution = Math.max(uniquePhis.length, uniqueThetas.length);
+    const adaptiveResolution = Math.min(Math.max(dataResolution * 2, 512), 1024);
+
     currentHeatmapRenderId++;
     heatmapWorker.postMessage({
-        width: HEATMAP_RESOLUTION,
-        height: HEATMAP_RESOLUTION,
+        width: adaptiveResolution,
+        height: adaptiveResolution,
         scaleType: scaleType,
         magnitudesLinear: mags_linear,
         uniqueThetas: uniqueThetas,
@@ -405,23 +411,14 @@ function drawHeatmapToCanvas(pixels, width, height) {
     heatmapCanvas.width = width;
     heatmapCanvas.height = height;
 
+    // Enable smooth upscaling when canvas is displayed larger than internal resolution
+    heatmapCanvas.style.imageRendering = 'auto';
+
     const ctx = heatmapCanvas.getContext('2d');
     const imageData = new ImageData(pixels, width, height);
+    ctx.putImageData(imageData, 0, 0);
 
-    // First, draw to a temporary canvas for processing
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-    const tempCtx = tempCanvas.getContext('2d');
-    tempCtx.putImageData(imageData, 0, 0);
-
-    // Apply Gaussian blur to smooth out interference patterns
-    // blur radius of 2-4px works well for 2048x2048 resolution
-    ctx.filter = 'blur(3px)';
-    ctx.drawImage(tempCanvas, 0, 0);
-    ctx.filter = 'none';
-
-    if (statusDiv) statusDiv.textContent = `Heatmap renderizado (${width}x${height}) com suavização.`;
+    if (statusDiv) statusDiv.textContent = `Heatmap renderizado (${width}x${height}).`;
 }
 
 // === Colorbar / Legend ===
