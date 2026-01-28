@@ -412,7 +412,134 @@ function drawHeatmapToCanvas(pixels, width, height) {
     const imageData = new ImageData(pixels, width, height);
     ctx.putImageData(imageData, 0, 0);
 
+    // Draw professional circular axis overlay
+    drawCircularAxisOverlay(ctx, width, height);
+
     if (statusDiv) statusDiv.textContent = `Heatmap renderizado (${width}x${height}).`;
+}
+
+/**
+ * Draws a professional circular axis overlay for scientific publications.
+ * Features:
+ * - White circular border contrasting with Viridis colormap
+ * - θ (theta) angle labels at concentric circles (30°, 60°, 90°)
+ * - φ (phi) angle labels at cardinal directions
+ * - Clean, publication-ready aesthetic
+ */
+function drawCircularAxisOverlay(ctx, width, height) {
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const maxRadius = Math.min(width, height) / 2;
+
+    // Style settings for publication quality
+    const axisColor = 'rgba(255, 255, 255, 0.95)';
+    const tickColor = 'rgba(255, 255, 255, 0.8)';
+    const labelColor = 'rgba(255, 255, 255, 1)';
+    const shadowColor = 'rgba(0, 0, 0, 0.7)';
+
+    ctx.save();
+
+    // === Draw concentric θ circles (30°, 60°, 90°) ===
+    const thetaAngles = [30, 60, 90];
+    const maxThetaDisplayed = 90; // The heatmap shows 0-90° theta
+
+    thetaAngles.forEach((theta, index) => {
+        const radius = (theta / maxThetaDisplayed) * maxRadius;
+
+        // Draw circle
+        ctx.strokeStyle = axisColor;
+        ctx.lineWidth = index === 2 ? 3 : 1.5; // Thicker outer circle
+        ctx.setLineDash(index === 2 ? [] : [8, 4]);
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // θ label on right side (at φ = 0°)
+        if (theta < 90) {
+            const labelX = centerX + radius + 8;
+            const labelY = centerY;
+
+            // Text shadow for readability
+            ctx.font = 'bold 24px "Segoe UI", Arial, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.shadowColor = shadowColor;
+            ctx.shadowBlur = 4;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
+            ctx.fillStyle = labelColor;
+            ctx.fillText(`${theta}°`, labelX, labelY);
+            ctx.shadowBlur = 0;
+        }
+    });
+
+    // === Draw φ (azimuth) radial lines and labels ===
+    const phiAngles = [
+        { angle: 0, label: 'φ = 0°', align: 'left' },
+        { angle: 90, label: '90°', align: 'center' },
+        { angle: 180, label: '180°', align: 'right' },
+        { angle: 270, label: '270°', align: 'center' }
+    ];
+
+    phiAngles.forEach(({ angle, label, align }) => {
+        const radians = (angle - 90) * Math.PI / 180; // -90 because 0° is right
+        const x1 = centerX;
+        const y1 = centerY;
+        const x2 = centerX + Math.cos(radians) * maxRadius;
+        const y2 = centerY + Math.sin(radians) * maxRadius;
+
+        // Draw radial line
+        ctx.strokeStyle = tickColor;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // φ label at outer edge
+        const labelRadius = maxRadius + 20;
+        const labelX = centerX + Math.cos(radians) * labelRadius;
+        const labelY = centerY + Math.sin(radians) * labelRadius;
+
+        ctx.font = 'bold 22px "Segoe UI", Arial, sans-serif';
+        ctx.textAlign = align;
+        ctx.textBaseline = angle === 90 ? 'top' : (angle === 270 ? 'bottom' : 'middle');
+        ctx.shadowColor = shadowColor;
+        ctx.shadowBlur = 4;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillStyle = labelColor;
+        ctx.fillText(label, labelX, labelY);
+        ctx.shadowBlur = 0;
+    });
+
+    // === Draw center marker (θ = 0°) ===
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = labelColor;
+    ctx.fill();
+
+    // "θ = 0°" label near center
+    ctx.font = 'bold 20px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = 4;
+    ctx.fillStyle = labelColor;
+    ctx.fillText('θ = 0°', centerX, centerY - 15);
+    ctx.shadowBlur = 0;
+
+    // === Draw outer border ===
+    ctx.strokeStyle = axisColor;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, maxRadius - 2, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    ctx.restore();
 }
 
 // === Colorbar / Legend ===
@@ -425,8 +552,8 @@ function drawHeatmapToCanvas(pixels, width, height) {
 function drawColorbar(scaleType) {
     if (!heatmapLegendCanvas || !heatmapContainer) return;
 
-    // Sync internal resolution with display size
-    heatmapLegendCanvas.width = heatmapLegendCanvas.clientWidth || 120;
+    // Sync internal resolution with display size - increased width for title
+    heatmapLegendCanvas.width = heatmapLegendCanvas.clientWidth || 150;
     heatmapLegendCanvas.height = heatmapContainer.clientHeight || 300;
 
     const ctx = heatmapLegendCanvas.getContext('2d');
@@ -436,8 +563,42 @@ function drawColorbar(scaleType) {
     // Clear
     ctx.clearRect(0, 0, width, height);
 
+    // === Draw Title (rotated vertically) ===
+    let title = '';
+    let minVal = 0, maxVal = 1;
+    let unit = '';
+
+    switch (scaleType) {
+        case 'dB':
+            title = 'Normalized |E| (dB)';
+            minVal = -60; maxVal = 0; unit = '';
+            break;
+        case 'linear':
+            title = 'Normalized |E|';
+            minVal = 0; maxVal = 1; unit = '';
+            break;
+        case 'sqrt':
+            title = 'Normalized |E|^(1/2)';
+            minVal = 0; maxVal = 1; unit = '';
+            break;
+        case 'quadratic':
+            title = 'Normalized |E|²';
+            minVal = 0; maxVal = 1; unit = '';
+            break;
+        case 'fourth_root':
+            title = 'Normalized |E|^(1/4)';
+            minVal = 0; maxVal = 1; unit = '';
+            break;
+        default:
+            title = 'Normalized |E|';
+            minVal = 0; maxVal = 1;
+    }
+
     // Create Gradient with more stops for smoother appearance
-    const grad = ctx.createLinearGradient(0, height, 0, 0); // Bottom to Top
+    const barTop = 40; // Leave space for top margin
+    const barBottom = height - 20;
+    const barHeight = barBottom - barTop;
+    const grad = ctx.createLinearGradient(0, barBottom, 0, barTop); // Bottom to Top
     grad.addColorStop(0.000, 'rgb(68, 1, 84)');
     grad.addColorStop(0.063, 'rgb(71, 22, 106)');
     grad.addColorStop(0.125, 'rgb(70, 47, 125)');
@@ -456,38 +617,58 @@ function drawColorbar(scaleType) {
     grad.addColorStop(0.938, 'rgb(233, 209, 51)');
     grad.addColorStop(1.000, 'rgb(253, 231, 36)');
 
-    // Draw Bar
-    const barWidth = 40;
-    const xPos = width - barWidth - 55; // Space for text
+    // Draw Bar with border
+    const barWidth = 25;
+    const barX = 15;
     ctx.fillStyle = grad;
-    ctx.fillRect(xPos, 10, barWidth, height - 20);
+    ctx.fillRect(barX, barTop, barWidth, barHeight);
 
-    // Draw Labels
+    // Bar border
+    ctx.strokeStyle = '#666';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(barX, barTop, barWidth, barHeight);
+
+    // Draw tick marks and labels
     ctx.fillStyle = '#333';
-    ctx.font = '12px Arial';
+    ctx.font = 'bold 13px "Segoe UI", Arial, sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
 
     const numTicks = 5;
-    let minVal = 0, maxVal = 1;
-    let unit = '';
-
-    if (scaleType === 'dB') {
-        minVal = -60; maxVal = 0; unit = ' dB';
-    } else {
-        // Normalized 0-1 for others
-        minVal = 0; maxVal = 1;
-    }
-
     for (let i = 0; i <= numTicks; i++) {
         const t = i / numTicks;
-        const y = (height - 20) * (1 - t) + 10;
+        const y = barBottom - t * barHeight;
         let val = minVal + t * (maxVal - minVal);
-        let label = val.toFixed(1);
-        if (scaleType === 'dB') label = Math.round(val);
+        let label;
 
-        ctx.fillText(label + unit, xPos + barWidth + 5, y);
+        if (scaleType === 'dB') {
+            label = Math.round(val).toString();
+        } else {
+            label = val.toFixed(2);
+        }
+
+        // Tick mark
+        ctx.strokeStyle = '#333';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(barX + barWidth, y);
+        ctx.lineTo(barX + barWidth + 5, y);
+        ctx.stroke();
+
+        // Label
+        ctx.fillText(label + unit, barX + barWidth + 8, y);
     }
+
+    // === Draw rotated title on left side of the bar ===
+    ctx.save();
+    ctx.translate(8, barTop + barHeight / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.font = 'bold 14px "Segoe UI", Arial, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#222';
+    ctx.fillText(title, 0, 0);
+    ctx.restore();
 }
 
 
@@ -505,14 +686,14 @@ function setupHeatmapInteraction() {
         heatmapLegendCanvas.style.top = '0';
         heatmapLegendCanvas.style.bottom = '0';
         heatmapLegendCanvas.style.height = '100%';
-        heatmapLegendCanvas.style.width = '120px';
+        heatmapLegendCanvas.style.width = '100px';
         heatmapLegendCanvas.style.pointerEvents = 'none';
         heatmapLegendCanvas.style.zIndex = '15';
         heatmapContainer.appendChild(heatmapLegendCanvas);
 
         // Add padding to container to shift plot left
         heatmapContainer.style.boxSizing = 'border-box';
-        heatmapContainer.style.paddingRight = '130px';
+        heatmapContainer.style.paddingRight = '110px';
     } else {
         heatmapLegendCanvas = document.getElementById('heatmap-legend-canvas');
     }
