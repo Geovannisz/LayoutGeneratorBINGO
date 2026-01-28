@@ -509,7 +509,7 @@ function drawCircularAxisOverlay(ctx, width, height) {
         ctx.textBaseline = textBaseline;
         // Removed shadow for black text on white background
         ctx.fillStyle = labelColor;
-        ctx.fillText(`${phi}`, labelX, labelY); // Removed ° symbol if it makes it cleaner, but kept numeric
+        ctx.fillText(`${phi}°`, labelX, labelY);
     });
 
     ctx.restore();
