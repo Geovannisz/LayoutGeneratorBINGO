@@ -1005,7 +1005,7 @@ function setupHeatmapInteraction() {
             return;
         }
 
-        const { uniqueThetas_deg } = cachedCalculationResult3D;
+        const { uniqueThetas_deg, uniquePhis_deg, magnitudes_grid_linear_normalized, magnitudes_grid_dB } = cachedCalculationResult3D;
         const maxTheta = uniqueThetas_deg[uniqueThetas_deg.length - 1];
 
         const theta = (rPx / maxRadiusPx) * maxTheta;
@@ -1013,11 +1013,100 @@ function setupHeatmapInteraction() {
         let angleDeg = angleRad * 180 / Math.PI;
         if (angleDeg < 0) angleDeg += 360;
 
+        // Interpolate the intensity value from the grid data
+        let intensityValue = 0;
+        let intensityDisplay = '';
+        
+        try {
+            // Get current scale type
+            const currentScale = scaleSelect ? scaleSelect.value : 'sqrt';
+            
+            // Binary search for theta index
+            let thetaIdx = 0;
+            for (let i = 0; i < uniqueThetas_deg.length - 1; i++) {
+                if (uniqueThetas_deg[i] <= theta && theta <= uniqueThetas_deg[i + 1]) {
+                    thetaIdx = i;
+                    break;
+                }
+            }
+            
+            // Find phi index (with wrapping for 360 degrees)
+            let phiIdx = 0;
+            for (let i = 0; i < uniquePhis_deg.length - 1; i++) {
+                if (uniquePhis_deg[i] <= angleDeg && angleDeg <= uniquePhis_deg[i + 1]) {
+                    phiIdx = i;
+                    break;
+                }
+            }
+            
+            // Bilinear interpolation weights
+            const thetaLow = uniqueThetas_deg[thetaIdx];
+            const thetaHigh = uniqueThetas_deg[Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1)];
+            const phiLow = uniquePhis_deg[phiIdx];
+            const phiHigh = uniquePhis_deg[Math.min(phiIdx + 1, uniquePhis_deg.length - 1)];
+            
+            const thetaWeight = (thetaHigh !== thetaLow) ? (theta - thetaLow) / (thetaHigh - thetaLow) : 0;
+            const phiWeight = (phiHigh !== phiLow) ? (angleDeg - phiLow) / (phiHigh - phiLow) : 0;
+            
+            // Get the four corners for bilinear interpolation (using linear normalized values)
+            const tIdx1 = Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1);
+            const pIdx1 = Math.min(phiIdx + 1, uniquePhis_deg.length - 1);
+            
+            const v00 = magnitudes_grid_linear_normalized[thetaIdx][phiIdx];
+            const v10 = magnitudes_grid_linear_normalized[tIdx1][phiIdx];
+            const v01 = magnitudes_grid_linear_normalized[thetaIdx][pIdx1];
+            const v11 = magnitudes_grid_linear_normalized[tIdx1][pIdx1];
+            
+            // Bilinear interpolation
+            const linearValue = (1 - thetaWeight) * (1 - phiWeight) * v00 +
+                               thetaWeight * (1 - phiWeight) * v10 +
+                               (1 - thetaWeight) * phiWeight * v01 +
+                               thetaWeight * phiWeight * v11;
+            
+            // Apply the current scale transformation
+            switch (currentScale) {
+                case 'dB':
+                    if (linearValue <= 1e-10) {
+                        intensityValue = -60;
+                    } else {
+                        intensityValue = 20 * Math.log10(linearValue);
+                        if (intensityValue < -60) intensityValue = -60;
+                    }
+                    intensityDisplay = `|E|: ${intensityValue.toFixed(1)} dB`;
+                    break;
+                case 'linear':
+                    intensityValue = linearValue;
+                    intensityDisplay = `|E|: ${intensityValue.toFixed(4)}`;
+                    break;
+                case 'sqrt':
+                    intensityValue = Math.sqrt(linearValue);
+                    intensityDisplay = `|E|^½: ${intensityValue.toFixed(4)}`;
+                    break;
+                case 'quadratic':
+                    intensityValue = linearValue * linearValue;
+                    intensityDisplay = `|E|²: ${intensityValue.toFixed(4)}`;
+                    break;
+                case 'fourth_root':
+                    intensityValue = Math.pow(linearValue, 0.25);
+                    intensityDisplay = `|E|^¼: ${intensityValue.toFixed(4)}`;
+                    break;
+                default:
+                    intensityValue = linearValue;
+                    intensityDisplay = `|E|: ${intensityValue.toFixed(4)}`;
+            }
+        } catch (err) {
+            console.warn('Error calculating intensity for tooltip:', err);
+            intensityDisplay = '';
+        }
+
         heatmapTooltip.style.display = 'block';
         heatmapTooltip.style.left = (x + 10) + 'px';
         heatmapTooltip.style.top = (y + 10) + 'px';
 
-        heatmapTooltip.textContent = `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°`;
+        const tooltipText = intensityDisplay 
+            ? `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°, ${intensityDisplay}`
+            : `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°`;
+        heatmapTooltip.textContent = tooltipText;
     });
 
     heatmapCanvas.addEventListener('mouseleave', () => {
