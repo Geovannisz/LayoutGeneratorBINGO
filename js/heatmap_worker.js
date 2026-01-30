@@ -274,34 +274,6 @@ self.onmessage = function (e) {
     const cy = height / 2;
     const maxRadiusPx = Math.min(cx, cy) - 2;
 
-    // Adaptive Supersampling Anti-Aliasing (SSAA):
-    // - High density: 9x9 samples (81 total) near center where theta < 5° (polar singularity)
-    // - Standard: 5x5 samples (25 total) for most of the image
-    // This provides smooth gradients and reduces noise, especially near the beam center
-    const SSAA_STANDARD = 5;
-    const SSAA_HIGH = 9;
-
-    // Threshold: use high density when theta < 5 degrees
-    // Convert to pixel radius threshold
-    const highDensityThreshold = (5 / maxTheta) * maxRadiusPx;
-
-    // Pre-generate sample offsets for both densities
-    function generateSampleOffsets(n) {
-        const offsets = [];
-        for (let sy = 0; sy < n; sy++) {
-            for (let sx = 0; sx < n; sx++) {
-                offsets.push({
-                    dx: (sx + 0.5) / n - 0.5,
-                    dy: (sy + 0.5) / n - 0.5
-                });
-            }
-        }
-        return offsets;
-    }
-
-    const standardOffsets = generateSampleOffsets(SSAA_STANDARD);
-    const highDensityOffsets = generateSampleOffsets(SSAA_HIGH);
-
     // Helper function to apply scaling to a value
     function applyScale(val, scaleType) {
         if (scaleType === 'dB') {
@@ -332,50 +304,26 @@ self.onmessage = function (e) {
         for (let x = 0; x < width; x++) {
             const idx = y * width + x;
 
-            const centerDx = x - cx;
-            const centerDy = y - cy;
-            const centerRPx = Math.sqrt(centerDx * centerDx + centerDy * centerDy);
+            const dx = x - cx;
+            const dy = y - cy;
+            const rPx = Math.sqrt(dx * dx + dy * dy);
 
-            if (centerRPx > maxRadiusPx + 1) {
+            if (rPx > maxRadiusPx) {
                 scaledValues[idx] = -1; // Mark as outside
                 continue;
             }
 
-            const sampleOffsets = centerRPx < highDensityThreshold ? highDensityOffsets : standardOffsets;
-            const numSamples = sampleOffsets.length;
+            const theta = (rPx / maxRadiusPx) * maxTheta;
+            let angleRad = Math.atan2(-dy, dx);
+            let angleDeg = angleRad * 180 / Math.PI;
+            if (angleDeg < 0) angleDeg += 360;
 
-            let sumVal = 0;
-            let validSamples = 0;
+            const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
+            const scaledVal = applyScale(val, scaleType);
 
-            for (let s = 0; s < numSamples; s++) {
-                const sampleX = x + sampleOffsets[s].dx;
-                const sampleY = y + sampleOffsets[s].dy;
-
-                const dx = sampleX - cx;
-                const dy = sampleY - cy;
-                const rPx = Math.sqrt(dx * dx + dy * dy);
-
-                if (rPx > maxRadiusPx) continue;
-
-                const theta = (rPx / maxRadiusPx) * maxTheta;
-                let angleRad = Math.atan2(-dy, dx);
-                let angleDeg = angleRad * 180 / Math.PI;
-                if (angleDeg < 0) angleDeg += 360;
-
-                const val = interpolateValue(magnitudesLinear, uniqueThetas, uniquePhis, theta, angleDeg);
-                sumVal += applyScale(val, scaleType);
-                validSamples++;
-            }
-
-            if (validSamples === 0) {
-                scaledValues[idx] = -1; // Mark as outside
-                continue;
-            }
-
-            const avgVal = sumVal / validSamples;
-            scaledValues[idx] = avgVal;
-            if (avgVal > globalMax) globalMax = avgVal;
-            if (avgVal < globalMin && avgVal >= 0) globalMin = avgVal;
+            scaledValues[idx] = scaledVal;
+            if (scaledVal > globalMax) globalMax = scaledVal;
+            if (scaledVal < globalMin && scaledVal >= 0) globalMin = scaledVal;
         }
     }
 
