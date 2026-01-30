@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag version to release (e.g., 1.0.2)'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -14,6 +20,8 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag && format('v{0}', github.event.inputs.tag) || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -29,17 +37,32 @@ jobs:
       - name: Get version from tag
         id: get_version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
 
       - name: Rename installer to standard format
         shell: bash
         run: |
-          mv "release/BINGO Layout Generator Setup ${{ steps.get_version.outputs.VERSION }}.exe" \
-             "release/BINGO.Layout.Generator.Setup.${{ steps.get_version.outputs.VERSION }}.exe"
+          SOURCE_FILE="release/BINGO Layout Generator Setup ${{ steps.get_version.outputs.VERSION }}.exe"
+          TARGET_FILE="release/BINGO.Layout.Generator.Setup.${{ steps.get_version.outputs.VERSION }}.exe"
+          if [ -f "$SOURCE_FILE" ]; then
+            mv "$SOURCE_FILE" "$TARGET_FILE"
+            echo "✅ Renamed installer to standard format"
+          else
+            echo "❌ Source file not found: $SOURCE_FILE"
+            echo "Available files in release directory:"
+            ls -la release/
+            exit 1
+          fi
 
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
+          tag: v${{ steps.get_version.outputs.VERSION }}
           artifacts: "release/BINGO.Layout.Generator.Setup.${{ steps.get_version.outputs.VERSION }}.exe"
           artifactContentType: application/octet-stream
           name: "v${{ steps.get_version.outputs.VERSION }}"
@@ -52,10 +75,10 @@ jobs:
             ### 📋 Notas de Instalação
             - Execute o instalador e siga as instruções na tela
             - A aplicação será instalada automaticamente
-            - Para outros sistemas operacionais, consulte [BUILD.md](https://github.com/Geovannisz/LayoutGeneratorBINGO/blob/main/BUILD.md)
+            - Para outros sistemas operacionais, consulte [BUILD.md](https://github.com/${{ github.repository }}/blob/main/BUILD.md)
 
             ---
-            **Full Changelog**: https://github.com/Geovannisz/LayoutGeneratorBINGO/compare/v1.0.1...v${{ steps.get_version.outputs.VERSION }}
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.0.1...v${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
           generateReleaseNotes: false
