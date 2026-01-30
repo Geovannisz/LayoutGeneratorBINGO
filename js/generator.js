@@ -146,6 +146,10 @@ class AntennaLayoutGenerator {
         // Tile grouping configuration (1x1 = single tile, default)
         this.tileGroupCols = 1;
         this.tileGroupRows = 1;
+        
+        // Cache for expanded tile centers (invalidated when layout or grouping changes)
+        this._cachedExpandedTiles = null;
+        this._cachedExpansionKey = null;
 
         // Universal Drag-and-drop state variables
         this.isDragging = false;
@@ -268,11 +272,13 @@ class AntennaLayoutGenerator {
         const updateTileGroupHint = () => {
             const cols = this.tileGroupCols;
             const rows = this.tileGroupRows;
-            if (cols === 1 && rows === 1) {
-                tileGroupHint.textContent = '1×1 = tile individual';
-            } else {
-                const totalTiles = cols * rows;
-                tileGroupHint.textContent = `${cols}×${rows} = ${totalTiles} tiles por grupo`;
+            if (tileGroupHint) {
+                if (cols === 1 && rows === 1) {
+                    tileGroupHint.textContent = '1×1 = tile individual';
+                } else {
+                    const totalTiles = cols * rows;
+                    tileGroupHint.textContent = `${cols}×${rows} = ${totalTiles} tiles por grupo`;
+                }
             }
         };
         
@@ -285,6 +291,7 @@ class AntennaLayoutGenerator {
             });
             tileGroupColsInput.addEventListener('input', () => {
                 this.tileGroupCols = Math.max(1, Math.min(10, parseInt(tileGroupColsInput.value) || 1));
+                tileGroupColsInput.value = this.tileGroupCols;
                 updateTileGroupHint();
             });
         }
@@ -298,9 +305,13 @@ class AntennaLayoutGenerator {
             });
             tileGroupRowsInput.addEventListener('input', () => {
                 this.tileGroupRows = Math.max(1, Math.min(10, parseInt(tileGroupRowsInput.value) || 1));
+                tileGroupRowsInput.value = this.tileGroupRows;
                 updateTileGroupHint();
             });
         }
+        
+        // Initialize the hint text on load
+        updateTileGroupHint();
 
         // Attach universal drag-and-drop listeners
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
@@ -1034,8 +1045,19 @@ class AntennaLayoutGenerator {
      * @returns {Array<[number, number]>} - Array of individual tile center coordinates
      */
     expandGroupsToTiles(groupCenters) {
+        // Handle null/undefined/empty input
+        if (!groupCenters || !Array.isArray(groupCenters) || groupCenters.length === 0) {
+            return [];
+        }
+        
         if (this.tileGroupCols === 1 && this.tileGroupRows === 1) {
             return groupCenters; // No expansion needed for 1x1
+        }
+        
+        // Create a cache key based on groupCenters, cols, and rows
+        const cacheKey = `${this.tileGroupCols}-${this.tileGroupRows}-${JSON.stringify(groupCenters)}`;
+        if (this._cachedExpansionKey === cacheKey && this._cachedExpandedTiles) {
+            return this._cachedExpandedTiles;
         }
         
         const expandedCenters = [];
@@ -1065,6 +1087,10 @@ class AntennaLayoutGenerator {
                 }
             }
         }
+        
+        // Cache the result
+        this._cachedExpandedTiles = expandedCenters;
+        this._cachedExpansionKey = cacheKey;
         
         return expandedCenters;
     }
