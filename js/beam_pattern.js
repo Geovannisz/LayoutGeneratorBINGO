@@ -1021,21 +1021,41 @@ function setupHeatmapInteraction() {
             // Get current scale type
             const currentScale = scaleSelect ? scaleSelect.value : 'sqrt';
             
-            // Binary search for theta index
+            // Find theta index with edge case handling
             let thetaIdx = 0;
-            for (let i = 0; i < uniqueThetas_deg.length - 1; i++) {
-                if (uniqueThetas_deg[i] <= theta && theta <= uniqueThetas_deg[i + 1]) {
-                    thetaIdx = i;
-                    break;
+            if (theta <= uniqueThetas_deg[0]) {
+                thetaIdx = 0;
+            } else if (theta >= uniqueThetas_deg[uniqueThetas_deg.length - 1]) {
+                thetaIdx = uniqueThetas_deg.length - 2;
+            } else {
+                for (let i = 0; i < uniqueThetas_deg.length - 1; i++) {
+                    if (uniqueThetas_deg[i] <= theta && theta <= uniqueThetas_deg[i + 1]) {
+                        thetaIdx = i;
+                        break;
+                    }
                 }
             }
             
-            // Find phi index (with wrapping for 360 degrees)
+            // Find phi index with circular wrapping for 360 degrees
             let phiIdx = 0;
-            for (let i = 0; i < uniquePhis_deg.length - 1; i++) {
-                if (uniquePhis_deg[i] <= angleDeg && angleDeg <= uniquePhis_deg[i + 1]) {
-                    phiIdx = i;
-                    break;
+            // Normalize angleDeg to [0, 360)
+            let normAngle = angleDeg % 360;
+            if (normAngle < 0) normAngle += 360;
+            
+            const maxPhi = uniquePhis_deg[uniquePhis_deg.length - 1];
+            const minPhi = uniquePhis_deg[0];
+            
+            if (normAngle <= minPhi) {
+                phiIdx = 0;
+            } else if (normAngle >= maxPhi) {
+                // Handle wrap-around: interpolate between last and first phi
+                phiIdx = uniquePhis_deg.length - 1;
+            } else {
+                for (let i = 0; i < uniquePhis_deg.length - 1; i++) {
+                    if (uniquePhis_deg[i] <= normAngle && normAngle <= uniquePhis_deg[i + 1]) {
+                        phiIdx = i;
+                        break;
+                    }
                 }
             }
             
@@ -1043,14 +1063,24 @@ function setupHeatmapInteraction() {
             const thetaLow = uniqueThetas_deg[thetaIdx];
             const thetaHigh = uniqueThetas_deg[Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1)];
             const phiLow = uniquePhis_deg[phiIdx];
-            const phiHigh = uniquePhis_deg[Math.min(phiIdx + 1, uniquePhis_deg.length - 1)];
+            // Handle phi wrap-around: if at last index, wrap to first
+            const phiNextIdx = (phiIdx + 1) % uniquePhis_deg.length;
+            let phiHigh = uniquePhis_deg[phiNextIdx];
+            // Adjust for wrap-around case
+            if (phiIdx === uniquePhis_deg.length - 1) {
+                phiHigh = uniquePhis_deg[0] + 360;
+            }
             
             const thetaWeight = (thetaHigh !== thetaLow) ? (theta - thetaLow) / (thetaHigh - thetaLow) : 0;
-            const phiWeight = (phiHigh !== phiLow) ? (angleDeg - phiLow) / (phiHigh - phiLow) : 0;
+            const phiWeight = (phiHigh !== phiLow) ? (normAngle - phiLow) / (phiHigh - phiLow) : 0;
+            
+            // Clamp weights to [0, 1]
+            const clampedThetaWeight = Math.max(0, Math.min(1, thetaWeight));
+            const clampedPhiWeight = Math.max(0, Math.min(1, phiWeight));
             
             // Get the four corners for bilinear interpolation (using linear normalized values)
             const tIdx1 = Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1);
-            const pIdx1 = Math.min(phiIdx + 1, uniquePhis_deg.length - 1);
+            const pIdx1 = phiNextIdx;
             
             const v00 = magnitudes_grid_linear_normalized[thetaIdx][phiIdx];
             const v10 = magnitudes_grid_linear_normalized[tIdx1][phiIdx];
@@ -1058,10 +1088,10 @@ function setupHeatmapInteraction() {
             const v11 = magnitudes_grid_linear_normalized[tIdx1][pIdx1];
             
             // Bilinear interpolation
-            const linearValue = (1 - thetaWeight) * (1 - phiWeight) * v00 +
-                               thetaWeight * (1 - phiWeight) * v10 +
-                               (1 - thetaWeight) * phiWeight * v01 +
-                               thetaWeight * phiWeight * v11;
+            const linearValue = (1 - clampedThetaWeight) * (1 - clampedPhiWeight) * v00 +
+                               clampedThetaWeight * (1 - clampedPhiWeight) * v10 +
+                               (1 - clampedThetaWeight) * clampedPhiWeight * v01 +
+                               clampedThetaWeight * clampedPhiWeight * v11;
             
             // Apply the current scale transformation
             switch (currentScale) {
