@@ -149,6 +149,19 @@
                                 <option value="advanced_density">Densidade Avançada</option>
                             </select>
                         </div>
+                        <!-- Tile Grouping Configuration -->
+                        <div class="form-group tile-group-config">
+                            <label>Agrupamento de Tiles:</label>
+                            <div class="tile-group-inputs">
+                                <div class="tile-group-field">
+                                    <input type="number" id="tile-group-cols" min="1" max="10" value="1" step="1" title="Tiles horizontais">
+                                    <span class="tile-group-label">×</span>
+                                    <input type="number" id="tile-group-rows" min="1" max="10" value="1" step="1" title="Tiles verticais">
+                                    <span class="tile-group-label">tiles</span>
+                                </div>
+                                <span class="tile-group-hint" id="tile-group-hint">1×1 = tile individual</span>
+                            </div>
+                        </div>
                         <div id="dynamic-params" class="dynamic-params-container">
                         </div>
                         <div id="profile-specific-params-container" class="profile-specific-params" style="display: none;"></div>

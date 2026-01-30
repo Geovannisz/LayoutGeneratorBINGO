@@ -142,6 +142,10 @@ class AntennaLayoutGenerator {
         this.collisions = [];    
         this.showCollisions = true;
         this.lastProfile = null; // For advanced_density
+        
+        // Tile grouping configuration (1x1 = single tile, default)
+        this.tileGroupCols = 1;
+        this.tileGroupRows = 1;
 
         // Universal Drag-and-drop state variables
         this.isDragging = false;
@@ -255,6 +259,48 @@ class AntennaLayoutGenerator {
         } else {
             console.warn("Input #import-config-input não encontrado.");
         }
+        
+        // Tile grouping controls
+        const tileGroupColsInput = document.getElementById('tile-group-cols');
+        const tileGroupRowsInput = document.getElementById('tile-group-rows');
+        const tileGroupHint = document.getElementById('tile-group-hint');
+        
+        const updateTileGroupHint = () => {
+            const cols = this.tileGroupCols;
+            const rows = this.tileGroupRows;
+            if (cols === 1 && rows === 1) {
+                tileGroupHint.textContent = '1×1 = tile individual';
+            } else {
+                const totalTiles = cols * rows;
+                tileGroupHint.textContent = `${cols}×${rows} = ${totalTiles} tiles por grupo`;
+            }
+        };
+        
+        if (tileGroupColsInput) {
+            tileGroupColsInput.addEventListener('change', () => {
+                this.tileGroupCols = Math.max(1, Math.min(10, parseInt(tileGroupColsInput.value) || 1));
+                tileGroupColsInput.value = this.tileGroupCols;
+                updateTileGroupHint();
+                this.generateLayout();
+            });
+            tileGroupColsInput.addEventListener('input', () => {
+                this.tileGroupCols = Math.max(1, Math.min(10, parseInt(tileGroupColsInput.value) || 1));
+                updateTileGroupHint();
+            });
+        }
+        
+        if (tileGroupRowsInput) {
+            tileGroupRowsInput.addEventListener('change', () => {
+                this.tileGroupRows = Math.max(1, Math.min(10, parseInt(tileGroupRowsInput.value) || 1));
+                tileGroupRowsInput.value = this.tileGroupRows;
+                updateTileGroupHint();
+                this.generateLayout();
+            });
+            tileGroupRowsInput.addEventListener('input', () => {
+                this.tileGroupRows = Math.max(1, Math.min(10, parseInt(tileGroupRowsInput.value) || 1));
+                updateTileGroupHint();
+            });
+        }
 
         // Attach universal drag-and-drop listeners
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
@@ -350,7 +396,11 @@ class AntennaLayoutGenerator {
         const config = {
             layoutType: this.layoutType,
             params: this.params, // this.params should already contain profileParams if layoutType is advanced_density
-            currentTileLayout: JSON.parse(JSON.stringify(this.currentLayout || [])) // Add this line
+            currentTileLayout: JSON.parse(JSON.stringify(this.currentLayout || [])), // Add this line
+            tileGrouping: {
+                cols: this.tileGroupCols,
+                rows: this.tileGroupRows
+            }
         };
         // If advanced_density, ensure profileParams is part of the params to be saved
         // Note: The previous check for advanced_density and profileParams is implicitly handled
@@ -373,7 +423,7 @@ class AntennaLayoutGenerator {
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
         }
-        console.log('Layout configuration exported, including currentTileLayout:', filename);
+        console.log('Layout configuration exported, including currentTileLayout and tileGrouping:', filename);
     }
 
     importLayoutConfiguration(event) {
@@ -438,6 +488,26 @@ class AntennaLayoutGenerator {
                     layoutTypeSelect.value = this.layoutType;
                     // Update all dynamic controls based on the new this.params
                     this.updateDynamicControls();
+                    
+                    // Import tile grouping configuration if available
+                    if (config.tileGrouping && typeof config.tileGrouping.cols === 'number' && typeof config.tileGrouping.rows === 'number') {
+                        this.tileGroupCols = Math.max(1, Math.min(10, config.tileGrouping.cols));
+                        this.tileGroupRows = Math.max(1, Math.min(10, config.tileGrouping.rows));
+                        // Update UI inputs
+                        const tileGroupColsInput = document.getElementById('tile-group-cols');
+                        const tileGroupRowsInput = document.getElementById('tile-group-rows');
+                        const tileGroupHint = document.getElementById('tile-group-hint');
+                        if (tileGroupColsInput) tileGroupColsInput.value = this.tileGroupCols;
+                        if (tileGroupRowsInput) tileGroupRowsInput.value = this.tileGroupRows;
+                        if (tileGroupHint) {
+                            if (this.tileGroupCols === 1 && this.tileGroupRows === 1) {
+                                tileGroupHint.textContent = '1×1 = tile individual';
+                            } else {
+                                tileGroupHint.textContent = `${this.tileGroupCols}×${this.tileGroupRows} = ${this.tileGroupCols * this.tileGroupRows} tiles por grupo`;
+                            }
+                        }
+                        console.log(`Tile grouping importado: ${this.tileGroupCols}×${this.tileGroupRows}`);
+                    }
 
                     // Check for and apply currentTileLayout override
                     if (config.currentTileLayout && Array.isArray(config.currentTileLayout)) {
@@ -933,8 +1003,12 @@ class AntennaLayoutGenerator {
 
     generateAllAntennas() {
         this.allAntennas = []; 
-        if (!this.currentLayout || this.currentLayout.length === 0) return; 
-        for (const center of this.currentLayout) {
+        if (!this.currentLayout || this.currentLayout.length === 0) return;
+        
+        // Expand group centers to individual tile centers
+        const expandedTileCenters = this.expandGroupsToTiles(this.currentLayout);
+        
+        for (const center of expandedTileCenters) {
             if (Array.isArray(center) && center.length >= 2 && typeof center[0] === 'number' && typeof center[1] === 'number') {
                  const tileAntennas = this.createTileLayout64Antennas(center[0], center[1]);
                  this.allAntennas.push(...tileAntennas); 
@@ -942,22 +1016,83 @@ class AntennaLayoutGenerator {
                  console.warn("Gerador: Centro de tile inválido encontrado:", center);
             }
         }
-        console.log(`Geradas ${this.allAntennas.length} antenas a partir de ${this.currentLayout.length} tiles.`);
+        const totalTiles = expandedTileCenters.length;
+        const totalGroups = this.currentLayout.length;
+        const tilesPerGroup = this.tileGroupCols * this.tileGroupRows;
+        if (tilesPerGroup > 1) {
+            console.log(`Geradas ${this.allAntennas.length} antenas a partir de ${totalTiles} tiles (${totalGroups} grupos de ${tilesPerGroup} tiles cada).`);
+        } else {
+            console.log(`Geradas ${this.allAntennas.length} antenas a partir de ${totalTiles} tiles.`);
+        }
+    }
+    
+    /**
+     * Expands group centers into individual tile centers based on tileGroupCols and tileGroupRows.
+     * For 1x1 groups, returns the same centers. For larger groups, expands each center into
+     * a grid of tile centers arranged as closely as possible without overlap.
+     * @param {Array<[number, number]>} groupCenters - Array of [x, y] group center coordinates
+     * @returns {Array<[number, number]>} - Array of individual tile center coordinates
+     */
+    expandGroupsToTiles(groupCenters) {
+        if (this.tileGroupCols === 1 && this.tileGroupRows === 1) {
+            return groupCenters; // No expansion needed for 1x1
+        }
+        
+        const expandedCenters = [];
+        const cols = this.tileGroupCols;
+        const rows = this.tileGroupRows;
+        
+        // Calculate offsets for tiles within a group
+        // Tiles are placed touching each other (minimal spacing)
+        const tileSpacingX = TILE_WIDTH;  // Tiles touch horizontally
+        const tileSpacingY = TILE_HEIGHT; // Tiles touch vertically
+        
+        // Calculate the starting offset to center the group around the group center
+        const startOffsetX = -((cols - 1) / 2) * tileSpacingX;
+        const startOffsetY = -((rows - 1) / 2) * tileSpacingY;
+        
+        for (const groupCenter of groupCenters) {
+            if (!Array.isArray(groupCenter) || groupCenter.length < 2) continue;
+            
+            const [gx, gy] = groupCenter;
+            
+            // Generate individual tile centers for this group
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const tileX = gx + startOffsetX + col * tileSpacingX;
+                    const tileY = gy + startOffsetY + row * tileSpacingY;
+                    expandedCenters.push([tileX, tileY]);
+                }
+            }
+        }
+        
+        return expandedCenters;
     }
 
     checkCollisions() {
         this.collisions = []; 
-        if (!this.currentLayout || this.currentLayout.length < 2) return; 
+        if (!this.currentLayout || this.currentLayout.length < 2) return;
+        
+        // Expand groups to individual tiles for collision checking
+        const expandedTiles = this.expandGroupsToTiles(this.currentLayout);
+        const tilesPerGroup = this.tileGroupCols * this.tileGroupRows;
+        
         const minCenterXDist = TILE_WIDTH;
         const minCenterYDist = TILE_HEIGHT;
         const epsilon = 1e-6;
-        for (let i = 0; i < this.currentLayout.length; i++) {
-            for (let j = i + 1; j < this.currentLayout.length; j++) {
-                const tile1 = this.currentLayout[i];
-                const tile2 = this.currentLayout[j];
+        
+        // Check collisions between tiles from different groups
+        for (let i = 0; i < expandedTiles.length; i++) {
+            for (let j = i + 1; j < expandedTiles.length; j++) {
+                // Skip collision check within the same group
+                const groupI = Math.floor(i / tilesPerGroup);
+                const groupJ = Math.floor(j / tilesPerGroup);
+                if (groupI === groupJ) continue; // Same group, tiles are designed to not collide
+                
+                const tile1 = expandedTiles[i];
+                const tile2 = expandedTiles[j];
                 if (!Array.isArray(tile1) || tile1.length < 2 || typeof tile1[0] !== 'number' || typeof tile1[1] !== 'number' ||
                     !Array.isArray(tile2) || tile2.length < 2 || typeof tile2[0] !== 'number' || typeof tile2[1] !== 'number') {
-                     console.warn(`Gerador: Dados de tile inválidos ao verificar colisão entre índices ${i} e ${j}.`, tile1, tile2);
                      continue; 
                 }
                 const deltaX = Math.abs(tile1[0] - tile2[0]);
@@ -967,12 +1102,28 @@ class AntennaLayoutGenerator {
                     this.collisions.push({
                         tile1Index: i,
                         tile2Index: j,
+                        tile1GroupIndex: groupI,
+                        tile2GroupIndex: groupJ,
                         distance: distance
                     });
                 }
             }
         }
-        console.log(`Verificação de colisões concluída. ${this.collisions.length} colisões retangulares encontradas.`);
+        
+        const collisionCount = this.collisions.length;
+        if (tilesPerGroup > 1) {
+            // Count unique group collisions
+            const groupCollisions = new Set();
+            for (const c of this.collisions) {
+                const key = c.tile1GroupIndex < c.tile2GroupIndex 
+                    ? `${c.tile1GroupIndex}-${c.tile2GroupIndex}`
+                    : `${c.tile2GroupIndex}-${c.tile1GroupIndex}`;
+                groupCollisions.add(key);
+            }
+            console.log(`Verificação de colisões concluída. ${collisionCount} colisões de tiles (${groupCollisions.size} pares de grupos afetados).`);
+        } else {
+            console.log(`Verificação de colisões concluída. ${collisionCount} colisões retangulares encontradas.`);
+        }
     }
 
     generateRandomLayout() {
@@ -1121,7 +1272,9 @@ class AntennaLayoutGenerator {
         const antennaColor = currentBodyStyle.getPropertyValue('--primary-color').trim() || '#3498db';
         const collisionColor = currentBodyStyle.getPropertyValue('--secondary-color').trim() || 'red'; 
         ctx.fillStyle = centerColor;
-        for (const center of this.currentLayout) {
+        // Expand groups to individual tiles for drawing
+        const expandedTileCenters = this.expandGroupsToTiles(this.currentLayout);
+        for (const center of expandedTileCenters) {
             if (Array.isArray(center) && center.length >= 2) {
                 const { x, y } = transformCoord(center[0], center[1]);
                 ctx.beginPath();
@@ -1141,10 +1294,11 @@ class AntennaLayoutGenerator {
         if (this.showCollisions && this.collisions.length > 0) {
             ctx.strokeStyle = collisionColor;
             ctx.lineWidth = 1.5;
-            ctx.globalAlpha = 0.6; 
+            ctx.globalAlpha = 0.6;
+            // Use expanded tile centers for collision drawing
             for (const collision of this.collisions) {
-                const tile1 = this.currentLayout[collision.tile1Index];
-                const tile2 = this.currentLayout[collision.tile2Index];
+                const tile1 = expandedTileCenters[collision.tile1Index];
+                const tile2 = expandedTileCenters[collision.tile2Index];
                 if (!Array.isArray(tile1) || tile1.length < 2 || !Array.isArray(tile2) || tile2.length < 2) continue;
                 const { x: x1, y: y1 } = transformCoord(tile1[0], tile1[1]);
                 const { x: x2, y: y2 } = transformCoord(tile2[0], tile2[1]);
@@ -1281,12 +1435,27 @@ class AntennaLayoutGenerator {
     updateStats() {
         const tileCountSpan = document.getElementById('tile-count');
         const antennaCountSpan = document.getElementById('antenna-count');
-        const tileCount = this.currentLayout ? this.currentLayout.length : 0;
+        // Count expanded tiles (total individual tiles across all groups)
+        const expandedTiles = this.expandGroupsToTiles(this.currentLayout || []);
+        const tileCount = expandedTiles.length;
+        const groupCount = this.currentLayout ? this.currentLayout.length : 0;
         const antennaCount = this.allAntennas ? this.allAntennas.length : 0;
-        if (tileCountSpan) tileCountSpan.textContent = tileCount;
+        const tilesPerGroup = this.tileGroupCols * this.tileGroupRows;
+        
+        if (tileCountSpan) {
+            if (tilesPerGroup > 1) {
+                tileCountSpan.textContent = `${tileCount} (${groupCount} grupos)`;
+            } else {
+                tileCountSpan.textContent = tileCount;
+            }
+        }
         if (antennaCountSpan) antennaCountSpan.textContent = antennaCount;
         this.updateCollisionInfo();
-        console.log(`Estatísticas atualizadas: ${tileCount} tiles, ${antennaCount} antenas.`);
+        if (tilesPerGroup > 1) {
+            console.log(`Estatísticas atualizadas: ${tileCount} tiles (${groupCount} grupos de ${tilesPerGroup}), ${antennaCount} antenas.`);
+        } else {
+            console.log(`Estatísticas atualizadas: ${tileCount} tiles, ${antennaCount} antenas.`);
+        }
     }
 
     updateCollisionInfo() {

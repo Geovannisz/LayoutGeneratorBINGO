@@ -1413,6 +1413,10 @@ function initBeamPatternControls() {
 
     window.addEventListener('layoutGenerated', () => {
         clearTimeout(layoutUpdateTimeout);
+        // Invalidate 3D cache when layout changes to force recalculation
+        cachedCalculationResult3D = null;
+        cachedCalculationParams3D = null;
+        
         layoutUpdateTimeout = setTimeout(() => {
             // Reverted auto-switch to 3D. Now just triggers update.
             if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
