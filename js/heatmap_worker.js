@@ -274,11 +274,12 @@ self.onmessage = function (e) {
     const cy = height / 2;
     const maxRadiusPx = Math.min(cx, cy) - 2;
 
-    // Adaptive Supersampling Anti-Aliasing:
-    // - Standard: 3x3 samples (9 total) for most of the image
-    // - High density: 7x7 samples (49 total) near center where polar singularity causes issues
-    const SSAA_STANDARD = 3;
-    const SSAA_HIGH = 7;
+    // Adaptive Supersampling Anti-Aliasing (SSAA):
+    // - High density: 9x9 samples (81 total) near center where theta < 5° (polar singularity)
+    // - Standard: 5x5 samples (25 total) for most of the image
+    // This provides smooth gradients and reduces noise, especially near the beam center
+    const SSAA_STANDARD = 5;
+    const SSAA_HIGH = 9;
 
     // Threshold: use high density when theta < 5 degrees
     // Convert to pixel radius threshold
