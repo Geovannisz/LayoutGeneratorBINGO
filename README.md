@@ -80,8 +80,8 @@ Localizada ao lado do gerador de layouts, esta seção foca na simulação e vis
     *   **Modo de Visualização**: Botões para `Mapa de Calor`, `3D` ou `2D`.
 *   **Visualização do Padrão de Feixe**: 
     *   **Mapa de Calor**: Visualização 2D em coordenadas polares com supersampling adaptativo para suavizar a imagem:
-        - 9x9 samples (81 total) perto do centro (θ < 5°) onde a singularidade polar causa artefatos
-        - 5x5 samples (25 total) para o resto da imagem
+        - 5x5 samples (25 total) perto do centro (θ < 5°) onde a singularidade polar causa artefatos
+        - 3x3 samples (9 total) para o resto da imagem
         - Usa paleta HSV com 64 níveis de cor para máxima discriminação de dados
     *   **Gráfico 2D**: Magnitude normalizada vs. ângulo Theta para o Phi selecionado (via Plotly.js).
     *   **Gráfico 3D**: Superfície colorida do feixe em toda a esfera visível (via Plotly.js).
