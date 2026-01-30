@@ -66,8 +66,7 @@
       "icon": "favicon.ico"
     },
     "mac": {
-      "target": ["dmg"],
-      "icon": "favicon.ico"
+      "target": ["dmg"]
     },
     "linux": {
       "target": ["AppImage", "deb"],

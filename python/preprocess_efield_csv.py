@@ -11,7 +11,6 @@ Version: 1.0.2
 """
 
 import os
-import sys
 import pandas as pd
 import numpy as np
 

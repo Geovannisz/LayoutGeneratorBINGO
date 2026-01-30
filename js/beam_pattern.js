@@ -25,8 +25,8 @@ const C_LIGHT = (typeof BingoConstants !== 'undefined') ? BingoConstants.SPEED_O
 const LAMBDA = (typeof BingoConstants !== 'undefined') ? BingoConstants.WAVELENGTH : (C_LIGHT / FREQUENCY);
 const K = (typeof BingoConstants !== 'undefined') ? BingoConstants.WAVE_NUMBER_K : ((2 * Math.PI) / LAMBDA);
 
-// Lista de Gateways IPFS Públicos
-const IPFS_GATEWAYS = [
+// Lista de Gateways IPFS Públicos - usar BingoConstants quando disponível
+const IPFS_GATEWAYS = (typeof BingoConstants !== 'undefined') ? BingoConstants.IPFS_GATEWAYS : [
     "https://dweb.link/ipfs/",
     "https://ipfs.io/ipfs/",
     "https://gateway.pinata.cloud/ipfs/",
@@ -34,11 +34,11 @@ const IPFS_GATEWAYS = [
     "https://gateway.ipfs.io/ipfs/"
 ];
 
-const E_FIELD_BASE_CID_PHI_SPECIFIC = 'bafybeibod4uopaxesmqti3qmonjcbttgxquuby6y6v2uo6sd7ah475bsai';
-const E_FIELD_FULL_DATA_CID = 'bafybeicunhz5lwv3nryglwlppu6o6keo7ii3ilntcqtq536aket7qflc34';
+const E_FIELD_BASE_CID_PHI_SPECIFIC = (typeof BingoConstants !== 'undefined') ? BingoConstants.E_FIELD_PHI_CID : 'bafybeibod4uopaxesmqti3qmonjcbttgxquuby6y6v2uo6sd7ah475bsai';
+const E_FIELD_FULL_DATA_CID = (typeof BingoConstants !== 'undefined') ? BingoConstants.E_FIELD_FULL_CID : 'bafybeicunhz5lwv3nryglwlppu6o6keo7ii3ilntcqtq536aket7qflc34';
 
-const MAX_PLOT_POINTS_BEAM = 2000;
-const PLOT_REQUEST_DEBOUNCE_DELAY = 300;
+const MAX_PLOT_POINTS_BEAM = (typeof BingoConstants !== 'undefined') ? BingoConstants.MAX_PLOT_POINTS : 2000;
+const PLOT_REQUEST_DEBOUNCE_DELAY = (typeof BingoConstants !== 'undefined') ? BingoConstants.PLOT_DEBOUNCE_DELAY_MS : 300;
 
 // === Cache & Estado ===
 let parsedEFieldPhiDataCache = {};

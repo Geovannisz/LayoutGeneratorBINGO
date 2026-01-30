@@ -7,6 +7,7 @@
  *
  * @fileoverview Centralized constants for the BINGO Layout Generator application.
  * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
 'use strict';
