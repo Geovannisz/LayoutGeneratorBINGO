@@ -389,6 +389,24 @@ button.small-btn {
     margin-right: 5px;
     cursor: pointer;
 }
+.download-image-options .option-group input[type="text"] {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+    font-size: 0.9em;
+    width: 180px;
+}
+.download-image-options .option-group input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+.download-image-options .option-group input[type="text"]::placeholder {
+    color: var(--text-color);
+    opacity: 0.5;
+}
 #image-format-group label { margin-right: 5px;}
 #jpeg-quality-group { 
     display: none; 

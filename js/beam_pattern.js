@@ -196,6 +196,57 @@ function getLayoutHash(antennaCoords) {
     return JSON.stringify(antennaCoords.map(a => [Math.round(a[0] * 100), Math.round(a[1] * 100)]));
 }
 
+/**
+ * Tenta buscar dados localmente primeiro, depois IPFS como fallback.
+ * @param {string} localPath - Caminho local relativo do arquivo
+ * @param {string} ipfsCidPath - Caminho IPFS (CID/arquivo)
+ * @param {object} options - Opções de fetch
+ * @returns {Promise<Response>} Resposta do fetch
+ */
+async function fetchDataWithLocalFallback(localPath, ipfsCidPath, options = {}) {
+    const fetchTimer = PerformanceMetrics.startTimer();
+    const LOCAL_TIMEOUT = 3000;
+
+    // Tentativa 1: Carregar do caminho local
+    try {
+        if (statusDiv) statusDiv.textContent = `Carregando dados locais...`;
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), LOCAL_TIMEOUT);
+        const fetchOptions = { ...options, signal: controller.signal };
+
+        const response = await fetch(localPath, fetchOptions);
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+            // Verificar se não é um LFS pointer
+            const contentType = response.headers.get('content-type');
+            // Clone para verificar o conteúdo sem consumir o body
+            const clonedResponse = response.clone();
+            const text = await clonedResponse.text();
+            
+            if (text.startsWith('version https://git-lfs')) {
+                console.warn(`[Local] ${localPath} é um LFS pointer, tentando IPFS...`);
+                throw new Error('LFS Pointer detectado');
+            }
+
+            PerformanceMetrics.lastFetchTime = fetchTimer();
+            console.log(`[Local] Carregado: ${localPath} em ${PerformanceMetrics.formatTime(PerformanceMetrics.lastFetchTime)}`);
+            
+            // Retornar uma nova Response com o texto já lido
+            return new Response(text, {
+                status: 200,
+                statusText: 'OK',
+                headers: response.headers
+            });
+        }
+    } catch (error) {
+        console.log(`[Local] Fallback para IPFS: ${error.message}`);
+    }
+
+    // Tentativa 2: Fallback para IPFS
+    return fetchDataFromIPFS(ipfsCidPath, options);
+}
+
 async function fetchDataFromIPFS(cidWithPath, options = {}) {
     const fetchTimer = PerformanceMetrics.startTimer();
     let lastError = null;
@@ -266,11 +317,14 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
         throw new Error(`Valor de Phi inválido: ${phiValue}. Deve estar entre 0 e 90° (primeiro quadrante).`);
     }
 
-    const filePathInCID = `efield_phi_${roundedPhi}.csv`;
+    const fileName = `efield_phi_${roundedPhi}.csv`;
+    const localPath = `data/efield_phi_data/${fileName}`;
+    const ipfsCidPath = E_FIELD_BASE_CID_PHI_SPECIFIC + "/" + fileName;
+    
     if (statusDiv) statusDiv.textContent = `Carregando dados 2D (Phi ${roundedPhi}°)...`;
 
     try {
-        const response = await fetchDataFromIPFS(E_FIELD_BASE_CID_PHI_SPECIFIC + "/" + filePathInCID);
+        const response = await fetchDataWithLocalFallback(localPath, ipfsCidPath);
         const csvText = await response.text();
 
         // Validação inicial do CSV
@@ -368,8 +422,11 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
     const parseTimer = PerformanceMetrics.startTimer();
     if (statusDiv) statusDiv.textContent = `Carregando dados Completos (3D)...`;
 
+    // Caminho local para o arquivo 3D completo
+    const localPath = 'data/rE_table_vivaldi_filtrado_reduzido.csv';
+    
     try {
-        const response = await fetchDataFromIPFS(E_FIELD_FULL_DATA_CID);
+        const response = await fetchDataWithLocalFallback(localPath, E_FIELD_FULL_DATA_CID);
         const csvText = await response.text();
 
         // Validações iniciais

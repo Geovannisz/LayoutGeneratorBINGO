@@ -1333,6 +1333,12 @@ class AntennaLayoutGenerator {
         let includeAxes = true;
         try { includeAxes = document.querySelector('input[name="imageAxes"]:checked')?.value === 'yes'; } catch (e) { console.warn("Não foi possível ler a opção de eixos.", e); }
 
+        // Get custom filename from input
+        const filenameInput = document.getElementById('image-filename-input');
+        let customFilename = filenameInput ? filenameInput.value.trim() : '';
+        // Sanitize filename: remove invalid characters
+        customFilename = customFilename.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_');
+
         const selectedFormat = 'png';
         const fileExtension = 'png';
         const mimeType = 'image/png';
@@ -1360,6 +1366,10 @@ class AntennaLayoutGenerator {
              console.log("Processo de download da imagem finalizado, estado restaurado.");
         };
 
+        // Build filename: use custom name if provided, otherwise use default pattern
+        const defaultFilename = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}`;
+        const finalFilename = customFilename || defaultFilename;
+
         const generateAndDownload = () => {
             try {
                 this.drawLayout(includeAxes); 
@@ -1369,7 +1379,7 @@ class AntennaLayoutGenerator {
                         const dataURL = this.canvas.toDataURL(mimeType);
                         const link = document.createElement('a');
                         link.href = dataURL;
-                        link.download = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}.${fileExtension}`;
+                        link.download = `${finalFilename}.${fileExtension}`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);

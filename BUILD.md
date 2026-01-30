@@ -1,60 +1,147 @@
-# Guia de Build - BINGO Layout Generator
+# 🔧 Guia de Build - BINGO Layout Generator
 
-Este documento descreve os passos necessários para compilar e executar a aplicação desktop do BINGO Layout Generator a partir do código-fonte.
+Guia completo para compilar e executar a aplicação desktop do BINGO Layout Generator.
 
-## Pré-requisitos
+---
 
-Antes de começar, você precisará ter os seguintes softwares instalados em sua máquina:
+## 📋 Pré-requisitos
 
-1.  **Node.js e npm:** Essencial para gerenciar as dependências do projeto e executar os scripts.
-    * [Baixe aqui (versão LTS recomendada)](https://nodejs.org/)
-2.  **Git:** Necessário para clonar o repositório.
-    * [Baixe aqui](https://git-scm.com/downloads)
+| Software | Descrição | Download |
+|----------|-----------|----------|
+| **Node.js** | Runtime JavaScript (inclui npm) | [nodejs.org](https://nodejs.org/) (versão LTS) |
+| **Git** | Controle de versão | [git-scm.com](https://git-scm.com/downloads) |
 
-## Passos para Instalação e Execução
+---
 
-### 1. Clonar o Repositório
+## 🐧 Linux
 
-Abra um terminal (Prompt de Comando, PowerShell ou Terminal) e clone o repositório do projeto para o seu computador usando o seguinte comando:
+### Instalar pré-requisitos
 
 ```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install -y nodejs npm git
+
+# Fedora
+sudo dnf install -y nodejs npm git
+
+# Arch Linux
+sudo pacman -S nodejs npm git
+```
+
+### Clonar, instalar e executar
+
+```bash
+# Clonar o repositório
 git clone https://github.com/Geovannisz/LayoutGeneratorBINGO
-```
-
-### 2. Navegar para a Pasta do Projeto
-
-Entre na pasta do projeto que você acabou de clonar:
-
-```bash
 cd LayoutGeneratorBINGO
+
+# Instalar dependências
+npm install
+
+# Executar em modo de desenvolvimento
+npm start
+
+# Compilar instalador (.AppImage e .deb)
+npm run dist:linux
 ```
 
-### 3. Instalar as Dependências
+Os arquivos gerados estarão na pasta `release/`.
 
-Dentro da pasta do projeto, execute o comando abaixo para instalar todas as dependências necessárias (como Electron e Electron Builder), que estão listadas no arquivo `package.json`.
+---
+
+## 🍎 macOS
+
+### Instalar pré-requisitos
 
 ```bash
+# Usando Homebrew (recomendado)
+brew install node git
+
+# Ou baixe manualmente:
+# Node.js: https://nodejs.org/
+# Git: https://git-scm.com/downloads
+```
+
+### Clonar, instalar e executar
+
+```bash
+# Clonar o repositório
+git clone https://github.com/Geovannisz/LayoutGeneratorBINGO
+cd LayoutGeneratorBINGO
+
+# Instalar dependências
+npm install
+
+# Executar em modo de desenvolvimento
+npm start
+
+# Compilar instalador (.dmg)
+npm run dist:mac
+```
+
+Os arquivos gerados estarão na pasta `release/`.
+
+---
+
+## 🪟 Windows
+
+### Instalar pré-requisitos
+
+1. Baixe e instale o [Node.js](https://nodejs.org/) (versão LTS)
+2. Baixe e instale o [Git](https://git-scm.com/downloads)
+
+### Clonar, instalar e executar
+
+Abra o **PowerShell** ou **Prompt de Comando**:
+
+```bash
+# Clonar o repositório
+git clone https://github.com/Geovannisz/LayoutGeneratorBINGO
+cd LayoutGeneratorBINGO
+
+# Instalar dependências
+npm install
+
+# Executar em modo de desenvolvimento
+npm start
+
+# Compilar instalador (.exe)
+npm run dist:win
+```
+
+Os arquivos gerados estarão na pasta `release/`.
+
+---
+
+## 📁 Estrutura de Build
+
+| Comando | Descrição |
+|---------|-----------|
+| `npm start` | Executa em modo de desenvolvimento |
+| `npm run dist` | Compila para o sistema atual |
+| `npm run dist:linux` | Compila para Linux (.AppImage, .deb) |
+| `npm run dist:mac` | Compila para macOS (.dmg) |
+| `npm run dist:win` | Compila para Windows (.exe) |
+
+---
+
+## ❓ Problemas comuns
+
+**Erro de permissão no Linux/macOS:**
+```bash
+sudo chown -R $USER ~/.npm
+```
+
+**Node.js desatualizado:**
+```bash
+# Linux/macOS - instalar Node Version Manager (nvm)
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+nvm install --lts
+```
+
+**Limpar cache e reinstalar:**
+```bash
+rm -rf node_modules package-lock.json
 npm install
 ```
-
-Este comando criará uma pasta `node_modules` no seu diretório.
-
-### 4. Executar em Modo de Desenvolvimento (Opcional)
-
-Para abrir o aplicativo e testá-lo em modo de desenvolvimento, use o seguinte comando:
-
-```bash
-npm start
-```
-
-Uma janela do aplicativo deverá aparecer na sua tela.
-
-### 5. Compilar a Versão Final (Instalador)
-
-Quando quiser gerar a versão final e distribuível do aplicativo (por exemplo, um arquivo `.exe` para Windows), execute o comando de build:
-
-```bash
-npm run dist
-```
-
-Este comando utilizará o `electron-builder` para empacotar a aplicação. Ao final do processo, uma nova pasta chamada `release` será criada na raiz do projeto, contendo o programa instalável pronto para ser distribuído.
