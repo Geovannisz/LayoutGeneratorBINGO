@@ -1005,7 +1005,7 @@ function setupHeatmapInteraction() {
             return;
         }
 
-        const { uniqueThetas_deg, uniquePhis_deg, magnitudes_grid_linear_normalized, magnitudes_grid_dB } = cachedCalculationResult3D;
+        const { uniqueThetas_deg, uniquePhis_deg, magnitudes_grid_linear_normalized } = cachedCalculationResult3D;
         const maxTheta = uniqueThetas_deg[uniqueThetas_deg.length - 1];
 
         const theta = (rPx / maxRadiusPx) * maxTheta;
@@ -1013,7 +1013,7 @@ function setupHeatmapInteraction() {
         let angleDeg = angleRad * 180 / Math.PI;
         if (angleDeg < 0) angleDeg += 360;
 
-        // Interpolate the intensity value from the grid data
+        // Interpolate the intensity value from the grid data using supersampling for precision
         let intensityValue = 0;
         let intensityDisplay = '';
         
@@ -1021,77 +1021,100 @@ function setupHeatmapInteraction() {
             // Get current scale type
             const currentScale = scaleSelect ? scaleSelect.value : 'sqrt';
             
-            // Find theta index with edge case handling
-            let thetaIdx = 0;
-            if (theta <= uniqueThetas_deg[0]) {
-                thetaIdx = 0;
-            } else if (theta >= uniqueThetas_deg[uniqueThetas_deg.length - 1]) {
-                thetaIdx = uniqueThetas_deg.length - 2;
-            } else {
-                for (let i = 0; i < uniqueThetas_deg.length - 1; i++) {
-                    if (uniqueThetas_deg[i] <= theta && theta <= uniqueThetas_deg[i + 1]) {
-                        thetaIdx = i;
-                        break;
+            // Helper function for bilinear interpolation at a single point
+            const interpolateAtPoint = (theta, phi) => {
+                // Find theta index
+                let thetaIdx = 0;
+                if (theta <= uniqueThetas_deg[0]) {
+                    thetaIdx = 0;
+                } else if (theta >= uniqueThetas_deg[uniqueThetas_deg.length - 1]) {
+                    thetaIdx = uniqueThetas_deg.length - 2;
+                } else {
+                    for (let i = 0; i < uniqueThetas_deg.length - 1; i++) {
+                        if (uniqueThetas_deg[i] <= theta && theta <= uniqueThetas_deg[i + 1]) {
+                            thetaIdx = i;
+                            break;
+                        }
                     }
+                }
+                
+                // Normalize phi to [0, 360)
+                let normPhi = phi % 360;
+                if (normPhi < 0) normPhi += 360;
+                
+                // Find phi index
+                let phiIdx = 0;
+                const maxPhi = uniquePhis_deg[uniquePhis_deg.length - 1];
+                const minPhi = uniquePhis_deg[0];
+                
+                if (normPhi <= minPhi) {
+                    phiIdx = 0;
+                } else if (normPhi >= maxPhi) {
+                    phiIdx = uniquePhis_deg.length - 1;
+                } else {
+                    for (let i = 0; i < uniquePhis_deg.length - 1; i++) {
+                        if (uniquePhis_deg[i] <= normPhi && normPhi <= uniquePhis_deg[i + 1]) {
+                            phiIdx = i;
+                            break;
+                        }
+                    }
+                }
+                
+                // Bilinear interpolation
+                const thetaLow = uniqueThetas_deg[thetaIdx];
+                const thetaHigh = uniqueThetas_deg[Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1)];
+                const phiLow = uniquePhis_deg[phiIdx];
+                const phiNextIdx = (phiIdx + 1) % uniquePhis_deg.length;
+                let phiHigh = uniquePhis_deg[phiNextIdx];
+                if (phiIdx === uniquePhis_deg.length - 1) {
+                    phiHigh = uniquePhis_deg[0] + 360;
+                }
+                
+                const thetaWeight = (thetaHigh !== thetaLow) ? (theta - thetaLow) / (thetaHigh - thetaLow) : 0;
+                const phiWeight = (phiHigh !== phiLow) ? (normPhi - phiLow) / (phiHigh - phiLow) : 0;
+                
+                const u = Math.max(0, Math.min(1, thetaWeight));
+                const v = Math.max(0, Math.min(1, phiWeight));
+                
+                const tIdx1 = Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1);
+                
+                const v00 = magnitudes_grid_linear_normalized[thetaIdx][phiIdx];
+                const v10 = magnitudes_grid_linear_normalized[tIdx1][phiIdx];
+                const v01 = magnitudes_grid_linear_normalized[thetaIdx][phiNextIdx];
+                const v11 = magnitudes_grid_linear_normalized[tIdx1][phiNextIdx];
+                
+                return (1 - u) * (1 - v) * v00 + u * (1 - v) * v10 + (1 - u) * v * v01 + u * v * v11;
+            };
+            
+            // Supersampling Anti-Aliasing: 3x3 grid around the cursor position
+            // This provides smoother, more accurate intensity readings
+            const SSAA = 3;
+            const pixelSize = 1.0; // Sample within +/- half pixel
+            let sumVal = 0;
+            let sampleCount = 0;
+            
+            for (let sy = 0; sy < SSAA; sy++) {
+                for (let sx = 0; sx < SSAA; sx++) {
+                    const offsetX = ((sx + 0.5) / SSAA - 0.5) * pixelSize;
+                    const offsetY = ((sy + 0.5) / SSAA - 0.5) * pixelSize;
+                    
+                    const sampleDx = dx + offsetX;
+                    const sampleDy = dy + offsetY;
+                    const sampleR = Math.sqrt(sampleDx * sampleDx + sampleDy * sampleDy);
+                    
+                    if (sampleR > maxRadiusPx) continue;
+                    
+                    const sampleTheta = (sampleR / maxRadiusPx) * maxTheta;
+                    let sampleAngleRad = Math.atan2(-sampleDy, sampleDx);
+                    let sampleAngleDeg = sampleAngleRad * 180 / Math.PI;
+                    if (sampleAngleDeg < 0) sampleAngleDeg += 360;
+                    
+                    sumVal += interpolateAtPoint(sampleTheta, sampleAngleDeg);
+                    sampleCount++;
                 }
             }
             
-            // Find phi index with circular wrapping for 360 degrees
-            let phiIdx = 0;
-            // Normalize angleDeg to [0, 360)
-            let normAngle = angleDeg % 360;
-            if (normAngle < 0) normAngle += 360;
-            
-            const maxPhi = uniquePhis_deg[uniquePhis_deg.length - 1];
-            const minPhi = uniquePhis_deg[0];
-            
-            if (normAngle <= minPhi) {
-                phiIdx = 0;
-            } else if (normAngle >= maxPhi) {
-                // Handle wrap-around: interpolate between last and first phi
-                phiIdx = uniquePhis_deg.length - 1;
-            } else {
-                for (let i = 0; i < uniquePhis_deg.length - 1; i++) {
-                    if (uniquePhis_deg[i] <= normAngle && normAngle <= uniquePhis_deg[i + 1]) {
-                        phiIdx = i;
-                        break;
-                    }
-                }
-            }
-            
-            // Bilinear interpolation weights
-            const thetaLow = uniqueThetas_deg[thetaIdx];
-            const thetaHigh = uniqueThetas_deg[Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1)];
-            const phiLow = uniquePhis_deg[phiIdx];
-            // Handle phi wrap-around: if at last index, wrap to first
-            const phiNextIdx = (phiIdx + 1) % uniquePhis_deg.length;
-            let phiHigh = uniquePhis_deg[phiNextIdx];
-            // Adjust for wrap-around case
-            if (phiIdx === uniquePhis_deg.length - 1) {
-                phiHigh = uniquePhis_deg[0] + 360;
-            }
-            
-            const thetaWeight = (thetaHigh !== thetaLow) ? (theta - thetaLow) / (thetaHigh - thetaLow) : 0;
-            const phiWeight = (phiHigh !== phiLow) ? (normAngle - phiLow) / (phiHigh - phiLow) : 0;
-            
-            // Clamp weights to [0, 1]
-            const clampedThetaWeight = Math.max(0, Math.min(1, thetaWeight));
-            const clampedPhiWeight = Math.max(0, Math.min(1, phiWeight));
-            
-            // Get the four corners for bilinear interpolation (using linear normalized values)
-            const tIdx1 = Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1);
-            const pIdx1 = phiNextIdx;
-            
-            const v00 = magnitudes_grid_linear_normalized[thetaIdx][phiIdx];
-            const v10 = magnitudes_grid_linear_normalized[tIdx1][phiIdx];
-            const v01 = magnitudes_grid_linear_normalized[thetaIdx][pIdx1];
-            const v11 = magnitudes_grid_linear_normalized[tIdx1][pIdx1];
-            
-            // Bilinear interpolation
-            const linearValue = (1 - clampedThetaWeight) * (1 - clampedPhiWeight) * v00 +
-                               clampedThetaWeight * (1 - clampedPhiWeight) * v10 +
-                               (1 - clampedThetaWeight) * clampedPhiWeight * v01 +
-                               clampedThetaWeight * clampedPhiWeight * v11;
+            const linearValue = sampleCount > 0 ? sumVal / sampleCount : interpolateAtPoint(theta, angleDeg);
             
             // Apply the current scale transformation
             switch (currentScale) {
@@ -1114,7 +1137,7 @@ function setupHeatmapInteraction() {
                     break;
                 case 'quadratic':
                     intensityValue = linearValue * linearValue;
-                    intensityDisplay = `|E|²: ${intensityValue.toFixed(4)}`;
+                    intensityDisplay = `|E|²: ${intensityValue.toFixed(6)}`;
                     break;
                 case 'fourth_root':
                     intensityValue = Math.pow(linearValue, 0.25);

@@ -29,32 +29,32 @@ const DIAMOND_OFFSET = (typeof BingoConstants !== 'undefined') ? BingoConstants.
 
 const PROFILE_PARAM_SCHEMAS = {
     gaussian: [
-        { key: 'mean', label: 'Média', type: 'number', min: 0, step: 0.01, defaultValue: 0.1 },
-        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 0.2 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.01, step: 0.01, defaultValue: 1.0 }
+        { key: 'mean', label: 'Média (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'stddev', label: 'Desvio Padrão (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.2 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     exponential: [
-        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 4.0 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.01, step: 0.01, defaultValue: 1.0 }
+        { key: 'lambda', label: 'Lambda (>0)', type: 'number', min: 0.01, max: 10, step: 0.01, defaultValue: 4.0 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     linear_falloff: [
-        { key: 'slope', label: 'Inclinação (>0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 1.0 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.01, step: 0.01, defaultValue: 1.0 }
+        { key: 'slope', label: 'Inclinação (>0)', type: 'number', min: 0.1, max: 10, step: 0.01, defaultValue: 1.0 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     logNormal: [
-        { key: 'mean', label: 'Média (escala log)', type: 'number', step: 0.01, defaultValue: Math.log(0.25) },
-        { key: 'stddev', label: 'Desvio Padrão (escala log, >0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 0.5 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.01, step: 0.01, defaultValue: 2.0 }
+        { key: 'mean', label: 'Média (escala log)', type: 'number', min: -5, max: 2, step: 0.01, defaultValue: Math.log(0.25) },
+        { key: 'stddev', label: 'Desvio Padrão (escala log, >0)', type: 'number', min: 0.01, max: 3, step: 0.01, defaultValue: 0.5 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 10, step: 0.01, defaultValue: 2.0 }
     ],
     cauchy: [
-        { key: 'location', label: 'Localização', type: 'number', min: 0, step: 0.01, defaultValue: 0.1 },
-        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 0.05 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.01, step: 0.01, defaultValue: 1.0 }
+        { key: 'location', label: 'Localização (0-1)', type: 'number', min: 0, max: 1, step: 0.01, defaultValue: 0.1 },
+        { key: 'scale', label: 'Escala (>0)', type: 'number', min: 0.01, max: 2, step: 0.01, defaultValue: 0.05 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ],
     weibull: [
-        { key: 'shape', label: 'Forma (k >0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 2.0 },
-        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, step: 0.01, defaultValue: 0.45 },
-        { key: 'strength', label: 'Força', type: 'number', min: 0.01, step: 0.01, defaultValue: 1.0 }
+        { key: 'shape', label: 'Forma (k >0)', type: 'number', min: 0.1, max: 10, step: 0.01, defaultValue: 2.0 },
+        { key: 'scale', label: 'Escala (lambda >0)', type: 'number', min: 0.01, max: 5, step: 0.01, defaultValue: 0.45 },
+        { key: 'strength', label: 'Força', type: 'number', min: 0.1, max: 5, step: 0.01, defaultValue: 1.0 }
     ]
 };
 
@@ -91,17 +91,17 @@ const DEFAULT_PARAMS = {
 };
 
 const PARAM_CONTROLS = {
-    grid: [ { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, step: 1 }, { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, step: 1 }, { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.01, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    spiral: [ { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, step: 1 }, { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.01, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, step: 0.01 }, { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    ring: [ { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.01, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    rhombus: [ { id: 'numRowsHalf', label: 'Metade Linhas', type: 'number', min: 1, step: 1 }, { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.01, step: 0.01 }, { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.01, step: 0.01 }, { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, step: 1 }, { id: 'spacingFactorX', label: 'Fator Espaç. X', type: 'number', min: 0.01, step: 0.01 }, { id: 'spacingFactorY', label: 'Fator Espaç. Y', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    phyllotaxis: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, step: 1 }, { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    manual_circular: [ { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.01, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.01, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.01, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 0.1, step: 0.1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01 } ],
+    grid: [ { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    spiral: [ { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, max: 12, step: 1 }, { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, max: 30, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.01 }, { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    ring: [ { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, max: 10, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    rhombus: [ { id: 'numRowsHalf', label: 'Metade Linhas', type: 'number', min: 1, max: 15, step: 1 }, { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 }, { id: 'spacingFactorX', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingFactorY', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    phyllotaxis: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'scaleFactor', label: 'Fator de Escala', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerOffsetFactor', label: 'Fator Offset Central', type: 'number', min: 0.01, max: 1, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    manual_circular: [ { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    random: [ { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 200, step: 1 }, { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01 } ],
     advanced_density: [
-        { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, step: 1 },
-        { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 0.1, step: 0.1 },
+        { id: 'numTiles', label: 'Número de Tiles', type: 'number', min: 1, max: 300, step: 1 },
+        { id: 'maxRadiusM', label: 'Raio Máximo (m)', type: 'number', min: 1, max: 50, step: 1 },
         {
             id: 'densityProfile', label: 'Perfil de Densidade', type: 'select',
             options: [
@@ -121,7 +121,7 @@ const PARAM_CONTROLS = {
             defaultValue: 0.75
         },
         // Profile-specific parameters will be inserted here by updateDynamicControls
-        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.01, step: 0.01 }
+        { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 1.0, max: 3, step: 0.01 }
     ]
 };
 
@@ -558,17 +558,22 @@ class AntennaLayoutGenerator {
                         const sliderGroup = document.createElement('div'); sliderGroup.className = 'slider-group';
                         const sliderInput = document.createElement('input'); sliderInput.type = 'range'; sliderInput.id = control.id + '-slider'; sliderInput.name = control.id + '-slider';
                         if (control.min !== undefined) sliderInput.min = control.min;
-                        // For sliders without max, set a sensible default max for the slider only
-                        const sliderMaxDefault = control.max !== undefined ? control.max : (control.min !== undefined ? Math.max(control.min * 10, 100) : 100);
-                        sliderInput.max = sliderMaxDefault;
+                        if (control.max !== undefined) sliderInput.max = control.max;
                         if (control.step !== undefined) sliderInput.step = control.step;
-                        sliderInput.value = Math.min(this.params[control.id], sliderMaxDefault); 
+                        sliderInput.value = this.params[control.id]; 
                         sliderGroup.appendChild(sliderInput);
                         const numberInput = document.createElement('input'); numberInput.type = 'number'; numberInput.id = control.id; numberInput.name = control.id;
-                         if (control.min !== undefined) numberInput.min = control.min;
-                         // Do NOT set max on number input - allow any value above min
-                         if (control.step !== undefined) numberInput.step = control.step;
-                         numberInput.value = this.params[control.id]; 
+                        if (control.min !== undefined) numberInput.min = control.min;
+                        // Only set max on text input for parameters that have periodic/normalized constraints
+                        // (e.g., angles, factors between 0-1, etc.)
+                        const requiresMaxLimit = control.id.includes('Rad') || 
+                                                 control.id === 'densityInfluenceFactor' ||
+                                                 control.id === 'centerOffsetFactor';
+                        if (control.max !== undefined && requiresMaxLimit) {
+                            numberInput.max = control.max;
+                        }
+                        if (control.step !== undefined) numberInput.step = control.step;
+                        numberInput.value = this.params[control.id]; 
                         sliderGroup.appendChild(numberInput);
                         sliderInput.addEventListener('input', () => {
                             const v = parseFloat(sliderInput.value);
@@ -576,35 +581,47 @@ class AntennaLayoutGenerator {
                             this.params[control.id] = v; 
                             this.generateLayout(); 
                         });
-                         numberInput.addEventListener('input', () => {
-                             let v = parseFloat(numberInput.value);
-                             if (!isNaN(v)) {
-                                 // Only apply minimum constraint
-                                 if (control.min !== undefined) v = Math.max(control.min, v);
-                                 // Update slider only if within slider range
-                                 if (v <= sliderMaxDefault) {
-                                     sliderInput.value = v;
-                                 }
-                                 this.params[control.id] = v; 
-                                 this.generateLayout(); 
-                             }
-                         });
-                         numberInput.addEventListener('change', () => {
-                             let v = parseFloat(numberInput.value);
-                             if (isNaN(v)) { v = parseFloat(sliderInput.value); numberInput.value = v; } 
-                             // Only apply minimum constraint
-                             if (control.min !== undefined) v = Math.max(control.min, v);
-                             numberInput.value = v;
-                             // Update slider only if within slider range
-                             if (v <= sliderMaxDefault) {
-                                 sliderInput.value = v;
-                             }
-                             if(this.params[control.id] !== v) {
-                                 this.params[control.id] = v;
-                                 this.updateDynamicControls(); 
-                                 this.generateLayout();
-                             }
-                         });
+                        numberInput.addEventListener('input', () => {
+                            let v = parseFloat(numberInput.value);
+                            if (!isNaN(v)) {
+                                // Always apply minimum constraint
+                                if (control.min !== undefined) v = Math.max(control.min, v);
+                                // Apply max constraint only for periodic/normalized parameters
+                                if (control.max !== undefined && requiresMaxLimit) {
+                                    v = Math.min(control.max, v);
+                                }
+                                // Update slider if within its range
+                                if (control.max !== undefined && v <= control.max) {
+                                    sliderInput.value = v;
+                                } else if (control.max !== undefined) {
+                                    sliderInput.value = control.max; // Pin slider to max
+                                }
+                                this.params[control.id] = v; 
+                                this.generateLayout(); 
+                            }
+                        });
+                        numberInput.addEventListener('change', () => {
+                            let v = parseFloat(numberInput.value);
+                            if (isNaN(v)) { v = parseFloat(sliderInput.value); numberInput.value = v; } 
+                            // Always apply minimum constraint
+                            if (control.min !== undefined) v = Math.max(control.min, v);
+                            // Apply max constraint only for periodic/normalized parameters
+                            if (control.max !== undefined && requiresMaxLimit) {
+                                v = Math.min(control.max, v);
+                            }
+                            numberInput.value = v;
+                            // Update slider if within its range
+                            if (control.max !== undefined && v <= control.max) {
+                                sliderInput.value = v;
+                            } else if (control.max !== undefined) {
+                                sliderInput.value = control.max; // Pin slider to max
+                            }
+                            if(this.params[control.id] !== v) {
+                                this.params[control.id] = v;
+                                this.updateDynamicControls(); 
+                                this.generateLayout();
+                            }
+                        });
                         formGroup.appendChild(sliderGroup);
                         break;
                     default:
@@ -636,17 +653,19 @@ class AntennaLayoutGenerator {
                     const sliderGroup = document.createElement('div'); sliderGroup.className = 'slider-group';
                     const sliderInput = document.createElement('input'); sliderInput.type = 'range';
                     sliderInput.id = `profile_param_slider_${paramSchema.key}`;
-                    // For sliders without max, set a sensible default
-                    const sliderMaxDefault = paramSchema.max !== undefined ? paramSchema.max : (paramSchema.min !== undefined ? Math.max(paramSchema.min * 10, 10) : 10);
-                    sliderInput.min = paramSchema.min !== undefined ? paramSchema.min : 0;
-                    sliderInput.max = sliderMaxDefault;
+                    if (paramSchema.min !== undefined) sliderInput.min = paramSchema.min;
+                    if (paramSchema.max !== undefined) sliderInput.max = paramSchema.max;
                     sliderInput.step = paramSchema.step;
-                    sliderInput.value = Math.min(this.params.profileParams[paramSchema.key], sliderMaxDefault);
+                    sliderInput.value = this.params.profileParams[paramSchema.key];
 
                     const numberInput = document.createElement('input'); numberInput.type = 'number';
                     numberInput.id = `profile_param_input_${paramSchema.key}`;
                     if (paramSchema.min !== undefined) numberInput.min = paramSchema.min;
-                    // Do NOT set max on number input - allow any value above min
+                    // Only set max for parameters that have normalized/periodic constraints (0-1 range)
+                    const requiresMaxLimit = paramSchema.key === 'mean' && paramSchema.max === 1;
+                    if (paramSchema.max !== undefined && requiresMaxLimit) {
+                        numberInput.max = paramSchema.max;
+                    }
                     numberInput.step = paramSchema.step;
                     numberInput.value = this.params.profileParams[paramSchema.key];
 
@@ -659,25 +678,37 @@ class AntennaLayoutGenerator {
                     numberInput.addEventListener('input', () => {
                         let val = parseFloat(numberInput.value);
                         if (!isNaN(val)) {
-                            // Only apply minimum constraint
+                            // Always apply minimum constraint
                             if (paramSchema.min !== undefined) val = Math.max(paramSchema.min, val);
+                            // Apply max constraint only for normalized parameters
+                            if (paramSchema.max !== undefined && requiresMaxLimit) {
+                                val = Math.min(paramSchema.max, val);
+                            }
                             this.params.profileParams[paramSchema.key] = val;
-                            // Update slider only if within slider range
-                            if (val <= sliderMaxDefault) {
+                            // Update slider if within range
+                            if (paramSchema.max !== undefined && val <= paramSchema.max) {
                                 sliderInput.value = val;
+                            } else if (paramSchema.max !== undefined) {
+                                sliderInput.value = paramSchema.max;
                             }
                             this.generateLayout();
                         }
                     });
-                     numberInput.addEventListener('change', () => {
+                    numberInput.addEventListener('change', () => {
                         let val = parseFloat(numberInput.value);
                         if (isNaN(val)) { val = parseFloat(sliderInput.value); }
-                        // Only apply minimum constraint
+                        // Always apply minimum constraint
                         if (paramSchema.min !== undefined) val = Math.max(paramSchema.min, val);
+                        // Apply max constraint only for normalized parameters
+                        if (paramSchema.max !== undefined && requiresMaxLimit) {
+                            val = Math.min(paramSchema.max, val);
+                        }
                         numberInput.value = val;
-                        // Update slider only if within slider range
-                        if (val <= sliderMaxDefault) {
+                        // Update slider if within range
+                        if (paramSchema.max !== undefined && val <= paramSchema.max) {
                             sliderInput.value = val;
+                        } else if (paramSchema.max !== undefined) {
+                            sliderInput.value = paramSchema.max;
                         }
                         if(this.params.profileParams[paramSchema.key] !== val) {
                              this.params.profileParams[paramSchema.key] = val;
