@@ -1,5 +1,8 @@
-# oskar_telescope_generator.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
+telescope_gen.py (oskar_telescope_generator)
+
 Script principal para gerar estruturas de telescópio OSKAR para BINGO.
 
 Este script utiliza a biblioteca 'bingo_layouts.py' para gerar diferentes
@@ -10,6 +13,9 @@ cada arranjo definido no CSV.
 
 O script gera 16 configurações de layout pré-definidas (4 formas x 4 variantes)
 e pede confirmação visual para cada uma antes de gerar os arquivos.
+
+Author: Geovanni Fernandes Garcia
+Version: 1.0.2
 """
 
 import csv

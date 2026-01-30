@@ -1,9 +1,21 @@
 /**
  * main.js
- * Ponto de entrada principal da aplicação.
+ *
+ * @fileoverview Ponto de entrada principal da aplicação.
  * Inicializa todos os módulos, configura listeners de eventos globais
  * e coordena a comunicação entre os módulos.
+ *
+ * @requires BingoLayouts
+ * @requires AntennaLayoutGenerator
+ * @requires InteractiveMap
+ * @requires OskarLayoutExporter
+ * @requires PSFAnalyzer
+ * @requires PSFEeThetaPlotter
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 let resizeDebounceTimer;
 

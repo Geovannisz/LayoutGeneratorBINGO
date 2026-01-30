@@ -1,16 +1,25 @@
 /**
  * psf_analysis_worker.js
  *
- * Web Worker para realizar a análise da Point Spread Function (PSF) do arranjo de antenas.
- * Calcula o volume total sob a PSF, o volume dentro de um cone para SLL (Side Lobe Level),
- * o ângulo Theta que contém uma determinada porcentagem de energia (Encircled Energy - EE),
- * o ângulo Theta_pico (estimativa da largura do pico principal buscando o primeiro mínimo significativo),
- * e os dados para a curva EE(Theta) com maior precisão.
+ * @fileoverview Web Worker para realizar a análise da Point Spread Function (PSF) do arranjo de antenas.
+ *
+ * @description Calcula:
+ * - Volume total sob a PSF
+ * - Volume dentro de um cone para SLL (Side Lobe Level)
+ * - Ângulo Theta que contém uma determinada porcentagem de energia (Encircled Energy - EE)
+ * - Ângulo Theta_pico (estimativa da largura do pico principal buscando o primeiro mínimo significativo)
+ * - Dados para a curva EE(Theta) com maior precisão
  *
  * A PSF aqui é considerada como a intensidade do campo elétrico |E_total|^2 ou a magnitude |E_total|.
  * Os cálculos são feitos integrando sobre o primeiro quadrante (Theta: 0-90, Phi: 0-90)
  * e multiplicando por 4, assumindo simetria.
+ *
+ * @requires beam_gpu.js
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 // --- Constantes e Configurações ---
 const USE_INTENSITY_FOR_PSF = true;

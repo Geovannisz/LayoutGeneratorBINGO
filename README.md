@@ -2,6 +2,8 @@
 
 **Acesse o site:** [https://geovannisz.github.io/LayoutGeneratorBINGO/](https://geovannisz.github.io/LayoutGeneratorBINGO/)
 
+**Versão:** 1.0.2 | **Autor:** Geovanni Fernandes Garcia | **Licença:** MIT
+
 ---
 
 O "Gerador de Layouts de Antenas BINGO" é uma aplicação web interativa e abrangente, meticulosamente projetada para facilitar o design, simulação e análise de arranjos de antenas (tiles) para o projeto BINGO (Baryon Acoustic Oscillations from Integrated Neutral Gas Observations). A interface do usuário é intuitiva e dividida em seções funcionais, cada uma dedicada a um aspecto específico do fluxo de trabalho de design de arranjos.
@@ -66,7 +68,7 @@ Também integrada à seção de geração de layout, esta sub-seção permite an
     *   **EE (Encircled Energy)**: O usuário define uma `Porcentagem de Energia Circunscrita` desejada. O sistema calcula o volume fracionário correspondente e o ângulo `Θ_EE` que engloba essa porcentagem.
 *   **Status da Análise**: Uma mensagem informa o estado atual dos cálculos da PSF.
 
-## 빔 Padrão de Feixe Simulado & Curva EE(Θ)
+## 📡 Padrão de Feixe Simulado & Curva EE(Θ)
 
 Localizada ao lado do gerador de layouts, esta seção foca na simulação e visualização detalhada do padrão de radiação do arranjo, e agora também inclui a visualização da curva de Energia Circunscrita.
 
@@ -74,16 +76,20 @@ Localizada ao lado do gerador de layouts, esta seção foca na simulação e vis
 
 *   **Controles de Simulação**:
     *   **Ângulo Phi (0°-90°)**: Slider e campo numérico para selecionar o ângulo azimutal (Phi) para o corte 2D.
-    *   **Escala Y (2D/3D)**: Seletores para `dB` (decibéis) ou `Linear`.
-    *   **Modo de Visualização**: Botões para `Padrão 2D` ou `Padrão 3D`.
-*   **Visualização do Padrão de Feixe**: Um gráfico Plotly.js renderiza o padrão.
-    *   **Gráfico 2D**: Magnitude normalizada vs. ângulo Theta para o Phi selecionado.
-    *   **Gráfico 3D**: Superfície colorida do feixe em toda a esfera visível.
+    *   **Escala de Magnitude**: Seletores para diferentes escalas de visualização: `dB`, `Linear`, `Sqrt`, `Quadrática`, `Raiz Quarta`.
+    *   **Modo de Visualização**: Botões para `Mapa de Calor`, `3D` ou `2D`.
+*   **Visualização do Padrão de Feixe**: 
+    *   **Mapa de Calor**: Visualização 2D em coordenadas polares com supersampling adaptativo para suavizar a imagem:
+        - 9x9 samples (81 total) perto do centro (θ < 5°) onde a singularidade polar causa artefatos
+        - 5x5 samples (25 total) para o resto da imagem
+        - Usa paleta HSV com 64 níveis de cor para máxima discriminação de dados
+    *   **Gráfico 2D**: Magnitude normalizada vs. ângulo Theta para o Phi selecionado (via Plotly.js).
+    *   **Gráfico 3D**: Superfície colorida do feixe em toda a esfera visível (via Plotly.js).
 *   **Status do Padrão de Feixe**: Mensagem sobre o estado dos cálculos.
-*   **Fonte de Dados E-Field**: Dados de campo elétrico do elemento individual são carregados de um gateway IPFS (Pinata), processados pelo script `python/preprocess_efield_csv.py` a partir de `rE_table_vivaldi.csv`.
+*   **Fonte de Dados E-Field**: Dados de campo elétrico do elemento individual são carregados de gateways IPFS, processados pelo script `python/preprocess_efield_csv.py` a partir de `rE_table_vivaldi.csv`.
     *   **Plots 2D**: Arquivos CSV específicos por ângulo Phi.
-    *   **Plots 3D**: Arquivo CSV completo.
-*   **Web Workers**: Cálculos intensivos do padrão de feixe são delegados a Web Workers (`beam_worker.js` para 2D, `beam_worker_3d.js` para 3D).
+    *   **Plots 3D/Heatmap**: Arquivo CSV completo.
+*   **Web Workers**: Cálculos intensivos do padrão de feixe são delegados a Web Workers (`beam_worker.js` para 2D, `beam_worker_3d.js` para 3D, `heatmap_worker.js` para mapa de calor).
 
 ### 📈 Curva de Energia Circunscrita (EE vs. Θ) da PSF
 
@@ -124,22 +130,61 @@ A seção final permite exportar os dados configurados em formatos compatíveis 
 
 ## 🛠️ Tecnologias e Arquitetura
 
-*   **Frontend**: HTML5, CSS3, JavaScript (ES6+).
+*   **Frontend**: HTML5, CSS3, JavaScript (ES6+ com 'use strict').
 *   **Bibliotecas JavaScript**: Leaflet.js, Plotly.js, JSZip, FileSaver.js, Font Awesome.
 *   **Estrutura JavaScript Modular**:
+    *   `constants.js`: Constantes físicas, dimensões e configurações centralizadas.
     *   `main.js`: Ponto de entrada e orquestração.
     *   `bingo_layouts.js`: Algoritmos de geração de layouts.
     *   `generator.js`: UI e lógica do "Gerador de Layout".
     *   `map.js`: Funcionalidades do mapa interativo.
     *   `export.js`: Exportação de dados OSKAR.
     *   `beam_pattern.js`: Simulação do padrão de feixe.
-        *   `beam_worker.js` (2D), `beam_worker_3d.js` (3D).
+        *   `beam_worker.js` (2D), `beam_worker_3d.js` (3D), `beam_gpu.js` (WebGPU), `heatmap_worker.js` (Mapa de Calor).
     *   `psf_analyzer.js`: UI da Análise da PSF.
     *   `psf_ee_theta_plot.js`: UI e lógica do gráfico EE(Θ) da PSF.
-        *   `psf_analysis_worker.js`: Web Worker para cálculos da PSF (Volume, SLL, EE, Θ_pico, e agora também dados para a curva EE(Θ)).
+        *   `psf_analysis_worker.js`: Web Worker para cálculos da PSF.
 *   **Scripts de Apoio Python** (`python/`):
     *   `bingo_layouts.py`: Implementação Python dos layouts.
     *   `preprocess_efield_csv.py`: Processamento de dados E-field.
+    *   `csv_filter.py`: Filtro de dados CSV.
     *   `telescope_gen.py`: Geração de configurações de telescópio (desenvolvimento).
+
+## 🔧 Melhorias Recentes (v1.0.2)
+
+### Organização do Código
+*   Criado arquivo `js/constants.js` centralizando constantes físicas, CIDs IPFS e configurações compartilhadas
+*   Adicionadas diretivas `'use strict'` e documentação JSDoc em todos os módulos JavaScript
+*   Melhorado `.gitignore` e adicionado `.editorconfig` para estilo de código consistente
+
+### SEO e Acessibilidade
+*   Meta tags completas: canonical, robots, theme-color, keywords, author
+*   Dados estruturados Schema.org (WebApplication, SoftwareApplication)
+*   Preconnect/dns-prefetch para recursos CDN
+*   Classes CSS de acessibilidade: `.sr-only`, `.skip-link`, `:focus-visible`
+*   Suporte a `prefers-reduced-motion` e `prefers-contrast`
+
+### Processamento de Dados
+*   Objeto `PerformanceMetrics` para rastrear tempos de fetch, processamento e renderização
+*   Funções de validação: `validateAntennaCoords()`, `validateEFieldData()`
+*   Fetch IPFS melhorado com retry (2 tentativas/gateway), backoff exponencial, timeout de 8s
+*   Parsing de CSV com validação completa de valores e relatório de erros
+
+### Segurança (Electron)
+*   Sandbox e contextIsolation habilitados
+*   Prevenção de navegação para URLs externas
+*   Auto-updater com tratamento de erros
+
+## 📋 Requisitos do Sistema
+
+*   **Navegador**: Moderno com suporte a HTML5 Canvas e JavaScript ES6+
+*   **WebGPU** (opcional): Para cálculos acelerados de padrão de feixe
+*   **Conexão com Internet**: Para carregar dados E-field via IPFS
+
+## 📜 Licença
+
+Este projeto é licenciado sob a [Licença MIT](LICENSE).
+
+---
 
 Este gerador de layouts visa fornecer uma ferramenta poderosa e flexível para pesquisadores e engenheiros envolvidos no projeto BINGO, simplificando o processo de design e análise de arranjos de antenas.

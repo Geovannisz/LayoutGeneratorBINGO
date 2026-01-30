@@ -1,23 +1,31 @@
 /**
  * generator.js
  *
- * Módulo para geração e visualização de layouts de centros de tiles e suas antenas.
+ * @fileoverview Módulo para geração e visualização de layouts de centros de tiles e suas antenas.
  * Utiliza a biblioteca `BingoLayouts` (bingo_layouts.js) para os algoritmos
  * de geração e desenha o resultado em um canvas HTML.
- * Permite ajustar parâmetros dinamicamente via interface, visualizar colisões
+ *
+ * @description Permite ajustar parâmetros dinamicamente via interface, visualizar colisões
  * entre tiles e baixar a imagem do layout gerado.
  * Redesenha automaticamente ao mudar o tipo de layout, parâmetros ou tema da página.
+ *
+ * @requires BingoLayouts
+ * @requires BingoConstants
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
-// === Constantes Globais ===
-const TILE_WIDTH = 0.35;
-const TILE_HEIGHT = 1.34;
-const ANTENNAS_PER_TILE = 64;
-const SUBGROUP_N = 2; 
-const SUBGROUP_M = 8; 
-const SUBGROUP_DX = 0.1760695885; 
-const SUBGROUP_DY = 0.1675843071; 
-const DIAMOND_OFFSET = 0.05;
+'use strict';
+
+// === Constantes Globais - usar BingoConstants quando disponível ===
+const TILE_WIDTH = (typeof BingoConstants !== 'undefined') ? BingoConstants.TILE_WIDTH_M : 0.35;
+const TILE_HEIGHT = (typeof BingoConstants !== 'undefined') ? BingoConstants.TILE_HEIGHT_M : 1.34;
+const ANTENNAS_PER_TILE = (typeof BingoConstants !== 'undefined') ? BingoConstants.ANTENNAS_PER_TILE : 64;
+const SUBGROUP_N = (typeof BingoConstants !== 'undefined') ? BingoConstants.SUBGROUP_COLUMNS : 2;
+const SUBGROUP_M = (typeof BingoConstants !== 'undefined') ? BingoConstants.SUBGROUP_ROWS : 8;
+const SUBGROUP_DX = (typeof BingoConstants !== 'undefined') ? BingoConstants.SUBGROUP_DX : 0.1760695885;
+const SUBGROUP_DY = (typeof BingoConstants !== 'undefined') ? BingoConstants.SUBGROUP_DY : 0.1675843071;
+const DIAMOND_OFFSET = (typeof BingoConstants !== 'undefined') ? BingoConstants.DIAMOND_OFFSET : 0.05;
 
 const PROFILE_PARAM_SCHEMAS = {
     gaussian: [

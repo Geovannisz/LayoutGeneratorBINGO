@@ -1,9 +1,17 @@
 /**
  * beam_gpu.js
  *
- * WebGPU implementation for Beam Pattern calculation.
- * Calculates the Array Factor and element pattern multiplication on the GPU.
+ * @fileoverview WebGPU implementation for Beam Pattern calculation.
+ *
+ * @description Calculates the Array Factor and element pattern multiplication on the GPU.
+ * Provides significant performance improvements for large antenna arrays.
+ * Falls back to CPU calculation when WebGPU is not available.
+ *
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 class BeamCalculatorGPU {
     constructor() {

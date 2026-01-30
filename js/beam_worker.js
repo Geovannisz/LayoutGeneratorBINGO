@@ -1,11 +1,18 @@
 /**
  * beam_worker.js
  *
- * Web Worker para calcular o Array Factor (AF) para um corte 2D (Phi constante)
+ * @fileoverview Web Worker para calcular o Array Factor (AF) para um corte 2D (Phi constante)
  * e aplicar este AF ao campo E-field do elemento individual.
  * Retorna os valores de Theta e a magnitude resultante para plotagem.
- * Utiliza TypedArrays para otimizações de performance.
+ *
+ * @description Utiliza TypedArrays para otimizações de performance.
+ * Este worker é executado em uma thread separada para não bloquear a UI.
+ *
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 // --- Funções de Cálculo (Otimizadas) ---
 

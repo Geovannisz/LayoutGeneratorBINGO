@@ -1,11 +1,27 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+csv_filter.py
+
+Script para filtrar e reduzir arquivos CSV de dados de E-field.
+Remove colunas desnecessárias e reduz a resolução de Theta.
+
+Author: Geovanni Fernandes Garcia
+Version: 1.0.2
+"""
+
+import os
 import pandas as pd
-import csv # Para usar csv.QUOTE_MINIMAL ou csv.QUOTE_NONNUMERIC
+import csv
 
-# Caminho para o arquivo de entrada
-input_file_path = r"C:\Users\gefer\Documents\LayoutGeneratorBINGO\data\rE_table_vivaldi.csv"
+# Determina o diretório base do projeto
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+DATA_DIR = os.path.join(PROJECT_DIR, 'data')
 
-# Caminho para o arquivo de saída (com as colunas filtradas e tabela reduzida)
-output_file_path = r"C:\Users\gefer\Documents\LayoutGeneratorBINGO\data\rE_table_vivaldi_filtrado_reduzido.csv"
+# Caminhos relativos para os arquivos
+input_file_path = os.path.join(DATA_DIR, 'rE_table_vivaldi.csv')
+output_file_path = os.path.join(DATA_DIR, 'rE_table_vivaldi_filtrado_reduzido.csv')
 
 # Nomes exatos das colunas chave (ajuste se necessário, após verificar seu arquivo)
 col_freq_name = "Freq [GHz]"

@@ -2,6 +2,8 @@
 
 Este documento rastreia as tarefas concluídas durante o desenvolvimento do site Gerador de Layouts de Antenas BINGO e lista possíveis melhorias e adições futuras.
 
+**Versão Atual:** 1.0.2 | **Última Atualização:** Janeiro 2026
+
 ## 🚀 Fase 1: Fundação e Configuração Inicial
 
 *   [x] **Análise de Requisitos e Definição do Escopo:**
@@ -45,7 +47,7 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
         *   [x] Remover opções de formato JPEG e qualidade.
     *   [x] Adicionar responsividade ao canvas.
     *   [x] Disparar evento `layoutGenerated` após geração.
-*   [x] **Reorganização da UI na Seção do Gerador:** *(Nova tarefa referente às mudanças recentes)*
+*   [x] **Reorganização da UI na Seção do Gerador:**
     *   [x] Trocar a posição da sub-seção "Baixar Imagem do Layout" com "Análise da PSF (Point Spread Function)".
     *   [x] Ajustar as proporções horizontais e CSS correspondentes (flex, bordas).
 
@@ -94,7 +96,15 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
     *   [x] Adicionar downsampling para plots 2D com muitos pontos.
     *   [x] Disparar evento `beamData3DLoaded` após carregamento dos dados 3D.
     *   [x] **Remover títulos dos gráficos** do padrão de feixe 2D e 3D para otimizar espaço vertical.
-*   [x] **Implementação da Visualização da Curva EE(Θ) da PSF:** *(Nova seção principal referente às mudanças recentes)*
+*   [x] **Implementação do Mapa de Calor (Heatmap):**
+    *   [x] Criar Web Worker `heatmap_worker.js` para geração de heatmap.
+    *   [x] Implementar supersampling adaptativo:
+        *   [x] 9x9 samples (81 total) para θ < 5° (centro, alta densidade)
+        *   [x] 5x5 samples (25 total) para θ > 5° (resto da imagem)
+    *   [x] Implementar paleta HSV com 64 níveis de cor.
+    *   [x] Implementar interpolação bilinear para dados polares.
+    *   [x] Suporte a múltiplas escalas: dB, Linear, Sqrt, Quadrática, Raiz Quarta.
+*   [x] **Implementação da Visualização da Curva EE(Θ) da PSF:**
     *   [x] **Estrutura HTML e CSS**:
         *   [x] Adicionar nova sub-seção no HTML dentro do contêiner do "Padrão de Feixe Simulado" para o gráfico da Curva EE(Θ).
         *   [x] Implementar um divisor visual (borda CSS) entre a área do gráfico do Padrão de Feixe e a nova área do gráfico da Curva EE(Θ).
@@ -177,71 +187,169 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
     *   [x] Escrever um `README.md` inicial descrevendo o projeto.
     *   [x] Manter um `todo.md` (este arquivo) para rastrear progresso.
 
+## 🛡️ Fase 8: Boas Práticas, SEO e Organização de Código (v1.0.2)
+
+*   [x] **Organização de Código:**
+    *   [x] Criar arquivo `js/constants.js` centralizando constantes físicas, CIDs IPFS e configurações.
+    *   [x] Adicionar diretivas `'use strict'` em todos os módulos JavaScript.
+    *   [x] Adicionar documentação JSDoc em todos os arquivos JavaScript.
+    *   [x] Atualizar scripts Python para usar caminhos relativos.
+    *   [x] Remover arquivo duplicado `todo.md`.
+*   [x] **Arquivos de Configuração:**
+    *   [x] Melhorar `.gitignore` com padrões para Node.js, Python, Electron, IDEs.
+    *   [x] Criar `.editorconfig` para estilo de código consistente.
+    *   [x] Atualizar `package.json` com metadados completos, keywords, scripts de build.
+*   [x] **SEO (Search Engine Optimization):**
+    *   [x] Adicionar meta tags completas: canonical, robots, theme-color, keywords, author.
+    *   [x] Melhorar Open Graph e Twitter Cards com dimensões de imagem e alt text.
+    *   [x] Adicionar dados estruturados Schema.org (WebApplication, SoftwareApplication).
+    *   [x] Adicionar preconnect/dns-prefetch para recursos CDN.
+    *   [x] Atualizar sitemap.xml com data atual.
+    *   [x] Melhorar robots.txt com diretivas por bot.
+*   [x] **Acessibilidade:**
+    *   [x] Adicionar classe CSS `.sr-only` para conteúdo de leitores de tela.
+    *   [x] Adicionar `.skip-link` para navegação por teclado.
+    *   [x] Adicionar estilos `:focus-visible` para indicação de foco.
+    *   [x] Adicionar `prefers-reduced-motion` media query.
+    *   [x] Adicionar `prefers-contrast` media query.
+    *   [x] Adicionar ARIA roles apropriados (header, main, footer, nav).
+    *   [x] Adicionar `rel="noopener noreferrer"` em links externos.
+*   [x] **Processamento de Dados:**
+    *   [x] Criar objeto `PerformanceMetrics` para rastrear tempos de fetch/processamento/renderização.
+    *   [x] Adicionar funções de validação: `validateAntennaCoords()`, `validateEFieldData()`.
+    *   [x] Melhorar fetch IPFS com retry (2 tentativas/gateway) e backoff exponencial.
+    *   [x] Melhorar parsing de CSV com validação completa e relatório de erros.
+*   [x] **Segurança (Electron):**
+    *   [x] Habilitar sandbox e contextIsolation.
+    *   [x] Adicionar prevenção de navegação para URLs externas.
+    *   [x] Melhorar auto-updater com tratamento de erros.
+*   [x] **Verificações:**
+    *   [x] Executar code review e corrigir issues.
+    *   [x] Executar CodeQL scan (0 vulnerabilidades).
+
 ---
 
 ## 🔮 Futuras Melhorias e Adições
 
-### Funcionalidades Avançadas de Layout
+### 🎯 Alta Prioridade
+
+*   [ ] **Aceleração de Cálculos com WebGPU**:
+    *   [ ] Expandir uso de WebGPU para cálculos de PSF e heatmap.
+    *   [ ] Implementar fallback automático para CPU quando WebGPU não estiver disponível.
+*   [ ] **Otimização de Performance do Heatmap**:
+    *   [ ] Implementar renderização progressiva (baixa resolução → alta resolução).
+    *   [ ] Adicionar cache de tiles renderizados.
+    *   [ ] Considerar WebGL para renderização do heatmap.
+*   [ ] **Modo Offline/PWA**:
+    *   [ ] Implementar Service Worker para funcionamento offline.
+    *   [ ] Armazenar dados E-field em IndexedDB após primeiro download.
+    *   [ ] Adicionar manifest.json para instalação como PWA.
+
+### 🔧 Funcionalidades Avançadas de Layout
+
 *   [ ] **Mais Algoritmos de Layout**:
-    *   [ ] Implementar layouts otimizados para baixa redundância.
-    *   [ ] Layouts baseados em funções de densidade.
-    *   [ ] Layouts otimizados por algoritmos genéticos ou outras técnicas de IA.
-*   [ ] **Importação/Exportação de Configurações de Layout**:
-    *   [ ] Salvar/Carregar parâmetros de layout completos em formato JSON ou similar.
+    *   [ ] Implementar layouts otimizados para baixa redundância (algoritmo de minimização de sidelobes).
+    *   [ ] Layouts baseados em otimização por algoritmos genéticos.
+    *   [ ] Layout Y-shaped (formato em Y) comum em radioastronomia.
+    *   [ ] Layout logarítmico-espiral.
 *   [ ] **Editor de Layout Manual Avançado**:
-    *   [ ] Permitir arrastar e soltar tiles individuais no canvas do gerador.
-    *   [ ] Ferramentas de alinhamento e distribuição.
+    *   [ ] Ferramentas de alinhamento (alinhar à grade, alinhar horizontalmente/verticalmente).
+    *   [ ] Ferramentas de distribuição (distribuir uniformemente).
+    *   [ ] Seleção múltipla de tiles com Shift+Click.
+    *   [ ] Rotação de grupos de tiles.
 *   [ ] **Layout de Múltiplas Estações (Outriggers)**:
     *   [ ] Visualizar e configurar layouts para múltiplas estações simultaneamente no gerador.
+    *   [ ] Calcular baseline coverage UV para arranjo de múltiplas estações.
 
-### Simulação e Análise Aprimoradas
+### 📊 Simulação e Análise Aprimoradas
+
 *   [ ] **Padrões de Elemento de Antena Customizáveis**:
-    *   [ ] Permitir upload de arquivos de padrão de elemento (ex: formato OSKAR ou CST).
-    *   [ ] Selecionar entre diferentes padrões de elemento pré-carregados.
+    *   [ ] Permitir upload de arquivos de padrão de elemento (formato OSKAR, CST, GRASP).
+    *   [ ] Biblioteca de padrões de elemento pré-carregados (dipolo, Vivaldi, patch, horn).
 *   [ ] **Análise de PSF Mais Detalhada**:
     *   [ ] Cálculo de FWHM (Full Width at Half Maximum) do lóbulo principal.
     *   [ ] Identificação e listagem dos níveis dos lóbulos laterais mais altos.
-    *   [ ] Visualização 2D/3D da própria PSF.
+    *   [ ] Visualização 2D/3D da própria PSF como superfície.
+    *   [ ] Comparação lado-a-lado de PSFs de diferentes layouts.
 *   [ ] **Análise de Cobertura UV**:
     *   [ ] Plotar a cobertura no plano UV para o arranjo gerado.
-*   [ ] **Consideração de Efeitos de Acoplamento Mútuo (Básico)**:
-    *   [ ] Opção para introduzir fatores de correção simplificados.
-*   [ ] **Análise de Sensibilidade**:
-    *   [ ] Simular como pequenas variações nos parâmetros do layout afetam o desempenho.
+    *   [ ] Simular cobertura UV ao longo de diferentes horas de observação (Earth rotation synthesis).
+    *   [ ] Calcular métricas de cobertura UV (filling factor, gaps).
+*   [ ] **Simulação de Observação**:
+    *   [ ] Simular imagem de fonte pontual com o beam pattern atual.
+    *   [ ] Adicionar fontes estendidas e simular imagem resultante.
+    *   [ ] Considerar efeitos de ruído térmico e sistemáticos básicos.
 
-### Interface do Usuário e Experiência
+### 🖥️ Interface do Usuário e Experiência
+
 *   [ ] **Desfazer/Refazer (Undo/Redo)**:
     *   [ ] Para ações no gerador de layout.
+    *   [ ] Histórico de alterações navegável.
 *   [ ] **Internacionalização (i18n)**:
-    *   [ ] Suporte para múltiplos idiomas (Inglês, Português).
+    *   [ ] Suporte para múltiplos idiomas (Inglês, Português, Espanhol).
+    *   [ ] Detecção automática de idioma do navegador.
 *   [ ] **Guia do Usuário / Tutoriais Interativos**:
-    *   [ ] Incorporar ajuda contextual e tutoriais guiados.
+    *   [ ] Incorporar ajuda contextual com tooltips explicativos.
+    *   [ ] Tour guiado interativo para novos usuários.
+    *   [ ] Vídeos tutoriais incorporados.
 *   [ ] **Melhorias de Acessibilidade (A11Y)**:
-    *   [ ] Revisão completa para conformidade com WCAG.
+    *   [ ] Revisão completa para conformidade com WCAG 2.1 AA.
+    *   [ ] Navegação completa por teclado.
+    *   [ ] Suporte a leitores de tela melhorado.
 *   [ ] **Salvar Estado da Aplicação**:
-    *   [ ] Usar `localStorage` para persistir o estado da UI entre sessões (ex: último layout gerado, posições no mapa).
+    *   [ ] Usar `localStorage` para persistir o estado da UI entre sessões.
+    *   [ ] Permitir salvar/carregar múltiplos "projetos" nomeados.
+*   [ ] **Dashboard de Comparação**:
+    *   [ ] Permitir comparar métricas de múltiplos layouts lado a lado.
+    *   [ ] Gráficos comparativos de PSF, beam width, SLL.
 
-### Performance e Backend
+### 🚀 Performance e Backend
+
 *   [ ] **Otimização de Performance**:
     *   [ ] Perfilamento de código JavaScript para identificar gargalos.
-    *   [ ] Otimizar algoritmos de desenho e cálculo.
     *   [ ] Considerar WebAssembly para partes críticas de cálculo.
+    *   [ ] Lazy loading de módulos não essenciais.
 *   [ ] **Backend (Opcional, para funcionalidades avançadas)**:
     *   [ ] Contas de usuário para salvar layouts e configurações na nuvem.
+    *   [ ] Compartilhamento de layouts via URL.
     *   [ ] Execução de simulações OSKAR mais complexas no servidor.
+    *   [ ] API REST para integração com outros softwares.
 
-### Testes e Manutenção
+### 🧪 Testes e Manutenção
+
 *   [ ] **Testes Automatizados**:
     *   [ ] Implementar testes unitários para módulos JavaScript críticos (ex: `bingo_layouts.js`).
     *   [ ] Implementar testes de integração.
-    *   [ ] Configurar testes End-to-End (E2E) com ferramentas como Cypress ou Playwright.
+    *   [ ] Configurar testes End-to-End (E2E) com Playwright ou Cypress.
 *   [ ] **CI/CD (Integração Contínua / Entrega Contínua)**:
-    *   [ ] Configurar pipeline para automação de testes e deploy (ex: GitHub Actions).
+    *   [ ] Configurar pipeline GitHub Actions para automação de testes.
+    *   [ ] Deploy automático para GitHub Pages após merge em main.
+    *   [ ] Verificação automática de vulnerabilidades com Dependabot.
 *   [ ] **Atualização de Dependências**:
     *   [ ] Revisar e atualizar bibliotecas de terceiros periodicamente.
+    *   [ ] Monitorar alertas de segurança de dependências.
 
-### Exportação e Integração
+### 📦 Exportação e Integração
+
 *   [ ] **Mais Formatos de Exportação**:
-    *   [ ] Suporte para outros formatos de simulação ou CAD.
+    *   [ ] Exportar para formato CASA (Common Astronomy Software Applications).
+    *   [ ] Exportar para formato MeerKAT/SKA.
+    *   [ ] Exportar imagem do beam pattern em alta resolução.
+    *   [ ] Exportar dados brutos em CSV/JSON.
 *   [ ] **Validação de Configurações OSKAR**:
     *   [ ] Checagens básicas nos dados exportados para garantir compatibilidade.
+    *   [ ] Warnings para configurações potencialmente problemáticas.
+*   [ ] **Integração com Ferramentas Externas**:
+    *   [ ] Plugin/extensão para CASA.
+    *   [ ] Integração com JupyterLab.
+
+### 🌐 Infraestrutura
+
+*   [ ] **Migração de Dados E-field**:
+    *   [ ] Considerar CDN próprio além de IPFS para maior confiabilidade.
+    *   [ ] Implementar compressão de dados (gzip/brotli).
+    *   [ ] Versionar dados E-field para diferentes configurações de antena.
+*   [ ] **Monitoramento e Analytics**:
+    *   [ ] Implementar analytics respeitando privacidade (Plausible, Umami).
+    *   [ ] Monitorar erros em produção (Sentry).
+    *   [ ] Dashboard de métricas de uso.

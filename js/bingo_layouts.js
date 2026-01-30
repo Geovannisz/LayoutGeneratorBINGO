@@ -1,10 +1,10 @@
 /**
  * bingo_layouts.js
  *
- * Biblioteca JavaScript para gerar layouts de centros de tiles para estações BINGO.
+ * @fileoverview Biblioteca JavaScript para gerar layouts de centros de tiles para estações BINGO.
  * Foco na geração das coordenadas relativas (X, Y) dos centros dos tiles.
  *
- * Modificações Recentes:
+ * @description Modificações Recentes:
  * - Remoção dos parâmetros 'spacingMode' e 'centerScaleMode'.
  * - O escalonamento (linear vs. exponencial central) é agora controlado
  *   pelo parâmetro 'centerExpScaleFactor'. Um valor de 1.0 para
@@ -14,12 +14,17 @@
  * - A checagem de colisão para posicionamento com offset aleatório
  *   foi padronizada para usar uma abordagem retangular simples baseada
  *   nas dimensões do tile e um fator de separação.
+ *
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
-// Constantes Globais
-const COORD_PRECISION = 6; // Número de casas decimais para as coordenadas
-const GOLDEN_ANGLE_RAD = Math.PI * (3 - Math.sqrt(5)); // Ângulo dourado em radianos para Phyllotaxis
-const DEFAULT_MAX_PLACEMENT_ATTEMPTS = 10000; // Tentativas padrão para posicionamento com offset e colisão
+'use strict';
+
+// Constantes Globais - usar BingoConstants quando disponível, senão valores padrão
+const COORD_PRECISION = (typeof BingoConstants !== 'undefined') ? BingoConstants.COORDINATE_PRECISION : 6;
+const GOLDEN_ANGLE_RAD = (typeof BingoConstants !== 'undefined') ? BingoConstants.GOLDEN_ANGLE_RAD : Math.PI * (3 - Math.sqrt(5));
+const DEFAULT_MAX_PLACEMENT_ATTEMPTS = (typeof BingoConstants !== 'undefined') ? BingoConstants.DEFAULT_MAX_PLACEMENT_ATTEMPTS : 10000;
 
 // === Funções Auxiliares ===
 

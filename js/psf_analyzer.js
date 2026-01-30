@@ -1,14 +1,21 @@
 /**
  * psf_analyzer.js
  *
- * Módulo para gerenciar a interface e a lógica da Análise da Point Spread Function (PSF).
+ * @fileoverview Módulo para gerenciar a interface e a lógica da Análise da Point Spread Function (PSF).
  * Interage com psf_analysis_worker.js para cálculos e atualiza a UI.
- * Modificado para:
+ *
+ * @description Modificado para:
  * - Usar "Volume" em vez de "Área".
  * - Incluir o cálculo de Theta_pico.
  * - Fazer triggerFullPSFVolumeCalculation retornar uma Promise.
  * - Disparar um evento 'psfTotalVolumeCalculated' quando o volume total estiver pronto.
+ *
+ * @requires psf_analysis_worker.js
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 class PSFAnalyzer {
     constructor() {

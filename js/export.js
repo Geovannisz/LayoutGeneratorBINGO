@@ -1,19 +1,28 @@
 /**
  * export.js
  *
- * Módulo para implementação da funcionalidade de exportação para OSKAR.
- * Inclui:
+ * @fileoverview Módulo para implementação da funcionalidade de exportação para OSKAR.
+ *
+ * @description Inclui:
  * - Geração de conteúdo para os arquivos de layout OSKAR.
  * - Exibição em textareas.
  * - Botões para copiar o conteúdo de cada textarea para a área de transferência.
  * - Funcionalidade de download de um arquivo ZIP contendo todos os layouts,
  *   com nome de arquivo customizável.
+ *
+ * @requires JSZip
+ * @requires FileSaver
+ * @requires BingoConstants
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
-// Constantes fixas do BINGO Central (local de referência para as estações)
-const BINGO_CENTRAL_LATITUDE = -7.04067;
-const BINGO_CENTRAL_LONGITUDE = -38.26884;
-const BINGO_CENTRAL_ALTITUDE = 396.4; // Altitude em metros
+'use strict';
+
+// Constantes fixas do BINGO Central - usar BingoConstants quando disponível
+const BINGO_CENTRAL_LATITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_LATITUDE : -7.04067;
+const BINGO_CENTRAL_LONGITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_LONGITUDE : -38.26884;
+const BINGO_CENTRAL_ALTITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_ALTITUDE : 396.4;
 
 // Classe para gerenciar a exportação de layouts OSKAR
 class OskarLayoutExporter {

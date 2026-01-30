@@ -1,10 +1,19 @@
 /**
  * heatmap_worker.js
  *
- * Worker dedicated to generating high-resolution Cartesian heatmaps
+ * @fileoverview Worker dedicated to generating high-resolution Cartesian heatmaps
  * from polar beam data (Theta/Phi) using bilinear interpolation.
- * Returns Uint8ClampedArray for Canvas ImageData.
+ *
+ * @description Returns Uint8ClampedArray for Canvas ImageData.
+ * Uses HSV colormap (64 steps, RGB) - SAOImageDS9 HSV/Rainbow palette.
+ * Transitions: Black → Gray → Blue → Cyan → Green → Yellow → Orange → Red → Pink → White
+ * Full spectrum coverage for maximum data discrimination.
+ *
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 // HSV Colormap (64 steps, RGB) - SAOImageDS9 HSV/Rainbow palette
 // Transitions: Black → Gray → Blue → Cyan → Green → Yellow → Orange → Red → Pink → White
@@ -265,11 +274,12 @@ self.onmessage = function (e) {
     const cy = height / 2;
     const maxRadiusPx = Math.min(cx, cy) - 2;
 
-    // Adaptive Supersampling Anti-Aliasing:
+    // Adaptive Supersampling Anti-Aliasing (SSAA):
+    // - High density: 5x5 samples (25 total) near center where theta < 5° (polar singularity)
     // - Standard: 3x3 samples (9 total) for most of the image
-    // - High density: 7x7 samples (49 total) near center where polar singularity causes issues
+    // This provides smooth gradients and reduces noise, especially near the beam center
     const SSAA_STANDARD = 3;
-    const SSAA_HIGH = 7;
+    const SSAA_HIGH = 5;
 
     // Threshold: use high density when theta < 5 degrees
     // Convert to pixel radius threshold

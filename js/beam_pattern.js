@@ -2,21 +2,31 @@
 
 /**
  * beam_pattern.js
- * Modificado para usar:
+ *
+ * @fileoverview Módulo para simulação e visualização do padrão de feixe de antenas.
+ *
+ * @description Modificado para usar:
  * 1. Arquivos CSV individuais para plot 2D.
  * 2. Arquivo CSV completo para 3D e Heatmap.
  * 3. Heatmap nativo 2D via Canvas (heatmap_worker.js) para alta performance e qualidade.
  * 4. Cache inteligente de dados e resultados.
+ *
+ * @requires BingoConstants
+ * @requires Plotly
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
-// === Constantes ===
-const FREQUENCY = 1e9;
-const C_LIGHT = 299792458;
-const LAMBDA = C_LIGHT / FREQUENCY;
-const K = (2 * Math.PI) / LAMBDA;
+'use strict';
 
-// Lista de Gateways IPFS Públicos
-const IPFS_GATEWAYS = [
+// === Constantes - usar BingoConstants quando disponível ===
+const FREQUENCY = (typeof BingoConstants !== 'undefined') ? BingoConstants.FREQUENCY_HZ : 1e9;
+const C_LIGHT = (typeof BingoConstants !== 'undefined') ? BingoConstants.SPEED_OF_LIGHT : 299792458;
+const LAMBDA = (typeof BingoConstants !== 'undefined') ? BingoConstants.WAVELENGTH : (C_LIGHT / FREQUENCY);
+const K = (typeof BingoConstants !== 'undefined') ? BingoConstants.WAVE_NUMBER_K : ((2 * Math.PI) / LAMBDA);
+
+// Lista de Gateways IPFS Públicos - usar BingoConstants quando disponível
+const IPFS_GATEWAYS = (typeof BingoConstants !== 'undefined') ? BingoConstants.IPFS_GATEWAYS : [
     "https://dweb.link/ipfs/",
     "https://ipfs.io/ipfs/",
     "https://gateway.pinata.cloud/ipfs/",
@@ -24,11 +34,11 @@ const IPFS_GATEWAYS = [
     "https://gateway.ipfs.io/ipfs/"
 ];
 
-const E_FIELD_BASE_CID_PHI_SPECIFIC = 'bafybeibod4uopaxesmqti3qmonjcbttgxquuby6y6v2uo6sd7ah475bsai';
-const E_FIELD_FULL_DATA_CID = 'bafybeicunhz5lwv3nryglwlppu6o6keo7ii3ilntcqtq536aket7qflc34';
+const E_FIELD_BASE_CID_PHI_SPECIFIC = (typeof BingoConstants !== 'undefined') ? BingoConstants.E_FIELD_PHI_CID : 'bafybeibod4uopaxesmqti3qmonjcbttgxquuby6y6v2uo6sd7ah475bsai';
+const E_FIELD_FULL_DATA_CID = (typeof BingoConstants !== 'undefined') ? BingoConstants.E_FIELD_FULL_CID : 'bafybeicunhz5lwv3nryglwlppu6o6keo7ii3ilntcqtq536aket7qflc34';
 
-const MAX_PLOT_POINTS_BEAM = 2000;
-const PLOT_REQUEST_DEBOUNCE_DELAY = 300;
+const MAX_PLOT_POINTS_BEAM = (typeof BingoConstants !== 'undefined') ? BingoConstants.MAX_PLOT_POINTS : 2000;
+const PLOT_REQUEST_DEBOUNCE_DELAY = (typeof BingoConstants !== 'undefined') ? BingoConstants.PLOT_DEBOUNCE_DELAY_MS : 300;
 
 // === Cache & Estado ===
 let parsedEFieldPhiDataCache = {};
@@ -82,6 +92,101 @@ window.ensureFullEFieldData3DLoaded = ensureFullEFieldData3DLoaded;
 
 
 // === Helper Functions ===
+
+/**
+ * Objeto para coletar métricas de performance
+ * @type {Object}
+ */
+const PerformanceMetrics = {
+    lastFetchTime: 0,
+    lastProcessingTime: 0,
+    lastRenderTime: 0,
+    totalDataPoints: 0,
+
+    /**
+     * Inicia um timer e retorna uma função para finalizá-lo
+     * @returns {Function} Função que retorna o tempo decorrido em ms
+     */
+    startTimer: function() {
+        const start = performance.now();
+        return () => Math.round(performance.now() - start);
+    },
+
+    /**
+     * Formata tempo em formato legível
+     * @param {number} ms - Tempo em milissegundos
+     * @returns {string} Tempo formatado
+     */
+    formatTime: function(ms) {
+        if (ms < 1000) return `${ms}ms`;
+        return `${(ms / 1000).toFixed(2)}s`;
+    },
+
+    /**
+     * Registra métricas no console para debugging
+     */
+    logMetrics: function() {
+        console.log(`[Performance] Fetch: ${this.formatTime(this.lastFetchTime)}, Processing: ${this.formatTime(this.lastProcessingTime)}, Render: ${this.formatTime(this.lastRenderTime)}, Points: ${this.totalDataPoints}`);
+    }
+};
+
+/**
+ * Valida coordenadas de antenas
+ * @param {Array} antennaCoords - Array de coordenadas [x, y]
+ * @returns {Object} Objeto com isValid e mensagem de erro se houver
+ */
+function validateAntennaCoords(antennaCoords) {
+    if (!antennaCoords) {
+        return { isValid: false, error: 'Coordenadas de antenas não fornecidas' };
+    }
+    if (!Array.isArray(antennaCoords)) {
+        return { isValid: false, error: 'Coordenadas devem ser um array' };
+    }
+    if (antennaCoords.length === 0) {
+        return { isValid: false, error: 'Array de coordenadas está vazio' };
+    }
+    // Valida cada coordenada
+    for (let i = 0; i < antennaCoords.length; i++) {
+        const coord = antennaCoords[i];
+        if (!Array.isArray(coord) || coord.length < 2) {
+            return { isValid: false, error: `Coordenada ${i} inválida: deve ser [x, y]` };
+        }
+        if (typeof coord[0] !== 'number' || typeof coord[1] !== 'number') {
+            return { isValid: false, error: `Coordenada ${i} contém valores não numéricos` };
+        }
+        if (isNaN(coord[0]) || isNaN(coord[1])) {
+            return { isValid: false, error: `Coordenada ${i} contém NaN` };
+        }
+        if (!isFinite(coord[0]) || !isFinite(coord[1])) {
+            return { isValid: false, error: `Coordenada ${i} contém valor infinito` };
+        }
+    }
+    return { isValid: true };
+}
+
+/**
+ * Valida dados de E-field
+ * @param {Array} eFieldData - Array de dados do campo elétrico
+ * @returns {Object} Objeto com isValid e mensagem de erro se houver
+ */
+function validateEFieldData(eFieldData) {
+    if (!eFieldData || !Array.isArray(eFieldData)) {
+        return { isValid: false, error: 'Dados de E-field não fornecidos ou inválidos' };
+    }
+    if (eFieldData.length === 0) {
+        return { isValid: false, error: 'Array de E-field está vazio' };
+    }
+    // Verifica estrutura do primeiro elemento
+    const sample = eFieldData[0];
+    const requiredProps = ['theta_deg', 'phi_deg', 'rETheta', 'rEPhi'];
+    for (const prop of requiredProps) {
+        if (!(prop in sample)) {
+            return { isValid: false, error: `Propriedade '${prop}' ausente nos dados` };
+        }
+    }
+    return { isValid: true };
+}
+
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -92,57 +197,94 @@ function getLayoutHash(antennaCoords) {
 }
 
 async function fetchDataFromIPFS(cidWithPath, options = {}) {
+    const fetchTimer = PerformanceMetrics.startTimer();
     let lastError = null;
     let originalStatusText = statusDiv ? statusDiv.textContent : "";
     let statusUpdatedForGateway = false;
-    const GATEWAY_TIMEOUT = 5000;
+    const GATEWAY_TIMEOUT = 8000; // Aumentado para conexões mais lentas
+    const MAX_RETRIES = 2; // Número de tentativas por gateway
 
     for (let i = 0; i < IPFS_GATEWAYS.length; i++) {
         const gatewayBase = IPFS_GATEWAYS[i];
         const url = gatewayBase + cidWithPath;
 
-        if (statusDiv && originalStatusText.startsWith("Carregando dados")) {
-            const gatewayHostname = new URL(gatewayBase).hostname;
-            statusDiv.textContent = `${originalStatusText.split(' (Tentando')[0]} (Tentando ${gatewayHostname}, ${i + 1}/${IPFS_GATEWAYS.length})...`;
-            statusUpdatedForGateway = true;
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT);
-        const fetchOptions = { ...options, signal: controller.signal };
-
-        try {
-            const response = await fetch(url, fetchOptions);
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                console.warn(`Falha em ${url}: ${response.status}. Tentando próximo.`);
-                continue;
+        for (let retry = 0; retry < MAX_RETRIES; retry++) {
+            if (statusDiv && originalStatusText.startsWith("Carregando dados")) {
+                const gatewayHostname = new URL(gatewayBase).hostname;
+                const retryText = retry > 0 ? ` (retry ${retry})` : '';
+                statusDiv.textContent = `${originalStatusText.split(' (Tentando')[0]} (Tentando ${gatewayHostname}${retryText}, ${i + 1}/${IPFS_GATEWAYS.length})...`;
+                statusUpdatedForGateway = true;
             }
-            if (statusUpdatedForGateway && statusDiv) {
-                statusDiv.textContent = originalStatusText.split(' (Tentando')[0] + " (Conectado!)";
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), GATEWAY_TIMEOUT);
+            const fetchOptions = { ...options, signal: controller.signal };
+
+            try {
+                const response = await fetch(url, fetchOptions);
+                clearTimeout(timeoutId);
+
+                if (!response.ok) {
+                    console.warn(`[Fetch] Falha em ${url}: HTTP ${response.status}`);
+                    if (response.status >= 500) {
+                        // Erro do servidor, tentar novamente
+                        await delay(500 * (retry + 1));
+                        continue;
+                    }
+                    break; // Erro do cliente, próximo gateway
+                }
+
+                PerformanceMetrics.lastFetchTime = fetchTimer();
+                if (statusUpdatedForGateway && statusDiv) {
+                    statusDiv.textContent = `${originalStatusText.split(' (Tentando')[0]} (Conectado em ${PerformanceMetrics.formatTime(PerformanceMetrics.lastFetchTime)})`;
+                }
+                console.log(`[Fetch] Sucesso: ${url} em ${PerformanceMetrics.formatTime(PerformanceMetrics.lastFetchTime)}`);
+                return response;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                const errorType = error.name === 'AbortError' ? 'Timeout' : error.message;
+                console.warn(`[Fetch] Erro em ${url}: ${errorType}`);
+                lastError = error;
+
+                if (retry < MAX_RETRIES - 1) {
+                    await delay(300 * (retry + 1));
+                }
             }
-            return response;
-        } catch (error) {
-            console.warn(`Erro em ${url}: ${error.message}.`);
-            lastError = error;
         }
     }
-    throw lastError || new Error("Falha ao buscar de todos os gateways.");
+    throw lastError || new Error("Falha ao buscar de todos os gateways IPFS.");
 }
 
 // === Data Fetching (2D) ===
 async function _fetchAndParseSinglePhiWithRetry(phiValue) {
+    const parseTimer = PerformanceMetrics.startTimer();
     const roundedPhi = Math.round(parseFloat(phiValue));
+
+    // Validação do valor de Phi (0-90° pois os arquivos de dados cobrem apenas o primeiro quadrante)
+    // Os dados são simétricos, então apenas Phi 0-90° são necessários
+    if (isNaN(roundedPhi) || roundedPhi < 0 || roundedPhi > 90) {
+        throw new Error(`Valor de Phi inválido: ${phiValue}. Deve estar entre 0 e 90° (primeiro quadrante).`);
+    }
+
     const filePathInCID = `efield_phi_${roundedPhi}.csv`;
     if (statusDiv) statusDiv.textContent = `Carregando dados 2D (Phi ${roundedPhi}°)...`;
 
     try {
         const response = await fetchDataFromIPFS(E_FIELD_BASE_CID_PHI_SPECIFIC + "/" + filePathInCID);
         const csvText = await response.text();
-        const lines = csvText.trim().split('\n');
 
-        if (lines.length < 2 || csvText.startsWith("version")) throw new Error("CSV Inválido/LFS Pointer.");
+        // Validação inicial do CSV
+        if (!csvText || csvText.length < 100) {
+            throw new Error("CSV vazio ou muito pequeno.");
+        }
+        if (csvText.startsWith("version")) {
+            throw new Error("Arquivo é um LFS Pointer, não dados reais.");
+        }
+
+        const lines = csvText.trim().split('\n');
+        if (lines.length < 2) {
+            throw new Error(`CSV com dados insuficientes: apenas ${lines.length} linha(s).`);
+        }
 
         const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim().toLowerCase());
         const indices = {
@@ -154,12 +296,19 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
             imPhi: headers.indexOf('im(rephi) [v]')
         };
 
-        if (Object.values(indices).some(index => index === -1)) throw new Error("Cabeçalhos inválidos.");
+        if (Object.values(indices).some(index => index === -1)) {
+            const missingCols = Object.entries(indices).filter(([k, v]) => v === -1).map(([k]) => k);
+            throw new Error(`Cabeçalhos inválidos. Colunas ausentes: ${missingCols.join(', ')}`);
+        }
 
         const data = [];
+        let skippedLines = 0;
         for (let i = 1; i < lines.length; i++) {
             const v = lines[i].split(',').map(val => val.replace(/"/g, '').trim());
-            if (v.length !== headers.length) continue;
+            if (v.length !== headers.length) {
+                skippedLines++;
+                continue;
+            }
             try {
                 const theta = parseFloat(v[indices.theta_deg]);
                 const reTheta = parseFloat(v[indices.reTheta]);
@@ -167,20 +316,41 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
                 const rePhi = parseFloat(v[indices.rePhi]);
                 const imPhi = parseFloat(v[indices.imPhi]);
                 const phi = parseFloat(v[indices.phi_deg]);
-                if (!isNaN(theta)) {
+
+                // Validação mais rigorosa dos valores
+                if (!isNaN(theta) && !isNaN(phi) && isFinite(reTheta) && isFinite(imTheta) && isFinite(rePhi) && isFinite(imPhi)) {
                     data.push({ theta, phi, rETheta: { re: reTheta, im: imTheta }, rEPhi: { re: rePhi, im: imPhi } });
                 }
-            } catch (e) { }
+            } catch (e) {
+                skippedLines++;
+            }
         }
+
+        if (skippedLines > 0) {
+            console.warn(`[Parse 2D] ${skippedLines} linhas ignoradas por dados inválidos`);
+        }
+
+        PerformanceMetrics.lastProcessingTime = parseTimer();
+        PerformanceMetrics.totalDataPoints = data.length;
+        console.log(`[Parse 2D] Phi=${roundedPhi}°: ${data.length} pontos em ${PerformanceMetrics.formatTime(PerformanceMetrics.lastProcessingTime)}`);
+
+        if (data.length === 0) {
+            throw new Error(`Nenhum dado válido encontrado para Phi=${roundedPhi}°`);
+        }
+
         return data;
     } catch (error) {
+        console.error(`[Parse 2D] Erro ao processar Phi=${roundedPhi}°:`, error.message);
         throw error;
     }
 }
 
 async function fetchAndParseEFieldDataForSelectedPhi(phiValue) {
     const roundedPhi = Math.round(parseFloat(phiValue));
-    if (parsedEFieldPhiDataCache[roundedPhi]) return parsedEFieldPhiDataCache[roundedPhi];
+    if (parsedEFieldPhiDataCache[roundedPhi]) {
+        console.log(`[Cache 2D] Usando dados em cache para Phi=${roundedPhi}°`);
+        return parsedEFieldPhiDataCache[roundedPhi];
+    }
     if (fetchPhiPromisesCache[roundedPhi]) return fetchPhiPromisesCache[roundedPhi];
 
     const promise = _fetchAndParseSinglePhiWithRetry(phiValue).then(data => {
@@ -195,14 +365,25 @@ async function fetchAndParseEFieldDataForSelectedPhi(phiValue) {
 
 // === Data Fetching (3D) ===
 async function _fetchAndParseFullEFieldDataRecursive3D() {
-    if (statusDiv) statusDiv.textContent = `Carregando dados Completos...`;
+    const parseTimer = PerformanceMetrics.startTimer();
+    if (statusDiv) statusDiv.textContent = `Carregando dados Completos (3D)...`;
+
     try {
         const response = await fetchDataFromIPFS(E_FIELD_FULL_DATA_CID);
         const csvText = await response.text();
-        if (csvText.startsWith("version")) throw new Error("LFS Pointer recebido.");
+
+        // Validações iniciais
+        if (!csvText || csvText.length < 1000) {
+            throw new Error("Dados 3D insuficientes recebidos.");
+        }
+        if (csvText.startsWith("version")) {
+            throw new Error("LFS Pointer recebido em vez de dados 3D.");
+        }
 
         const lines = csvText.trim().split('\n');
-        if (lines.length < 2) throw new Error("CSV vazio.");
+        if (lines.length < 100) {
+            throw new Error(`CSV 3D com poucos dados: apenas ${lines.length} linhas.`);
+        }
 
         const headers = lines[0].split(',').map(h => h.replace(/"/g, '').replace(/\[.*?\]/g, '').trim().toLowerCase());
         const indices = {
@@ -213,41 +394,80 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
             re_retheta: headers.indexOf('re(retheta)'),
             im_retheta: headers.indexOf('im(retheta)')
         };
-        if (Object.values(indices).some(index => index === -1)) throw new Error("Cabeçalhos 3D inválidos.");
+
+        if (Object.values(indices).some(index => index === -1)) {
+            const missingCols = Object.entries(indices).filter(([k, v]) => v === -1).map(([k]) => k);
+            throw new Error(`Cabeçalhos 3D inválidos. Colunas ausentes: ${missingCols.join(', ')}`);
+        }
 
         const data = [];
         const uniquePhiValues = new Set();
+        let skippedLines = 0;
         for (let i = 1; i < lines.length; i++) {
             const v = lines[i].split(',').map(val => val.replace(/"/g, '').trim());
-            if (v.length !== headers.length) continue;
+            if (v.length !== headers.length) {
+                skippedLines++;
+                continue;
+            }
             const phi = parseFloat(v[indices.phi]);
             const theta = parseFloat(v[indices.theta]);
-            if (!isNaN(phi) && !isNaN(theta)) {
+            const re_rephi = parseFloat(v[indices.re_rephi]);
+            const im_rephi = parseFloat(v[indices.im_rephi]);
+            const re_retheta = parseFloat(v[indices.re_retheta]);
+            const im_retheta = parseFloat(v[indices.im_retheta]);
+
+            // Validação completa dos valores
+            if (!isNaN(phi) && !isNaN(theta) &&
+                isFinite(re_rephi) && isFinite(im_rephi) &&
+                isFinite(re_retheta) && isFinite(im_retheta)) {
                 data.push({
                     phi_deg: phi, theta_deg: theta,
-                    rEPhi: { re: parseFloat(v[indices.re_rephi]), im: parseFloat(v[indices.im_rephi]) },
-                    rETheta: { re: parseFloat(v[indices.re_retheta]), im: parseFloat(v[indices.im_retheta]) }
+                    rEPhi: { re: re_rephi, im: im_rephi },
+                    rETheta: { re: re_retheta, im: im_retheta }
                 });
                 uniquePhiValues.add(phi);
+            } else {
+                skippedLines++;
             }
         }
+
+        if (skippedLines > 0) {
+            console.warn(`[Parse 3D] ${skippedLines} linhas ignoradas por dados inválidos`);
+        }
+
+        PerformanceMetrics.lastProcessingTime = parseTimer();
+        PerformanceMetrics.totalDataPoints = data.length;
+        console.log(`[Parse 3D] ${data.length} pontos, ${uniquePhiValues.size} valores de Phi em ${PerformanceMetrics.formatTime(PerformanceMetrics.lastProcessingTime)}`);
+
+        if (data.length === 0) {
+            throw new Error("Nenhum dado 3D válido encontrado no CSV.");
+        }
+
         Object.defineProperty(data, 'uniquePhis', { value: Array.from(uniquePhiValues).sort((a, b) => a - b), writable: false });
         return data;
-    } catch (error) { throw error; }
+    } catch (error) {
+        console.error('[Parse 3D] Erro:', error.message);
+        throw error;
+    }
 }
 
 async function ensureFullEFieldData3DLoaded() {
-    if (fullEFieldDataLoadingState === 'loaded' && fullEFieldDataCache) return fullEFieldDataCache;
+    if (fullEFieldDataLoadingState === 'loaded' && fullEFieldDataCache) {
+        console.log('[Cache 3D] Usando dados 3D em cache');
+        return fullEFieldDataCache;
+    }
     if (fullEFieldDataLoadingState === 'loading' && fetchFullDataPromiseActive) return fetchFullDataPromiseActive;
 
     fullEFieldDataLoadingState = 'loading';
     const promise = _fetchAndParseFullEFieldDataRecursive3D().then(data => {
         fullEFieldDataCache = data;
         fullEFieldDataLoadingState = 'loaded';
+        console.log(`[Cache 3D] Dados 3D carregados: ${data.length} pontos`);
         window.dispatchEvent(new CustomEvent('beamData3DLoaded'));
         return data;
     }).catch(e => {
         fullEFieldDataLoadingState = 'error';
+        console.error('[Cache 3D] Falha ao carregar dados 3D:', e.message);
         throw e;
     });
     fetchFullDataPromiseActive = promise;
