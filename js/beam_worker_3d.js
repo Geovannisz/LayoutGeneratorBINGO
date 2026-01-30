@@ -1,11 +1,19 @@
 /**
  * beam_worker_3d.js
  *
- * Web Worker para calcular o Array Factor (AF) e aplicar ao campo do elemento
+ * @fileoverview Web Worker para calcular o Array Factor (AF) e aplicar ao campo do elemento
  * para uma varredura completa de ângulos Theta e Phi, preparando dados para um plot 3D.
- * Retorna grades de magnitude em dB e linear normalizada.
+ *
+ * @description Retorna grades de magnitude em dB e linear normalizada.
  * Suporta aceleração por WebGPU (com fallback para CPU).
+ * Este worker é executado em uma thread separada para não bloquear a UI.
+ *
+ * @requires beam_gpu.js
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 // Importa a implementação WebGPU
 importScripts('beam_gpu.js');

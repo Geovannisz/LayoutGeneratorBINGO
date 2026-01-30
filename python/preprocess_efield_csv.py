@@ -1,10 +1,27 @@
-import pandas as pd
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+preprocess_efield_csv.py
+
+Script para pré-processar arquivos CSV de E-field.
+Divide o arquivo CSV completo em arquivos individuais por valor de Phi.
+
+Author: Geovanni Fernandes Garcia
+Version: 1.0.2
+"""
+
 import os
+import sys
+import pandas as pd
 import numpy as np
 
 # --- Configurações ---
-INPUT_CSV_PATH = r"C:\Users\gefer\Documents\LayoutGeneratorBINGO\data\rE_table_vivaldi.csv"  # Seu arquivo CSV original
-OUTPUT_DIR = r"C:\Users\gefer\Documents\LayoutGeneratorBINGO\data\efield_phi_data"    # Pasta para salvar os arquivos divididos (nome diferente para clareza)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+DATA_DIR = os.path.join(PROJECT_DIR, 'data')
+
+INPUT_CSV_PATH = os.path.join(DATA_DIR, 'rE_table_vivaldi.csv')
+OUTPUT_DIR = os.path.join(DATA_DIR, 'efield_phi_data')
 PHI_VALUES_TO_EXTRACT = range(0, 91)   # Phi de 0 a 90 graus (inteiros)
 RELEVANT_COLUMNS = ['theta [deg]', 'phi [deg]', 're(retheta) [v]', 'im(retheta) [v]', 're(rephi) [v]', 'im(rephi) [v]']
 # --------------------

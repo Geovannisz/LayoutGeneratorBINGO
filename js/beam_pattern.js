@@ -2,18 +2,28 @@
 
 /**
  * beam_pattern.js
- * Modificado para usar:
+ *
+ * @fileoverview Módulo para simulação e visualização do padrão de feixe de antenas.
+ *
+ * @description Modificado para usar:
  * 1. Arquivos CSV individuais para plot 2D.
  * 2. Arquivo CSV completo para 3D e Heatmap.
  * 3. Heatmap nativo 2D via Canvas (heatmap_worker.js) para alta performance e qualidade.
  * 4. Cache inteligente de dados e resultados.
+ *
+ * @requires BingoConstants
+ * @requires Plotly
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
-// === Constantes ===
-const FREQUENCY = 1e9;
-const C_LIGHT = 299792458;
-const LAMBDA = C_LIGHT / FREQUENCY;
-const K = (2 * Math.PI) / LAMBDA;
+'use strict';
+
+// === Constantes - usar BingoConstants quando disponível ===
+const FREQUENCY = (typeof BingoConstants !== 'undefined') ? BingoConstants.FREQUENCY_HZ : 1e9;
+const C_LIGHT = (typeof BingoConstants !== 'undefined') ? BingoConstants.SPEED_OF_LIGHT : 299792458;
+const LAMBDA = (typeof BingoConstants !== 'undefined') ? BingoConstants.WAVELENGTH : (C_LIGHT / FREQUENCY);
+const K = (typeof BingoConstants !== 'undefined') ? BingoConstants.WAVE_NUMBER_K : ((2 * Math.PI) / LAMBDA);
 
 // Lista de Gateways IPFS Públicos
 const IPFS_GATEWAYS = [

@@ -1,12 +1,20 @@
 /**
  * psf_ee_theta_plot.js
  *
- * Módulo para gerenciar a interface e a lógica do gráfico de Energia Circunscrita (EE)
+ * @fileoverview Módulo para gerenciar a interface e a lógica do gráfico de Energia Circunscrita (EE)
  * em função do ângulo de integração Theta (Θ) da PSF.
- * Gera o gráfico automaticamente após o cálculo do volume da PSF.
+ *
+ * @description Gera o gráfico automaticamente após o cálculo do volume da PSF.
  * O zoom é restrito ao eixo horizontal (Theta).
  * O botão de geração e o título foram removidos.
+ *
+ * @requires Plotly
+ * @requires PSFAnalyzer
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 class PSFEeThetaPlotter {
     constructor() {

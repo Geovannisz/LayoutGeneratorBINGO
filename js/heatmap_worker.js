@@ -1,10 +1,19 @@
 /**
  * heatmap_worker.js
  *
- * Worker dedicated to generating high-resolution Cartesian heatmaps
+ * @fileoverview Worker dedicated to generating high-resolution Cartesian heatmaps
  * from polar beam data (Theta/Phi) using bilinear interpolation.
- * Returns Uint8ClampedArray for Canvas ImageData.
+ *
+ * @description Returns Uint8ClampedArray for Canvas ImageData.
+ * Uses HSV colormap (64 steps, RGB) - SAOImageDS9 HSV/Rainbow palette.
+ * Transitions: Black → Gray → Blue → Cyan → Green → Yellow → Orange → Red → Pink → White
+ * Full spectrum coverage for maximum data discrimination.
+ *
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
+
+'use strict';
 
 // HSV Colormap (64 steps, RGB) - SAOImageDS9 HSV/Rainbow palette
 // Transitions: Black → Gray → Blue → Cyan → Green → Yellow → Orange → Red → Pink → White

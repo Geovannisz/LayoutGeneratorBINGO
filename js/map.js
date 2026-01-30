@@ -1,6 +1,9 @@
 /**
- * Módulo para implementação do mapa interativo com Leaflet.
- * Permite adicionar/remover/arrastar marcadores de estação,
+ * map.js
+ *
+ * @fileoverview Módulo para implementação do mapa interativo com Leaflet.
+ *
+ * @description Permite adicionar/remover/arrastar marcadores de estação,
  * visualizar distâncias ao BINGO central, interagir com
  * os módulos de geração de layout e exportação OSKAR, e
  * visualizar o estado de seleção dos marcadores por cor.
@@ -8,24 +11,30 @@
  * Inclui funcionalidade para visualizar o arranjo de tiles/antenas em escala real no mapa,
  * com os elementos do arranjo (antenas, centros de tiles) representando uma área geográfica constante.
  * Contém correção para bug de "marcador duplicado" após arrastar.
+ *
+ * @requires Leaflet
+ * @requires BingoConstants
+ * @author Geovanni Fernandes Garcia
+ * @version 1.0.2
  */
 
-// Constantes Globais - Coordenadas do BINGO Central (Referência)
-const BINGO_LATITUDE = -7.04067;
-const BINGO_LONGITUDE = -38.26884;
-const BINGO_ALTITUDE = 396.4; // Altitude em metros
+'use strict';
+
+// Constantes Globais - Coordenadas do BINGO Central (usar BingoConstants quando disponível)
+const BINGO_LATITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_LATITUDE : -7.04067;
+const BINGO_LONGITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_LONGITUDE : -38.26884;
+const BINGO_ALTITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_ALTITUDE : 396.4;
 
 // --- CONSTANTES PARA VISUALIZAÇÃO DO ARRANJO ---
 // Estas dimensões de tile são para calcular as POSIÇÕES dos elementos do arranjo.
 // Devem estar sincronizadas com as de `generator.js`.
-const ARR_TILE_WIDTH = 0.35;    // Largura do tile em metros
-const ARR_TILE_HEIGHT = 1.34;   // Altura do tile em metros
+const ARR_TILE_WIDTH = (typeof BingoConstants !== 'undefined') ? BingoConstants.TILE_WIDTH_M : 0.35;
+const ARR_TILE_HEIGHT = (typeof BingoConstants !== 'undefined') ? BingoConstants.TILE_HEIGHT_M : 1.34;
 
 // --- RAIOS EM METROS PARA L.circle (REPRESENTAÇÃO VISUAL NO MAPA) ---
 // Estes raios definem o tamanho dos círculos no terreno.
-// Eles parecerão menores no zoom out e maiores no zoom in.
-const ANTENNA_DOT_RADIUS_M = 0.03;   // Raio em METROS para a visualização de uma antena
-const TILE_CENTER_DOT_RADIUS_M = 0.05; // Raio em METROS para a visualização do centro de um tile
+const ANTENNA_DOT_RADIUS_M = (typeof BingoConstants !== 'undefined') ? BingoConstants.ANTENNA_DOT_RADIUS_M : 0.03;
+const TILE_CENTER_DOT_RADIUS_M = (typeof BingoConstants !== 'undefined') ? BingoConstants.TILE_CENTER_DOT_RADIUS_M : 0.05;
 
 // Classe para gerenciar o mapa interativo
 class InteractiveMap {

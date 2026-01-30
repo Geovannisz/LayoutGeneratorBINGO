@@ -1,5 +1,8 @@
-# bingo_layouts.py
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
+bingo_layouts.py
+
 Biblioteca para gerar layouts de centros de tiles para estações BINGO.
 
 Funções nesta biblioteca retornam listas de coordenadas [x, y] em METROS,
@@ -27,6 +30,9 @@ Convenções de Parâmetros:
 - `center_layout`: Se True (padrão), centraliza as coordenadas finais na origem.
 
 Todas as funções retornam: CoordList (List[List[float]])
+
+Author: Geovanni Fernandes Garcia
+Version: 1.0.2
 """
 
 import numpy as np
