@@ -47,7 +47,7 @@
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="favicon.ico">
-    <script src='https://cdn.plot.ly/plotly-2.27.0.min.js' defer></script>
+    <script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
 
 <!-- Structured Data - WebApplication -->
 <script type="application/ld+json">
@@ -61,7 +61,7 @@
   "applicationSubCategory": "Scientific Software",
   "operatingSystem": "Web-based",
   "url": "https://geovannisz.github.io/LayoutGeneratorBINGO/",
-  "browserRequirements": "Requires JavaScript. Requires HTML5 Canvas.",
+  "browserRequirements": "HTML5-compatible browser with JavaScript and Canvas support",
   "softwareVersion": "1.0.2",
   "releaseNotes": "https://github.com/Geovannisz/LayoutGeneratorBINGO/releases",
   "screenshot": "https://geovannisz.github.io/LayoutGeneratorBINGO/BINGO-ABDUS.png",
@@ -101,11 +101,6 @@
     "@type": "Offer",
     "price": "0",
     "priceCurrency": "USD"
-  },
-  "aggregateRating": {
-    "@type": "AggregateRating",
-    "ratingValue": "5",
-    "ratingCount": "1"
   }
 }
 </script>
@@ -129,8 +124,7 @@
         <nav aria-label="Controles do site">
             <div class="theme-toggle">
                 <label for="dark-mode-toggle">Modo Escuro</label>
-                <input type="checkbox" id="dark-mode-toggle" aria-describedby="theme-description">
-                <span id="theme-description" class="sr-only">Alternar entre tema claro e escuro</span>
+                <input type="checkbox" id="dark-mode-toggle">
             </div>
         </nav>
     </header>
@@ -332,8 +326,7 @@
             <div class="export-fields">
                  <div class="export-field">
                     <label for="export-layout-wgs84">layout_wgs84.txt:</label>
-                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações" aria-describedby="wgs84-desc"></textarea>
-                    <span id="wgs84-desc" class="sr-only">Coordenadas das estações em formato WGS84</span>
+                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações"></textarea>
                 </div>
                  <div class="export-field">
                     <label for="export-position">position.txt:</label>
@@ -350,7 +343,7 @@
             </div>
             <div class="download-zip-group">
                 <label for="zip-filename-input" class="sr-only">Nome do arquivo ZIP</label>
-                <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)" aria-label="Nome do arquivo ZIP">
+                <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)">
                 <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive" aria-hidden="true"></i> Baixar Layout (ZIP)</button>
             </div>
         </section>
@@ -370,7 +363,7 @@
                 <i class="fas fa-satellite-dish" aria-hidden="true"></i> <span class="sr-only">Site oficial do BINGO Telescope</span>
             </a>
         </nav>
-        <p class="copyright">© 2024 Geovanni Fernandes Garcia. Código aberto sob licença MIT.</p>
+        <p class="copyright">© 2026 Geovanni Fernandes Garcia. Código aberto sob licença MIT.</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>

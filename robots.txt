@@ -6,8 +6,8 @@ Allow: /
 
 # Block access to development/internal files
 Disallow: /python/
-Disallow: /*.json$
-Disallow: /*.md$
+Disallow: /*.json
+Disallow: /*.md
 
 # Allow all search engines
 User-agent: Googlebot

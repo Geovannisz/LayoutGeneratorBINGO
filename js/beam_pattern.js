@@ -260,9 +260,10 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
     const parseTimer = PerformanceMetrics.startTimer();
     const roundedPhi = Math.round(parseFloat(phiValue));
 
-    // Validação do valor de Phi
+    // Validação do valor de Phi (0-90° pois os arquivos de dados cobrem apenas o primeiro quadrante)
+    // Os dados são simétricos, então apenas Phi 0-90° são necessários
     if (isNaN(roundedPhi) || roundedPhi < 0 || roundedPhi > 90) {
-        throw new Error(`Valor de Phi inválido: ${phiValue}. Deve estar entre 0 e 90.`);
+        throw new Error(`Valor de Phi inválido: ${phiValue}. Deve estar entre 0 e 90° (primeiro quadrante).`);
     }
 
     const filePathInCID = `efield_phi_${roundedPhi}.csv`;
