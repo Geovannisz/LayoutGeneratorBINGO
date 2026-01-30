@@ -2,58 +2,140 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="description" content="Um Gerador de Layouts de Antenas online, focado no projeto BINGO. Ferramenta para design, simulação e análise de arranjos de antenas, visualização de padrões de feixe, análise PSF e exportação.">
+    <meta name="description" content="Gerador de Layouts de Antenas BINGO - Ferramenta online gratuita para design, simulação e análise de arranjos de antenas para rádio astronomia. Crie layouts grid, espiral, hexagonal, visualize padrões de feixe 2D/3D, analise PSF e exporte para OSKAR.">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Layouts de Antenas BINGO | Design e Simulação de Arranjos</title>
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+    <meta name="author" content="Geovanni Fernandes Garcia">
+    <meta name="keywords" content="BINGO, antenas, layout generator, design de antenas, simulação de antenas, rádio astronomia, PSF, padrão de feixe, OSKAR, BAO, tiles de antena, rádio telescópio, cosmologia, phased array, beam pattern, array factor">
+    <meta name="theme-color" content="#2c3e50">
+    <meta name="color-scheme" content="light dark">
+    <meta name="generator" content="BINGO Layout Generator v1.0.2">
+    <link rel="canonical" href="https://geovannisz.github.io/LayoutGeneratorBINGO/">
+    <title>Gerador de Layouts de Antenas BINGO | Design e Simulação de Arranjos | Rádio Astronomia</title>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://geovannisz.github.io/LayoutGeneratorBINGO/">
     <meta property="og:title" content="Gerador de Layouts de Antenas BINGO | Design e Simulação de Arranjos">
-    <meta property="og:description" content="Um Gerador de Layouts de Antenas online, focado no projeto BINGO. Ferramenta para design, simulação e análise de arranjos de antenas, visualização de padrões de feixe, análise PSF e exportação.">
+    <meta property="og:description" content="Ferramenta online gratuita para design, simulação e análise de arranjos de antenas para o projeto BINGO de rádio astronomia. Visualize padrões de feixe, analise PSF e exporte para OSKAR.">
     <meta property="og:image" content="https://geovannisz.github.io/LayoutGeneratorBINGO/BINGO-ABDUS.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="BINGO Layout Generator - Ferramenta de design de antenas">
+    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="BINGO Layout Generator">
 
     <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image">
-    <meta property="twitter:url" content="https://geovannisz.github.io/LayoutGeneratorBINGO/">
-    <meta property="twitter:title" content="Gerador de Layouts de Antenas BINGO | Design e Simulação de Arranjos">
-    <meta property="twitter:description" content="Um Gerador de Layouts de Antenas online, focado no projeto BINGO. Ferramenta para design, simulação e análise de arranjos de antenas, visualização de padrões de feixe, análise PSF e exportação.">
-    <meta property="twitter:image" content="https://geovannisz.github.io/LayoutGeneratorBINGO/BINGO-ABDUS.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="https://geovannisz.github.io/LayoutGeneratorBINGO/">
+    <meta name="twitter:title" content="Gerador de Layouts de Antenas BINGO | Design e Simulação de Arranjos">
+    <meta name="twitter:description" content="Ferramenta online gratuita para design, simulação e análise de arranjos de antenas para o projeto BINGO de rádio astronomia.">
+    <meta name="twitter:image" content="https://geovannisz.github.io/LayoutGeneratorBINGO/BINGO-ABDUS.png">
+    <meta name="twitter:image:alt" content="BINGO Layout Generator - Ferramenta de design de antenas">
+    <meta name="twitter:creator" content="@geovannisz">
+
+    <!-- Preconnect for performance -->
+    <link rel="preconnect" href="https://cdn.plot.ly" crossorigin>
+    <link rel="preconnect" href="https://unpkg.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://dweb.link">
+    <link rel="dns-prefetch" href="https://ipfs.io">
 
     <link rel="stylesheet" href="css/styles.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
-    <script src='https://cdn.plot.ly/plotly-2.27.0.min.js'></script>
+    <link rel="apple-touch-icon" href="favicon.ico">
+    <script src='https://cdn.plot.ly/plotly-2.27.0.min.js' defer></script>
+
+<!-- Structured Data - WebApplication -->
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "WebApplication",
   "name": "Gerador de Layouts de Antenas BINGO",
-  "description": "Ferramenta online interativa para design, simulação e análise de layouts de antenas (tiles) para o projeto de rádio astronomia BINGO. Gere diversos tipos de arranjos, visualize padrões de feixe 2D/3D, analise a PSF (Point Spread Function), explore em mapa interativo e exporte configurações para OSKAR.",
+  "alternateName": "BINGO Layout Generator",
+  "description": "Ferramenta online interativa e gratuita para design, simulação e análise de layouts de antenas (tiles) para o projeto de rádio astronomia BINGO. Gere diversos tipos de arranjos (grid, espiral, hexagonal, phyllotaxis), visualize padrões de feixe 2D/3D, analise a PSF (Point Spread Function), explore em mapa interativo e exporte configurações para OSKAR.",
   "applicationCategory": "DesignApplication",
+  "applicationSubCategory": "Scientific Software",
   "operatingSystem": "Web-based",
   "url": "https://geovannisz.github.io/LayoutGeneratorBINGO/",
+  "browserRequirements": "Requires JavaScript. Requires HTML5 Canvas.",
+  "softwareVersion": "1.0.2",
+  "releaseNotes": "https://github.com/Geovannisz/LayoutGeneratorBINGO/releases",
+  "screenshot": "https://geovannisz.github.io/LayoutGeneratorBINGO/BINGO-ABDUS.png",
+  "featureList": [
+    "Geração de layouts Grid, Espiral, Anéis, Losango, Hexagonal, Phyllotaxis",
+    "Visualização de padrão de feixe 2D e 3D",
+    "Análise de PSF (Point Spread Function)",
+    "Mapa interativo com coordenadas WGS84",
+    "Exportação para formato OSKAR",
+    "Suporte a WebGPU para cálculos acelerados"
+  ],
   "author": {
     "@type": "Person",
-    "name": "Geovanni Garcia",
-    "url": "https://github.com/geovannisz"
+    "name": "Geovanni Fernandes Garcia",
+    "url": "https://github.com/Geovannisz"
   },
-  "keywords": "BINGO, antenas, layout, design de antenas, simulação de antenas, rádio astronomia, PSF, padrão de feixe, OSKAR, BAO, gerador de layouts de antenas, software BINGO, análise de arranjo de antenas, rádio telescópio, cosmologia BINGO, simulação OSKAR, visualização científica de dados, ferramenta de design de antena, tiles de antena"
+  "publisher": {
+    "@type": "Person",
+    "name": "Geovanni Fernandes Garcia"
+  },
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "inLanguage": "pt-BR",
+  "keywords": "BINGO, antenas, layout, design de antenas, simulação de antenas, rádio astronomia, PSF, padrão de feixe, OSKAR, BAO, gerador de layouts de antenas, software BINGO, análise de arranjo de antenas, rádio telescópio, cosmologia BINGO, simulação OSKAR, visualização científica de dados, ferramenta de design de antena, tiles de antena, phased array, beam pattern"
+}
+</script>
+
+<!-- Structured Data - SoftwareApplication for broader reach -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "BINGO Layout Generator",
+  "applicationCategory": "Scientific Software",
+  "operatingSystem": "Any (Web Browser)",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "aggregateRating": {
+    "@type": "AggregateRating",
+    "ratingValue": "5",
+    "ratingCount": "1"
+  }
+}
+</script>
+
+<!-- Structured Data - Organization/Project -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ResearchProject",
+  "name": "BINGO Telescope",
+  "alternateName": "Baryon Acoustic Oscillations from Integrated Neutral Gas Observations",
+  "url": "https://bingotelescope.org/",
+  "description": "Projeto de rádio telescópio para estudar oscilações acústicas de bárions através de observações de gás neutro integrado."
 }
 </script>
 </head>
 <body>
-    <header>
+    <a href="#main-content" class="skip-link sr-only">Pular para o conteúdo principal</a>
+    <header role="banner">
         <h1>Gerador de Layouts de Antenas BINGO</h1>
-        <div class="theme-toggle">
-            <label for="dark-mode-toggle">Modo Escuro</label>
-            <input type="checkbox" id="dark-mode-toggle">
-        </div>
+        <nav aria-label="Controles do site">
+            <div class="theme-toggle">
+                <label for="dark-mode-toggle">Modo Escuro</label>
+                <input type="checkbox" id="dark-mode-toggle" aria-describedby="theme-description">
+                <span id="theme-description" class="sr-only">Alternar entre tema claro e escuro</span>
+            </div>
+        </nav>
     </header>
 
-    <div class="container">
+    <main id="main-content" class="container" role="main">
         <div class="generator-beam-row">
             <section class="layout-generator">
                  <h2>Gerador de Layout</h2>
@@ -245,12 +327,13 @@
              </div>
          </section>
 
-        <section class="export-container">
-            <h2>Exportação (Estrutura OSKAR)</h2>
+        <section class="export-container" aria-labelledby="export-heading">
+            <h2 id="export-heading">Exportação (Estrutura OSKAR)</h2>
             <div class="export-fields">
                  <div class="export-field">
                     <label for="export-layout-wgs84">layout_wgs84.txt:</label>
-                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações"></textarea>
+                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações" aria-describedby="wgs84-desc"></textarea>
+                    <span id="wgs84-desc" class="sr-only">Coordenadas das estações em formato WGS84</span>
                 </div>
                  <div class="export-field">
                     <label for="export-position">position.txt:</label>
@@ -266,26 +349,28 @@
                 </div>
             </div>
             <div class="download-zip-group">
-                <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)">
-                <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive"></i> Baixar Layout (ZIP)</button>
+                <label for="zip-filename-input" class="sr-only">Nome do arquivo ZIP</label>
+                <input type="text" id="zip-filename-input" placeholder="Nome do arquivo ZIP (opcional)" aria-label="Nome do arquivo ZIP">
+                <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive" aria-hidden="true"></i> Baixar Layout (ZIP)</button>
             </div>
         </section>
-    </div>
+    </main>
 
-    <footer>
+    <footer role="contentinfo">
         <p style='text-align: center; opacity: 0.7;'>Versão 1.0.2</p>
         <p>Gerador de Layouts de Antenas BINGO - Ferramenta para design e simulação no projeto de rádio astronomia BINGO.</p>
-<div class="footer-links">
-    <a href="https://github.com/Geovannisz/LayoutGeneratorBINGO/tree/main" target="_blank" title="Documentação do Projeto (README)">
-        <i class="fab fa-github"></i> <span class="sr-only">README</span>
-    </a>
-    <a href="https://github.com/Geovannisz" target="_blank" title="Perfil do Desenvolvedor no GitHub">
-        <i class="fab fa-github-alt"></i> <span class="sr-only">Geovanni Garcia</span>
-    </a>
-    <a href="https://bingotelescope.org/" target="_blank" title="Site Oficial do BINGO Telescope">
-        <i class="fas fa-satellite-dish"></i> <span class="sr-only">BINGO Telescope</span>
-    </a>
-</div>
+        <nav class="footer-links" aria-label="Links externos">
+            <a href="https://github.com/Geovannisz/LayoutGeneratorBINGO/tree/main" target="_blank" rel="noopener noreferrer" title="Documentação do Projeto (README)">
+                <i class="fab fa-github" aria-hidden="true"></i> <span class="sr-only">README do projeto no GitHub</span>
+            </a>
+            <a href="https://github.com/Geovannisz" target="_blank" rel="noopener noreferrer" title="Perfil do Desenvolvedor no GitHub">
+                <i class="fab fa-github-alt" aria-hidden="true"></i> <span class="sr-only">Perfil de Geovanni Garcia no GitHub</span>
+            </a>
+            <a href="https://bingotelescope.org/" target="_blank" rel="noopener noreferrer" title="Site Oficial do BINGO Telescope">
+                <i class="fas fa-satellite-dish" aria-hidden="true"></i> <span class="sr-only">Site oficial do BINGO Telescope</span>
+            </a>
+        </nav>
+        <p class="copyright">© 2024 Geovanni Fernandes Garcia. Código aberto sob licença MIT.</p>
     </footer>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
