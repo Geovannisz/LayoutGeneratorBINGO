@@ -1336,8 +1336,18 @@ class AntennaLayoutGenerator {
         // Get custom filename from input
         const filenameInput = document.getElementById('image-filename-input');
         let customFilename = filenameInput ? filenameInput.value.trim() : '';
-        // Sanitize filename: remove invalid characters
-        customFilename = customFilename.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '_');
+        // Sanitize filename: remove invalid characters, control chars, and handle edge cases
+        customFilename = customFilename
+            .replace(/[<>:"/\\|?*\x00-\x1f]/g, '') // Remove invalid chars and control characters
+            .replace(/\s+/g, '_')                   // Replace whitespace with underscore
+            .replace(/^\.+|\.+$/g, '')              // Remove leading/trailing dots
+            .substring(0, 100);                      // Limit length
+        
+        // Check for Windows reserved names
+        const reservedNames = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+        if (reservedNames.test(customFilename)) {
+            customFilename = '';
+        }
 
         const selectedFormat = 'png';
         const fileExtension = 'png';
@@ -1366,9 +1376,9 @@ class AntennaLayoutGenerator {
              console.log("Processo de download da imagem finalizado, estado restaurado.");
         };
 
-        // Build filename: use custom name if provided, otherwise use default pattern
+        // Build filename: use custom name if provided and valid, otherwise use default pattern
         const defaultFilename = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}`;
-        const finalFilename = customFilename || defaultFilename;
+        const finalFilename = (customFilename && customFilename.length > 0) ? customFilename : defaultFilename;
 
         const generateAndDownload = () => {
             try {

@@ -202,29 +202,30 @@ function getLayoutHash(antennaCoords) {
  * @param {string} ipfsCidPath - Caminho IPFS (CID/arquivo)
  * @param {object} options - Opções de fetch
  * @returns {Promise<Response>} Resposta do fetch
+ * @throws {Error} Se ambos local e IPFS falharem
  */
 async function fetchDataWithLocalFallback(localPath, ipfsCidPath, options = {}) {
     const fetchTimer = PerformanceMetrics.startTimer();
     const LOCAL_TIMEOUT = 3000;
 
     // Tentativa 1: Carregar do caminho local
+    let timeoutId = null;
     try {
         if (statusDiv) statusDiv.textContent = `Carregando dados locais...`;
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), LOCAL_TIMEOUT);
+        timeoutId = setTimeout(() => controller.abort(), LOCAL_TIMEOUT);
         const fetchOptions = { ...options, signal: controller.signal };
 
         const response = await fetch(localPath, fetchOptions);
         clearTimeout(timeoutId);
+        timeoutId = null;
 
         if (response.ok) {
-            // Verificar se não é um LFS pointer
-            const contentType = response.headers.get('content-type');
-            // Clone para verificar o conteúdo sem consumir o body
-            const clonedResponse = response.clone();
-            const text = await clonedResponse.text();
+            // Ler o texto uma única vez
+            const text = await response.text();
             
-            if (text.startsWith('version https://git-lfs')) {
+            // Verificar se é um LFS pointer (formato: version https://git-lfs + oid sha256: + size)
+            if (text.startsWith('version https://git-lfs') && text.includes('oid sha256:') && text.includes('size ')) {
                 console.warn(`[Local] ${localPath} é um LFS pointer, tentando IPFS...`);
                 throw new Error('LFS Pointer detectado');
             }
@@ -241,6 +242,8 @@ async function fetchDataWithLocalFallback(localPath, ipfsCidPath, options = {}) 
         }
     } catch (error) {
         console.log(`[Local] Fallback para IPFS: ${error.message}`);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
     }
 
     // Tentativa 2: Fallback para IPFS
