@@ -1203,10 +1203,23 @@ function setupWorkers() {
         // 3D Worker
         beamCalculationWorker3D = new Worker('js/beam_worker_3d.js');
         beamCalculationWorker3D.onmessage = (e) => {
-            if (e.data.id !== current3DCalculationId) return;
+            // Ignore progress updates for outdated calculations
             if (e.data.type === 'progress') {
-                if (statusDiv) statusDiv.textContent = e.data.data;
-            } else if (e.data.type === 'result3D') {
+                if (e.data.id === current3DCalculationId && statusDiv) {
+                    statusDiv.textContent = e.data.data;
+                }
+                return;
+            }
+            
+            // For final results (result3D or error), check if this is the latest request
+            if (e.data.id !== current3DCalculationId) {
+                // This is an outdated result, but we still need to check if there's a pending request
+                // The newer calculation is still in progress, so don't change isProcessingPlot
+                console.log(`Ignorando resultado 3D obsoleto (ID ${e.data.id} vs atual ${current3DCalculationId})`);
+                return;
+            }
+            
+            if (e.data.type === 'result3D') {
                 cachedCalculationResult3D = e.data.data;
                 refreshVisualization();
                 isProcessingPlot = false;
@@ -1228,15 +1241,26 @@ function setupWorkers() {
 
         // Heatmap Worker
         heatmapWorker = new Worker('js/heatmap_worker.js');
+        let lastDisplayedHeatmapRenderId = 0; // Track the ID of the last heatmap we displayed
+        
         heatmapWorker.onmessage = (e) => {
-            // Check if this result matches the latest request
-            if (e.data.renderId && e.data.renderId !== currentHeatmapRenderId) {
-                console.warn("Ignorando resultado de heatmap obsoleto (RenderID mismatch).");
+            const resultRenderId = e.data.renderId || 0;
+            
+            // Only accept results that are newer than what we've already displayed
+            // This prevents showing an older heatmap after a newer one
+            if (resultRenderId < lastDisplayedHeatmapRenderId) {
+                console.log(`Ignorando heatmap obsoleto (ID ${resultRenderId} < último exibido ${lastDisplayedHeatmapRenderId})`);
                 return;
             }
 
             if (e.data.pixels) {
+                lastDisplayedHeatmapRenderId = resultRenderId;
                 drawHeatmapToCanvas(e.data.pixels, e.data.width, e.data.height);
+                
+                // Log if this wasn't the most recent request (but still show it)
+                if (resultRenderId !== currentHeatmapRenderId) {
+                    console.log(`Exibindo heatmap ID ${resultRenderId} (mais recente solicitado: ${currentHeatmapRenderId})`);
+                }
             } else if (e.data.error) {
                 console.error(e.data.error);
             }
