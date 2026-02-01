@@ -1213,15 +1213,31 @@ function setupWorkers() {
             
             // For final results (result3D or error), check if this is the latest request
             if (e.data.id !== current3DCalculationId) {
-                // This is an outdated result, but we still need to check if there's a pending request
-                // The newer calculation is still in progress, so don't change isProcessingPlot
+                // This is an outdated result - don't store it in cache
                 console.log(`Ignorando resultado 3D obsoleto (ID ${e.data.id} vs atual ${current3DCalculationId})`);
+                // Don't change isProcessingPlot - the newer calculation is still in progress
                 return;
             }
             
             if (e.data.type === 'result3D') {
-                cachedCalculationResult3D = e.data.data;
-                refreshVisualization();
+                // Validate that the cached params still match this calculation
+                // If layout changed while calculating, cachedCalculationParams3D will be null or have different hash
+                const currentAntennas = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
+                const currentLayoutHash = getLayoutHash(currentAntennas);
+                
+                if (cachedCalculationParams3D && cachedCalculationParams3D.layoutHash === currentLayoutHash) {
+                    // Layout hasn't changed, safe to cache and display
+                    cachedCalculationResult3D = e.data.data;
+                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash válido).`);
+                    refreshVisualization();
+                } else {
+                    // Layout changed during calculation - don't cache stale results
+                    console.log(`Resultado 3D descartado - layout mudou durante cálculo (hash esperado: ${cachedCalculationParams3D?.layoutHash?.slice(0,50)}..., atual: ${currentLayoutHash?.slice(0,50)}...)`);
+                    // Clear any stale cache
+                    cachedCalculationResult3D = null;
+                    cachedCalculationParams3D = null;
+                }
+                
                 isProcessingPlot = false;
                 if (pendingRequestFn) {
                     const fn = pendingRequestFn;
@@ -1312,16 +1328,30 @@ async function processFullDataPlotRequest() {
     // Scale
     storedFullDataScaleType = scaleSelect.value;
 
-    // Cache Check
+    // Cache Check - must have both result AND matching params
     const layoutHash = getLayoutHash(antennaCoords);
-    if (cachedCalculationResult3D && cachedCalculationParams3D?.layoutHash === layoutHash) {
-        console.log("Usando cache 3D.");
+    const cacheIsValid = cachedCalculationResult3D && 
+                         cachedCalculationParams3D && 
+                         cachedCalculationParams3D.layoutHash === layoutHash;
+    
+    if (cacheIsValid) {
+        console.log("Usando cache 3D (hash válido).");
         refreshVisualization();
         return;
+    }
+    
+    // Cache is invalid - clear it to prevent stale data
+    if (cachedCalculationResult3D && (!cachedCalculationParams3D || cachedCalculationParams3D.layoutHash !== layoutHash)) {
+        console.log(`Cache 3D inválido (hash mismatch). Recalculando...`);
+        cachedCalculationResult3D = null;
+        cachedCalculationParams3D = null;
     }
 
     isProcessingPlot = true;
     current3DCalculationId++;
+    
+    // Store the hash we're calculating for - this will be used to validate when worker returns
+    const calculationLayoutHash = layoutHash;
 
     // Load Data
     try {
@@ -1330,9 +1360,10 @@ async function processFullDataPlotRequest() {
             id: current3DCalculationId,
             antennaCoords: antennaCoords,
             elementFieldData3D: fullData,
-            K_CONST: K
+            K_CONST: K,
+            layoutHash: calculationLayoutHash // Pass hash to worker for validation
         });
-        cachedCalculationParams3D = { layoutHash };
+        cachedCalculationParams3D = { layoutHash: calculationLayoutHash };
     } catch (e) {
         console.error(e);
         isProcessingPlot = false;
@@ -1438,11 +1469,13 @@ function initBeamPatternControls() {
     window.addEventListener('layoutGenerated', () => {
         clearTimeout(layoutUpdateTimeout);
         // Invalidate 3D cache when layout changes to force recalculation
+        console.log('BeamPattern: layoutGenerated recebido - invalidando cache 3D');
         cachedCalculationResult3D = null;
         cachedCalculationParams3D = null;
         
         layoutUpdateTimeout = setTimeout(() => {
             // Reverted auto-switch to 3D. Now just triggers update.
+            console.log('BeamPattern: Timeout expirado - iniciando atualização do plot');
             if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
             else processFullDataPlotRequest();
         }, 200);
