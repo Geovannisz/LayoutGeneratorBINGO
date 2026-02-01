@@ -50,7 +50,7 @@ function computeAFForPoint(theta_deg, phi_deg, antennaCoords, k, theta_0_deg = 0
 
 self.onmessage = async function(e) {
     // CORREÇÃO: 'id' é o ID da tarefa, incluído nas mensagens de progresso e resultado.
-    const { id, antennaCoords, elementFieldData3D, K_CONST } = e.data;
+    const { id, antennaCoords, elementFieldData3D, K_CONST, layoutHash } = e.data;
 
     if (!elementFieldData3D || elementFieldData3D.length === 0) {
         self.postMessage({ id, type: 'error', error: 'Worker 3D: Dados do elemento 3D estão vazios.' });
@@ -146,6 +146,7 @@ self.onmessage = async function(e) {
         self.postMessage({
             id,
             type: 'result3D',
+            layoutHash, // Return the hash so the main thread can validate
             data: {
                 uniquePhis_deg: uniquePhis,    
                 uniqueThetas_deg: uniqueThetas, 

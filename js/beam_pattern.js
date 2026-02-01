@@ -1222,26 +1222,38 @@ function setupWorkers() {
             }
             
             if (e.data.type === 'result3D') {
-                // Validate that the cached params still match this calculation
-                // If layout changed while calculating, cachedCalculationParams3D will be null or have different hash
+                // Get the layoutHash that the worker calculated for
+                const workerLayoutHash = e.data.layoutHash;
+                
+                // Get the current layout hash
                 const currentAntennas = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
                 const currentLayoutHash = getLayoutHash(currentAntennas);
                 
-                if (cachedCalculationParams3D && cachedCalculationParams3D.layoutHash === currentLayoutHash) {
-                    // Layout hasn't changed, safe to cache and display
+                // Validate: the worker's result is valid if it matches the CURRENT layout
+                // This is more robust than checking against cachedCalculationParams3D which may have been invalidated
+                if (workerLayoutHash && workerLayoutHash === currentLayoutHash) {
+                    // Worker result matches current layout - cache and display
                     cachedCalculationResult3D = e.data.data;
-                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash válido).`);
+                    cachedCalculationParams3D = { layoutHash: currentLayoutHash };
+                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash corresponde ao layout atual).`);
+                    try {
+                        refreshVisualization();
+                    } catch (err) {
+                        console.error('Erro em refreshVisualization:', err);
+                    }
+                } else if (!workerLayoutHash && cachedCalculationParams3D && cachedCalculationParams3D.layoutHash === currentLayoutHash) {
+                    // Fallback for older worker without layoutHash support - use cachedCalculationParams3D
+                    cachedCalculationResult3D = e.data.data;
+                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash válido via cache params).`);
                     try {
                         refreshVisualization();
                     } catch (err) {
                         console.error('Erro em refreshVisualization:', err);
                     }
                 } else {
-                    // Layout changed during calculation - don't cache stale results
-                    console.log(`Resultado 3D descartado - layout mudou durante cálculo (hash esperado: ${cachedCalculationParams3D?.layoutHash?.slice(0,50)}..., atual: ${currentLayoutHash?.slice(0,50)}...)`);
-                    // Clear any stale cache
-                    cachedCalculationResult3D = null;
-                    cachedCalculationParams3D = null;
+                    // Layout changed during calculation - discard
+                    console.log(`Resultado 3D descartado - layout mudou (worker hash: ${workerLayoutHash?.slice(0,50) || 'N/A'}..., atual: ${currentLayoutHash?.slice(0,50)}...)`);
+                    // Don't clear cache here - let the next calculation populate it
                 }
                 
                 isProcessingPlot = false;
