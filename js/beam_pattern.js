@@ -683,6 +683,7 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
 
 // Heatmap Native (Canvas)
 function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType) {
+    console.log(`triggerHeatmapGeneration chamado: ${uniquePhis?.length} phis, ${uniqueThetas?.length} thetas, scale=${scaleType}`);
     if (!heatmapWorker) {
         console.error("Heatmap Worker not init");
         return;
@@ -694,6 +695,7 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
     currentHeatmapRenderId++;
+    console.log(`Enviando para heatmap worker, renderId=${currentHeatmapRenderId}`);
     heatmapWorker.postMessage({
         width: HEATMAP_RESOLUTION,
         height: HEATMAP_RESOLUTION,
@@ -1271,6 +1273,7 @@ function setupWorkers() {
 
             if (e.data.pixels) {
                 lastDisplayedHeatmapRenderId = resultRenderId;
+                console.log(`Heatmap recebido do worker, renderId=${resultRenderId}, desenhando...`);
                 drawHeatmapToCanvas(e.data.pixels, e.data.width, e.data.height);
                 
                 // Log if this wasn't the most recent request (but still show it)
@@ -1289,24 +1292,31 @@ function setupWorkers() {
 }
 
 function refreshVisualization() {
+    console.log('refreshVisualization() chamado, cachedCalculationResult3D:', !!cachedCalculationResult3D);
     if (!cachedCalculationResult3D) return;
 
     const { uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized } = cachedCalculationResult3D;
 
     // Check Active Mode
-    if (visualizeHeatmapBtn.classList.contains('primary')) {
+    const isHeatmapMode = visualizeHeatmapBtn?.classList.contains('primary');
+    const is3DMode = visualize3DBtn?.classList.contains('primary');
+    console.log(`refreshVisualization: isHeatmapMode=${isHeatmapMode}, is3DMode=${is3DMode}`);
+    
+    if (isHeatmapMode) {
         // Heatmap Mode
+        console.log('Chamando triggerHeatmapGeneration...');
         triggerHeatmapGeneration(
             uniquePhis_deg,
             uniqueThetas_deg,
             magnitudes_grid_linear_normalized,
             storedFullDataScaleType
         );
-    } else if (visualize3DBtn.classList.contains('primary')) {
+    } else if (is3DMode) {
         // 3D Mode
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     } else {
         // Default Fallback: Force Heatmap as per user request (reverted from 3D)
+        console.log('Modo não detectado, usando fallback para heatmap...');
         triggerHeatmapGeneration(
             uniquePhis_deg,
             uniqueThetas_deg,
