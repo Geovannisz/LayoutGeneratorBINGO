@@ -1231,7 +1231,11 @@ function setupWorkers() {
                     // Layout hasn't changed, safe to cache and display
                     cachedCalculationResult3D = e.data.data;
                     console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash válido).`);
-                    refreshVisualization();
+                    try {
+                        refreshVisualization();
+                    } catch (err) {
+                        console.error('Erro em refreshVisualization:', err);
+                    }
                 } else {
                     // Layout changed during calculation - don't cache stale results
                     console.log(`Resultado 3D descartado - layout mudou durante cálculo (hash esperado: ${cachedCalculationParams3D?.layoutHash?.slice(0,50)}..., atual: ${currentLayoutHash?.slice(0,50)}...)`);
