@@ -580,7 +580,7 @@ button.small-btn {
 }
 
 
-/* Estilos para o mapa interativo */
+/* Estilos para o mapa interativo (agora dentro da station-map-row) */
 .map-container {
     margin-bottom: 30px; background-color: var(--card-bg-color);
     border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px var(--shadow-color);
@@ -589,21 +589,17 @@ button.small-btn {
 .map-container h2 { margin-bottom: 15px; text-align: center; }
 .map-content { display: flex; flex-wrap: wrap; gap: 20px; }
 .map {
-    flex: 3; min-width: 450px;
     height: 550px; 
     border: 1px solid var(--border-color); border-radius: 4px;
 }
-.map-info {
-    flex: 1; min-width: 300px;
+.map-info, .map-info-panel {
     display: flex; flex-direction: column;
-    height: 550px; 
-    max-height: 550px; 
-    overflow: hidden; 
+    overflow-y: auto;
 }
-.map-info p, .map-info .form-group {
+.map-info p, .map-info-panel p, .map-info .form-group, .map-info-panel .form-group {
     flex-shrink: 0; 
 }
-.map-info p { margin: 8px 0; }
+.map-info p, .map-info-panel p { margin: 8px 0; }
 .coordinates-list {
     margin-top: 15px;
     border: 1px solid var(--border-color); border-radius: 4px;
@@ -817,35 +813,84 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     display: block;
 }
 
-/* ==================== Gerador de Stations ==================== */
-.station-generator-section {
+/* ==================== Gerador de Stations + Mapa (3 colunas) ==================== */
+.station-map-row {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
     background-color: var(--card-bg-color);
     border-radius: 8px;
-    padding: 20px;
+    padding: 15px;
     box-shadow: 0 2px 10px var(--shadow-color);
-    margin-bottom: 20px;
+    align-items: stretch;
 }
-.station-generator-section h2 {
-    margin-bottom: 15px;
+.station-generator-panel {
+    flex: 0 0 280px;
+    max-width: 300px;
+    overflow-y: auto;
+    max-height: 620px;
+    padding-right: 10px;
+}
+.station-generator-panel h3 {
+    font-size: 1em;
+    margin-bottom: 12px;
+    color: var(--primary-color);
     text-align: center;
 }
-.station-controls-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 20px;
+.station-generator-panel h4 {
+    font-size: 0.9em;
+    margin-bottom: 6px;
+    color: var(--primary-color);
 }
-.station-controls-panel {
+.station-extra-params {
+    margin-bottom: 10px;
+}
+.station-extra-params .form-group {
+    margin-bottom: 6px;
+}
+.station-extra-params label {
+    font-size: 0.85em;
+}
+.station-extra-params input,
+.station-extra-params select {
+    font-size: 0.85em;
+    padding: 4px 6px;
+}
+.map-center-column {
     flex: 1;
-    min-width: 280px;
-    max-width: 400px;
-}
-.station-stats-panel {
-    flex: 2;
-    min-width: 300px;
+    min-width: 350px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 15px;
-    align-content: flex-start;
+    flex-direction: column;
+}
+.map-center-column h3 {
+    font-size: 1em;
+    margin-bottom: 8px;
+    text-align: center;
+    color: var(--primary-color);
+}
+.map-center-column .map {
+    flex: 1;
+    min-height: 500px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+.map-info-panel {
+    flex: 0 0 240px;
+    max-width: 280px;
+    overflow-y: auto;
+    max-height: 620px;
+    font-size: 0.9em;
+}
+.map-info-panel h3 {
+    font-size: 1em;
+    margin-bottom: 8px;
+    color: var(--primary-color);
+}
+.map-info-panel p {
+    margin-bottom: 5px;
+}
+.map-info-panel .form-group {
+    margin-bottom: 8px;
 }
 .info-box {
     background-color: var(--highlight-color);
@@ -1210,6 +1255,13 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+.uv-plot-container .js-plotly-plot,
+.uv-plot-container .plot-container {
+    width: 100% !important;
+    max-width: 100%;
 }
 .uv-plot-container .plot-placeholder {
     font-style: italic;
@@ -1244,6 +1296,25 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     }
     .station-controls-panel {
         max-width: none;
+    }
+    .station-map-row {
+        flex-direction: column;
+    }
+    .station-generator-panel {
+        flex: unset;
+        max-width: none;
+        max-height: none;
+    }
+    .map-info-panel {
+        flex: unset;
+        max-width: none;
+        max-height: none;
+    }
+    .map-center-column {
+        min-width: unset;
+    }
+    .map-center-column .map {
+        min-height: 350px;
     }
     .ini-layout, .sky-model-layout, .uv-layout {
         flex-direction: column;

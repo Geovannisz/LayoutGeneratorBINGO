@@ -149,63 +149,86 @@
         <!-- === ABA 1: LAYOUT PRINCIPAL === -->
         <div id="tab-layout" class="tab-content active" role="tabpanel">
 
-        <!-- Gerador de Stations -->
-        <section class="station-generator-section">
-            <h2><i class="fas fa-broadcast-tower"></i> Gerador de Posições de Stations</h2>
-            <div class="station-controls-row">
-                <div class="station-controls-panel">
-                    <div class="form-group">
-                        <label for="station-layout-type">Tipo de Layout:</label>
-                        <select id="station-layout-type">
-                            <option value="grid">Grid Regular</option>
-                            <option value="circular">Circular (Anel)</option>
-                            <option value="spiral">Espiral</option>
-                            <option value="y_shape">Forma em Y</option>
-                            <option value="cross">Cruz</option>
-                            <option value="random">Aleatório</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="station-count">Número de Stations:</label>
-                        <input type="number" id="station-count" value="7" min="2" max="100" step="1">
-                    </div>
-                    <div class="form-group">
-                        <label for="station-spacing">Espaçamento (m): <span id="station-spacing-value">300</span></label>
-                        <input type="range" id="station-spacing" min="0" max="1" step="0.001" value="0.565"
-                            title="Escala logarítmica: 15m — 3000m">
-                        <small class="slider-hint">Escala log: 15m — 3km (~30× a escala dos tiles)</small>
-                    </div>
-                    <div class="button-group">
-                        <button id="station-generate-btn" class="primary"><i class="fas fa-sync-alt"></i> Gerar Stations</button>
-                        <button id="station-random-btn" class="secondary"><i class="fas fa-random"></i> Randomizar</button>
+        <!-- Stations + Mapa Interativo em layout lado-a-lado -->
+        <section class="station-map-row">
+            <!-- Coluna ESQUERDA: Gerador de Stations -->
+            <div class="station-generator-panel">
+                <h3><i class="fas fa-broadcast-tower"></i> Gerador de Posições de Stations</h3>
+                <div class="form-group">
+                    <label for="station-layout-type">Tipo de Layout:</label>
+                    <select id="station-layout-type">
+                        <option value="grid">Grid Regular</option>
+                        <option value="circular">Circular (Anel)</option>
+                        <option value="spiral">Espiral</option>
+                        <option value="y_shape">Forma em Y</option>
+                        <option value="cross">Cruz</option>
+                        <option value="random">Aleatório</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="station-count">Número de Stations:</label>
+                    <input type="number" id="station-count" value="7" min="2" max="100" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="station-spacing">Espaçamento (m): <span id="station-spacing-value">300</span></label>
+                    <input type="range" id="station-spacing" min="0" max="1" step="0.001" value="0.565"
+                        title="Escala logarítmica: 15m — 3000m">
+                    <small class="slider-hint">Escala log: 15m — 3km (~30× a escala dos tiles)</small>
+                </div>
+
+                <!-- Parâmetros extras por tipo de layout -->
+                <div id="station-extra-params" class="station-extra-params"></div>
+
+                <div class="button-group">
+                    <button id="station-generate-btn" class="primary"><i class="fas fa-sync-alt"></i> Gerar Stations</button>
+                    <button id="station-random-btn" class="secondary"><i class="fas fa-random"></i> Randomizar</button>
+                </div>
+
+                <div id="station-stats" class="info-box" style="margin-top: 12px;">
+                    <h4>Estatísticas do Array</h4>
+                    <div class="stat-grid">
+                        <div class="stat-item"><span class="stat-label">Stations:</span> <span id="stat-station-count">0</span></div>
+                        <div class="stat-item"><span class="stat-label">Baselines:</span> <span id="stat-baseline-count">0</span></div>
                     </div>
                 </div>
-                <div class="station-stats-panel">
-                    <div id="station-stats" class="info-box">
-                        <h3>Estatísticas do Array</h3>
-                        <div class="stat-grid">
-                            <div class="stat-item"><span class="stat-label">Stations:</span> <span id="stat-station-count">0</span></div>
-                            <div class="stat-item"><span class="stat-label">Baselines:</span> <span id="stat-baseline-count">0</span></div>
-                        </div>
-                    </div>
-                    <div id="angular-resolution-display" class="info-box highlight-box">
-                        <h3><i class="fas fa-crosshairs"></i> Resolução Angular</h3>
-                        <div class="resolution-values">
-                            <div>θ ≈ λ/D<sub>max</sub></div>
-                            <div id="resolution-arcmin" class="resolution-main">-- arcmin</div>
-                            <div id="resolution-arcsec" class="resolution-sub">-- arcsec</div>
-                        </div>
-                    </div>
-                    <div id="baseline-info" class="info-box">
-                        <h3>Baselines</h3>
-                        <div class="stat-grid">
-                            <div class="stat-item"><span class="stat-label">Mín:</span> <span id="baseline-min">--</span></div>
-                            <div class="stat-item"><span class="stat-label">Máx:</span> <span id="baseline-max">--</span></div>
-                            <div class="stat-item baseline-short"><span class="stat-label">Curtas (&lt;50m):</span> <span id="baseline-short-count">0</span></div>
-                            <div class="stat-item baseline-long"><span class="stat-label">Longas (&gt;1km):</span> <span id="baseline-long-count">0</span></div>
-                        </div>
+                <div id="angular-resolution-display" class="info-box highlight-box" style="margin-top: 8px;">
+                    <h4><i class="fas fa-crosshairs"></i> Resolução Angular</h4>
+                    <div class="resolution-values">
+                        <div>θ ≈ λ/D<sub>max</sub></div>
+                        <div id="resolution-arcmin" class="resolution-main">-- arcmin</div>
+                        <div id="resolution-arcsec" class="resolution-sub">-- arcsec</div>
                     </div>
                 </div>
+                <div id="baseline-info" class="info-box" style="margin-top: 8px;">
+                    <h4>Baselines</h4>
+                    <div class="stat-grid">
+                        <div class="stat-item"><span class="stat-label">Mín:</span> <span id="baseline-min">--</span></div>
+                        <div class="stat-item"><span class="stat-label">Máx:</span> <span id="baseline-max">--</span></div>
+                        <div class="stat-item baseline-short"><span class="stat-label">Curtas (&lt;50m):</span> <span id="baseline-short-count">0</span></div>
+                        <div class="stat-item baseline-long"><span class="stat-label">Longas (&gt;1km):</span> <span id="baseline-long-count">0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna CENTRAL: Mapa Interativo -->
+            <div class="map-center-column">
+                <h3>Mapa Interativo</h3>
+                <div id="map" class="map"></div>
+            </div>
+
+            <!-- Coluna DIREITA: Informações do Mapa -->
+            <div class="map-info-panel">
+                <h3>Informações</h3>
+                <p>Coordenadas selecionadas:</p>
+                <p><span id="selected-coords">Nenhuma</span></p>
+                <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
+                <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
+                <p>Clique no mapa ou escolha um arranjo:</p>
+                <div class="form-group">
+                    <label for="arranjo-select">Arranjo:</label>
+                    <select id="arranjo-select"><option value="0">Selecione um arranjo</option></select>
+                </div>
+                <div id="coordinates-list" class="coordinates-list"></div>
             </div>
         </section>
 
@@ -398,25 +421,6 @@
                 </div>
             </section>
         </div>
-
-        <section class="map-container">
-             <h2>Mapa Interativo</h2>
-             <div class="map-content">
-                 <div id="map" class="map"></div>
-                 <div class="map-info">
-                     <p>Coordenadas selecionadas:</p>
-                     <p><span id="selected-coords">Nenhuma</span></p>
-                     <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
-                     <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
-                     <p>Clique no mapa ou escolha um arranjo:</p>
-                     <div class="form-group">
-                         <label for="arranjo-select">Arranjo:</label>
-                         <select id="arranjo-select"><option value="0">Selecione um arranjo</option></select>
-                     </div>
-                     <div id="coordinates-list" class="coordinates-list"></div>
-                 </div>
-             </div>
-         </section>
 
         <section class="export-container" aria-labelledby="export-heading">
             <h2 id="export-heading">Exportação (Estrutura OSKAR)</h2>

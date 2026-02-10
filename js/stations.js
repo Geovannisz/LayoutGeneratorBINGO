@@ -72,6 +72,7 @@ class StationManager {
         this.statsContainerId = 'station-stats';
         this.angularResDisplayId = 'angular-resolution-display';
         this.baselineInfoId = 'baseline-info';
+        this.extraParamsContainerId = 'station-extra-params';
 
         // Referências aos elementos DOM
         this.layoutTypeSelect = null;
@@ -83,6 +84,7 @@ class StationManager {
         this.statsContainer = null;
         this.angularResDisplay = null;
         this.baselineInfo = null;
+        this.extraParamsContainer = null;
 
         // Estado interno
         this.stations = [];
@@ -103,6 +105,7 @@ class StationManager {
         this.statsContainer = document.getElementById(this.statsContainerId);
         this.angularResDisplay = document.getElementById(this.angularResDisplayId);
         this.baselineInfo = document.getElementById(this.baselineInfoId);
+        this.extraParamsContainer = document.getElementById(this.extraParamsContainerId);
 
         if (!this.generateBtn && !this.layoutTypeSelect) {
             console.warn("StationManager: Elementos DOM de estações não encontrados. Módulo em modo stand-by.");
@@ -116,6 +119,7 @@ class StationManager {
             this.randomBtn.addEventListener('click', () => {
                 if (this.layoutTypeSelect) {
                     this.layoutTypeSelect.value = 'random';
+                    this._updateExtraParams();
                 }
                 this.generateStations();
             });
@@ -123,8 +127,12 @@ class StationManager {
         if (this.spacingRange) {
             this.spacingRange.addEventListener('input', () => this._updateSpacingDisplay());
         }
+        if (this.layoutTypeSelect) {
+            this.layoutTypeSelect.addEventListener('change', () => this._updateExtraParams());
+        }
 
         this._updateSpacingDisplay();
+        this._updateExtraParams();
         console.log("StationManager: Módulo de estações inicializado.");
     }
 
@@ -152,6 +160,81 @@ class StationManager {
                 this.spacingValueDisplay.textContent = `${spacing.toFixed(1)} m`;
             }
         }
+    }
+
+    // ===========================
+    // Parâmetros Extras por Tipo
+    // ===========================
+
+    /**
+     * Lê um valor numérico de um parâmetro extra.
+     * @param {string} id ID do input
+     * @param {number} fallback Valor padrão
+     * @returns {number}
+     */
+    _getExtraParam(id, fallback) {
+        const el = document.getElementById(id);
+        if (!el) return fallback;
+        const v = parseFloat(el.value);
+        return isNaN(v) ? fallback : v;
+    }
+
+    /**
+     * Atualiza os parâmetros extras exibidos conforme o tipo de layout selecionado.
+     */
+    _updateExtraParams() {
+        if (!this.extraParamsContainer) return;
+        const layout = this.layoutTypeSelect ? this.layoutTypeSelect.value : 'grid';
+
+        const paramDefs = {
+            grid: [
+                { id: 'sp-grid-cols', label: 'Colunas', type: 'number', value: 0, min: 0, max: 50, step: 1, hint: '0 = automático (√N)' },
+                { id: 'sp-grid-sx', label: 'Fator Espaç. X', type: 'number', value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                { id: 'sp-grid-sy', label: 'Fator Espaç. Y', type: 'number', value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                { id: 'sp-grid-jitter', label: 'Jitter aleatório (m)', type: 'number', value: 0, min: 0, max: 100, step: 1 }
+            ],
+            circular: [
+                { id: 'sp-circ-rings', label: 'Número de anéis', type: 'number', value: 1, min: 1, max: 10, step: 1 },
+                { id: 'sp-circ-offset', label: 'Offset angular (°)', type: 'number', value: 0, min: 0, max: 360, step: 5 },
+                { id: 'sp-circ-inner', label: 'Raio interno (fração)', type: 'number', value: 0.5, min: 0.1, max: 1.0, step: 0.05 }
+            ],
+            spiral: [
+                { id: 'sp-spiral-turns', label: 'Número de voltas', type: 'number', value: 3, min: 1, max: 20, step: 0.5 },
+                { id: 'sp-spiral-growth', label: 'Fator de crescimento', type: 'number', value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                { id: 'sp-spiral-offset', label: 'Offset angular (°)', type: 'number', value: 0, min: 0, max: 360, step: 5 }
+            ],
+            y_shape: [
+                { id: 'sp-y-arms', label: 'Número de braços', type: 'number', value: 3, min: 2, max: 8, step: 1 },
+                { id: 'sp-y-angle', label: 'Ângulo inicial (°)', type: 'number', value: 90, min: 0, max: 360, step: 5 },
+                { id: 'sp-y-curve', label: 'Curvatura dos braços', type: 'number', value: 0, min: -0.5, max: 0.5, step: 0.05 },
+                { id: 'sp-y-core', label: 'Estação central', type: 'select', options: [{ v: '1', t: 'Sim' }, { v: '0', t: 'Não' }], value: '0' }
+            ],
+            cross: [
+                { id: 'sp-cross-angle', label: 'Ângulo de rotação (°)', type: 'number', value: 0, min: 0, max: 90, step: 5 },
+                { id: 'sp-cross-spacing-ratio', label: 'Proporção espaç. vert/horiz', type: 'number', value: 1.0, min: 0.1, max: 5, step: 0.1 },
+                { id: 'sp-cross-core', label: 'Estação central', type: 'select', options: [{ v: '1', t: 'Sim' }, { v: '0', t: 'Não' }], value: '0' }
+            ],
+            random: [
+                { id: 'sp-rand-shape', label: 'Forma da área', type: 'select', options: [{ v: 'circle', t: 'Círculo' }, { v: 'square', t: 'Quadrado' }], value: 'circle' },
+                { id: 'sp-rand-mindist', label: 'Distância mín. entre stations (m)', type: 'number', value: 0, min: 0, max: 500, step: 5 },
+                { id: 'sp-rand-seed', label: 'Semente (0 = aleatório)', type: 'number', value: 0, min: 0, max: 99999, step: 1 }
+            ]
+        };
+
+        const defs = paramDefs[layout] || [];
+        let html = '';
+        for (const p of defs) {
+            if (p.type === 'select') {
+                const opts = p.options.map(o => `<option value="${o.v}"${o.v === p.value ? ' selected' : ''}>${o.t}</option>`).join('');
+                html += `<div class="form-group"><label for="${p.id}">${p.label}:</label><select id="${p.id}">${opts}</select></div>`;
+            } else {
+                html += `<div class="form-group"><label for="${p.id}">${p.label}:</label>` +
+                    `<input type="number" id="${p.id}" value="${p.value}" min="${p.min}" max="${p.max}" step="${p.step}">` +
+                    (p.hint ? `<small class="slider-hint">${p.hint}</small>` : '') +
+                    `</div>`;
+            }
+        }
+        this.extraParamsContainer.innerHTML = html;
     }
 
     /**
@@ -195,6 +278,7 @@ class StationManager {
         this.calculateBaselines();
         this.calculateAngularResolution();
         this.updateStats();
+        this._pushStationsToMap();
         this._dispatchEvent();
 
         console.log(`StationManager: ${this.stations.length} estações geradas (layout: ${layoutType}, espaçamento: ${spacing.toFixed(1)}m).`);
@@ -219,95 +303,194 @@ class StationManager {
     }
 
     // ===========================
+    // Conversão para Mapa e Integração
+    // ===========================
+
+    /**
+     * Converte posição local (x: East, y: North) em metros relativas ao BINGO Central
+     * para coordenadas WGS84 (lat, lon).
+     * @param {number} xEast Deslocamento East em metros
+     * @param {number} yNorth Deslocamento North em metros
+     * @returns {{lat: number, lon: number, alt: number}}
+     */
+    _localToWgs84(xEast, yNorth) {
+        const refLat = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_LATITUDE : -7.04067;
+        const refLon = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_LONGITUDE : -38.26884;
+        const refAlt = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_ALTITUDE : 396.4;
+
+        const latRad = refLat * Math.PI / 180;
+        // metros por grau de latitude e longitude
+        const mPerDegLat = 111132.92 - 559.82 * Math.cos(2 * latRad) + 1.175 * Math.cos(4 * latRad);
+        const mPerDegLon = 111412.84 * Math.cos(latRad) - 93.5 * Math.cos(3 * latRad);
+
+        return {
+            lat: refLat + (yNorth / mPerDegLat),
+            lon: refLon + (xEast / mPerDegLon),
+            alt: refAlt
+        };
+    }
+
+    /**
+     * Converte todas as estações para WGS84 e retorna.
+     * @returns {Array<{lat: number, lon: number, alt: number}>}
+     */
+    getStationsAsWGS84() {
+        return this.stations.map(s => this._localToWgs84(s.x, s.y));
+    }
+
+    /**
+     * Empurra as estações geradas para o mapa interativo (se disponível)
+     * e atualiza os campos de exportação WGS84, ECEF e ENU.
+     */
+    _pushStationsToMap() {
+        const wgs84Stations = this.getStationsAsWGS84();
+
+        // Atualiza o mapa interativo, se presente
+        if (window.interactiveMap) {
+            const map = window.interactiveMap;
+            // Limpa marcadores antigos
+            while (map.stationMarkers && map.stationMarkers.length > 0) {
+                map.removeMarker(0);
+            }
+            // Adiciona novos marcadores
+            wgs84Stations.forEach((st, i) => {
+                map.addMarker(st.lat, st.lon, st.alt, `Station ${i + 1}`);
+            });
+
+            // Ajusta visualização para mostrar todas as estações
+            if (map.stationMarkers && map.stationMarkers.length > 0 && map.map) {
+                const group = L.featureGroup(map.stationMarkers);
+                map.map.fitBounds(group.getBounds().pad(0.15));
+            }
+        }
+
+        // Atualiza os campos de exportação diretamente
+        const stationCoords = wgs84Stations.map((st, i) => ({
+            lat: st.lat,
+            lon: st.lon,
+            alt: st.alt,
+            name: `Station ${i + 1}`
+        }));
+
+        if (window.oskarExporter) {
+            window.oskarExporter.updateAllExportFields(null, stationCoords);
+        } else if (typeof window.updateExportFields === 'function') {
+            window.updateExportFields(null, stationCoords);
+        }
+    }
+
+    // ===========================
     // Métodos de Geração de Layout
     // ===========================
 
     /**
      * Gera estações em um grid regular.
-     * @param {number} count Número de estações.
-     * @param {number} spacing Espaçamento em metros.
-     * @returns {Array<{x: number, y: number}>} Posições das estações.
      */
     generateGridStations(count, spacing) {
-        const cols = Math.ceil(Math.sqrt(count));
+        const forcedCols = this._getExtraParam('sp-grid-cols', 0);
+        const sx = this._getExtraParam('sp-grid-sx', 1.0);
+        const sy = this._getExtraParam('sp-grid-sy', 1.0);
+        const jitter = this._getExtraParam('sp-grid-jitter', 0);
+
+        const cols = (forcedCols > 0) ? forcedCols : Math.ceil(Math.sqrt(count));
         const rows = Math.ceil(count / cols);
         const positions = [];
         for (let r = 0; r < rows && positions.length < count; r++) {
             for (let c = 0; c < cols && positions.length < count; c++) {
-                positions.push({
-                    x: c * spacing,
-                    y: r * spacing
-                });
+                let x = c * spacing * sx;
+                let y = r * spacing * sy;
+                if (jitter > 0) {
+                    x += (Math.random() - 0.5) * 2 * jitter;
+                    y += (Math.random() - 0.5) * 2 * jitter;
+                }
+                positions.push({ x, y });
             }
         }
         return positions;
     }
 
     /**
-     * Gera estações em um anel circular.
-     * @param {number} count Número de estações.
-     * @param {number} spacing Espaçamento em metros (usado como raio).
-     * @returns {Array<{x: number, y: number}>} Posições das estações.
+     * Gera estações em anéis circulares.
      */
     generateCircularStations(count, spacing) {
+        const rings = this._getExtraParam('sp-circ-rings', 1);
+        const offsetDeg = this._getExtraParam('sp-circ-offset', 0);
+        const innerFrac = this._getExtraParam('sp-circ-inner', 0.5);
+
         const positions = [];
-        const radius = spacing;
-        for (let i = 0; i < count; i++) {
-            const angle = (2 * Math.PI * i) / count;
-            positions.push({
-                x: radius * Math.cos(angle),
-                y: radius * Math.sin(angle)
-            });
+        const offsetRad = offsetDeg * Math.PI / 180;
+
+        if (rings === 1) {
+            const radius = spacing;
+            for (let i = 0; i < count; i++) {
+                const angle = (2 * Math.PI * i) / count + offsetRad;
+                positions.push({ x: radius * Math.cos(angle), y: radius * Math.sin(angle) });
+            }
+        } else {
+            const perRing = Math.max(1, Math.floor(count / rings));
+            let remaining = count;
+            for (let ring = 0; ring < rings && remaining > 0; ring++) {
+                const frac = rings === 1 ? 1 : innerFrac + (1 - innerFrac) * (ring / (rings - 1));
+                const radius = spacing * frac;
+                const n = (ring === rings - 1) ? remaining : Math.min(perRing, remaining);
+                const ringOffset = offsetRad + (ring % 2 === 1 ? Math.PI / n : 0);
+                for (let i = 0; i < n; i++) {
+                    const angle = (2 * Math.PI * i) / n + ringOffset;
+                    positions.push({ x: radius * Math.cos(angle), y: radius * Math.sin(angle) });
+                }
+                remaining -= n;
+            }
         }
         return positions;
     }
 
     /**
      * Gera estações em uma espiral.
-     * @param {number} count Número de estações.
-     * @param {number} spacing Espaçamento em metros (controla o passo radial).
-     * @returns {Array<{x: number, y: number}>} Posições das estações.
      */
     generateSpiralStations(count, spacing) {
+        const turns = this._getExtraParam('sp-spiral-turns', 3);
+        const growth = this._getExtraParam('sp-spiral-growth', 1.0);
+        const offsetDeg = this._getExtraParam('sp-spiral-offset', 0);
+        const offsetRad = offsetDeg * Math.PI / 180;
+
         const positions = [];
-        const goldenAngle = Math.PI * (3 - Math.sqrt(5));
         for (let i = 0; i < count; i++) {
-            const r = spacing * Math.sqrt(i + 1) / Math.sqrt(count);
-            const theta = i * goldenAngle;
-            positions.push({
-                x: r * Math.cos(theta),
-                y: r * Math.sin(theta)
-            });
+            const t = (i + 1) / count; // 0..1
+            const r = spacing * Math.pow(t, growth);
+            const theta = 2 * Math.PI * turns * t + offsetRad;
+            positions.push({ x: r * Math.cos(theta), y: r * Math.sin(theta) });
         }
         return positions;
     }
 
     /**
-     * Gera estações em um layout em forma de Y (comum em radioastronomia).
-     * @param {number} count Número de estações.
-     * @param {number} spacing Espaçamento em metros.
-     * @returns {Array<{x: number, y: number}>} Posições das estações.
+     * Gera estações em um layout com braços radiais (Y, estrela, etc.).
      */
     generateYShapeStations(count, spacing) {
+        const arms = Math.max(2, this._getExtraParam('sp-y-arms', 3));
+        const angleDeg = this._getExtraParam('sp-y-angle', 90);
+        const curve = this._getExtraParam('sp-y-curve', 0);
+        const addCore = this._getExtraParam('sp-y-core', 0) === 1;
+
         const positions = [];
-        const arms = 3;
-        const perArm = Math.floor(count / arms);
-        const remainder = count - perArm * arms;
-        const armAngles = [
-            Math.PI / 2,                    // braço superior (90°)
-            Math.PI / 2 + (2 * Math.PI / 3), // braço inferior esquerdo (210°)
-            Math.PI / 2 + (4 * Math.PI / 3)  // braço inferior direito (330°)
-        ];
+        const baseAngle = angleDeg * Math.PI / 180;
+        let stationsLeft = addCore ? count - 1 : count;
+        if (addCore && stationsLeft >= 0) {
+            positions.push({ x: 0, y: 0 });
+        }
+        if (stationsLeft < 1) stationsLeft = count;
+
+        const perArm = Math.floor(stationsLeft / arms);
+        const remainder = stationsLeft - perArm * arms;
 
         for (let a = 0; a < arms; a++) {
             const stationsInArm = perArm + (a < remainder ? 1 : 0);
-            const angle = armAngles[a];
+            const armAngle = baseAngle + (2 * Math.PI * a) / arms;
             for (let i = 0; i < stationsInArm; i++) {
                 const dist = spacing * (i + 1);
-                positions.push({
-                    x: dist * Math.cos(angle),
-                    y: dist * Math.sin(angle)
-                });
+                const curveAngle = curve * (i + 1) * (i + 1) / stationsInArm;
+                const angle = armAngle + curveAngle;
+                positions.push({ x: dist * Math.cos(angle), y: dist * Math.sin(angle) });
             }
         }
         return positions;
@@ -315,25 +498,32 @@ class StationManager {
 
     /**
      * Gera estações em um layout em forma de cruz.
-     * @param {number} count Número de estações.
-     * @param {number} spacing Espaçamento em metros.
-     * @returns {Array<{x: number, y: number}>} Posições das estações.
      */
     generateCrossStations(count, spacing) {
+        const rotDeg = this._getExtraParam('sp-cross-angle', 0);
+        const spacingRatio = this._getExtraParam('sp-cross-spacing-ratio', 1.0);
+        const addCore = this._getExtraParam('sp-cross-core', 0) === 1;
+
+        const rotRad = rotDeg * Math.PI / 180;
         const positions = [];
+        let stationsLeft = addCore ? count - 1 : count;
+        if (addCore && stationsLeft >= 0) {
+            positions.push({ x: 0, y: 0 });
+        }
+        if (stationsLeft < 1) stationsLeft = count;
+
         const arms = 4;
-        const perArm = Math.floor(count / arms);
-        const remainder = count - perArm * arms;
+        const perArm = Math.floor(stationsLeft / arms);
+        const remainder = stationsLeft - perArm * arms;
         const armAngles = [0, Math.PI / 2, Math.PI, 3 * Math.PI / 2];
 
         for (let a = 0; a < arms; a++) {
             const stationsInArm = perArm + (a < remainder ? 1 : 0);
+            const armAngle = armAngles[a] + rotRad;
+            const spc = (a === 1 || a === 3) ? spacing * spacingRatio : spacing;
             for (let i = 0; i < stationsInArm; i++) {
-                const dist = spacing * (i + 1);
-                positions.push({
-                    x: dist * Math.cos(armAngles[a]),
-                    y: dist * Math.sin(armAngles[a])
-                });
+                const dist = spc * (i + 1);
+                positions.push({ x: dist * Math.cos(armAngle), y: dist * Math.sin(armAngle) });
             }
         }
         return positions;
@@ -341,18 +531,51 @@ class StationManager {
 
     /**
      * Gera estações com distribuição aleatória.
-     * @param {number} count Número de estações.
-     * @param {number} spacing Espaçamento em metros (define o raio da área).
-     * @returns {Array<{x: number, y: number}>} Posições das estações.
      */
     generateRandomStations(count, spacing) {
-        const positions = [];
+        const shape = (() => { const el = document.getElementById('sp-rand-shape'); return el ? el.value : 'circle'; })();
+        const minDist = this._getExtraParam('sp-rand-mindist', 0);
+        const seed = this._getExtraParam('sp-rand-seed', 0);
+
+        // Pseudo-random com semente
+        let rng;
+        if (seed > 0) {
+            let s = seed;
+            rng = () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+        } else {
+            rng = Math.random;
+        }
+
         const area = spacing * Math.sqrt(count);
-        for (let i = 0; i < count; i++) {
-            positions.push({
-                x: (Math.random() - 0.5) * 2 * area,
-                y: (Math.random() - 0.5) * 2 * area
-            });
+        const positions = [];
+        const maxAttempts = count * 200;
+        let attempts = 0;
+
+        while (positions.length < count && attempts < maxAttempts) {
+            attempts++;
+            let x, y;
+            if (shape === 'circle') {
+                const r = area * Math.sqrt(rng());
+                const theta = 2 * Math.PI * rng();
+                x = r * Math.cos(theta);
+                y = r * Math.sin(theta);
+            } else {
+                x = (rng() - 0.5) * 2 * area;
+                y = (rng() - 0.5) * 2 * area;
+            }
+
+            if (minDist > 0) {
+                let tooClose = false;
+                for (const p of positions) {
+                    const dx = p.x - x, dy = p.y - y;
+                    if (Math.sqrt(dx * dx + dy * dy) < minDist) {
+                        tooClose = true;
+                        break;
+                    }
+                }
+                if (tooClose) continue;
+            }
+            positions.push({ x, y });
         }
         return positions;
     }

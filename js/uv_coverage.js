@@ -247,6 +247,17 @@ class UVCoverageSimulator {
             ? (lambda / maxBaseline) * BingoConstants.RAD_TO_DEG * 60
             : 0;
 
+        // Calcula limites dos eixos a partir dos extremos dos dados × 1.1
+        let uMax = 0, vMax = 0;
+        for (let i = 0; i < uPoints.length; i++) {
+            const au = Math.abs(uPoints[i]);
+            const av = Math.abs(vPoints[i]);
+            if (au > uMax) uMax = au;
+            if (av > vMax) vMax = av;
+        }
+        const uLimit = uMax * 1.1 || 1;
+        const vLimit = vMax * 1.1 || 1;
+
         const trace = {
             x: uPoints,
             y: vPoints,
@@ -273,16 +284,19 @@ class UVCoverageSimulator {
             title: 'Cobertura UV',
             xaxis: {
                 title: 'u (comprimentos de onda)',
-                scaleanchor: 'y',
-                scaleratio: 1,
+                range: [-uLimit, uLimit],
                 zeroline: true,
-                zerolinecolor: '#888'
+                zerolinecolor: '#888',
+                constrain: 'range'
             },
             yaxis: {
                 title: 'v (comprimentos de onda)',
+                range: [-vLimit, vLimit],
                 zeroline: true,
-                zerolinecolor: '#888'
+                zerolinecolor: '#888',
+                constrain: 'range'
             },
+            dragmode: 'zoom',
             hovermode: 'closest',
             plot_bgcolor: '#1a1a2e',
             paper_bgcolor: '#16213e',
@@ -298,7 +312,8 @@ class UVCoverageSimulator {
                 bgcolor: 'rgba(0,0,0,0.5)',
                 borderpad: 4
             }],
-            margin: { t: 50, b: 60, l: 60, r: 20 }
+            margin: { t: 50, b: 60, l: 60, r: 20 },
+            autosize: true
         };
 
         const config = {
