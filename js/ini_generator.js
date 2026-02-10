@@ -1291,10 +1291,12 @@ class OskarIniGenerator {
                 console.log('Arquivo ZIP (INI + Sky Model) baixado com sucesso.');
             }).catch(err => {
                 console.error('Erro ao gerar ZIP:', err);
-                // Fallback: download apenas o INI
                 this._downloadSingleFile(iniContent, 'oskar_sim.ini');
             });
         } else {
+            if (skyModelContent && typeof JSZip === 'undefined') {
+                console.warn('JSZip não disponível. Baixando apenas o arquivo .ini (sem sky model).');
+            }
             this._downloadSingleFile(iniContent, 'oskar_sim.ini');
         }
     }
