@@ -620,7 +620,7 @@ button.small-btn {
 }
 .export-container h2 { margin-bottom: 15px; text-align: center; }
 .export-fields {
-    display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
     margin-bottom: 20px;
 }
 .export-field { position: relative; }
