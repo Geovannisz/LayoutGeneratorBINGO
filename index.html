@@ -130,6 +130,28 @@
     </header>
 
     <main id="main-content" class="container" role="main">
+        <!-- Navegação por Abas -->
+        <nav class="tab-navigation" role="tablist" aria-label="Seções principais">
+            <button class="tab-button active" data-tab="layout" role="tab" aria-selected="true" aria-controls="layout-panel">
+                <i class="fas fa-th"></i>
+                <span>Layout Principal</span>
+            </button>
+            <button class="tab-button" data-tab="oskar-ini" role="tab" aria-selected="false" aria-controls="oskar-ini-panel">
+                <i class="fas fa-cog"></i>
+                <span>Configuração OSKAR</span>
+            </button>
+            <button class="tab-button" data-tab="sky-model" role="tab" aria-selected="false" aria-controls="sky-model-panel">
+                <i class="fas fa-star"></i>
+                <span>Modelo de Céu</span>
+            </button>
+            <button class="tab-button" data-tab="uv-coverage" role="tab" aria-selected="false" aria-controls="uv-coverage-panel">
+                <i class="fas fa-chart-scatter"></i>
+                <span>Cobertura UV</span>
+            </button>
+        </nav>
+
+        <!-- Aba 1: Layout Principal (conteúdo existente) -->
+        <div class="tab-content active" data-tab-content="layout" id="layout-panel" role="tabpanel">
         <div class="generator-beam-row">
             <section class="layout-generator">
                  <h2>Gerador de Layout</h2>
@@ -347,10 +369,64 @@
                 <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive" aria-hidden="true"></i> Baixar Layout (ZIP)</button>
             </div>
         </section>
+        </div>
+        <!-- Fim da Aba 1: Layout Principal -->
+
+        <!-- Aba 2: Configuração OSKAR -->
+        <div class="tab-content" data-tab-content="oskar-ini" id="oskar-ini-panel" role="tabpanel">
+            <section class="oskar-ini-container">
+                <h2>Gerador de Arquivos de Configuração OSKAR (.ini)</h2>
+                <p class="description">Configure os parâmetros para simulação OSKAR. Todos os parâmetros incluem descrições detalhadas em português.</p>
+                
+                <div id="oskar-ini-content">
+                    <!-- Conteúdo será adicionado por JavaScript -->
+                    <p style="text-align: center; padding: 40px; color: var(--text-color); opacity: 0.7;">
+                        <i class="fas fa-cog fa-spin" style="font-size: 2em; margin-bottom: 10px;"></i><br>
+                        Funcionalidade em desenvolvimento...
+                    </p>
+                </div>
+            </section>
+        </div>
+        <!-- Fim da Aba 2 -->
+
+        <!-- Aba 3: Modelo de Céu -->
+        <div class="tab-content" data-tab-content="sky-model" id="sky-model-panel" role="tabpanel">
+            <section class="sky-model-container">
+                <h2>Gerador de Modelo de Céu OSKAR</h2>
+                <p class="description">Crie modelos de céu personalizados com fontes pontuais, gaussianas e geradores procedurais.</p>
+                
+                <div id="sky-model-content">
+                    <!-- Conteúdo será adicionado por JavaScript -->
+                    <p style="text-align: center; padding: 40px; color: var(--text-color); opacity: 0.7;">
+                        <i class="fas fa-star fa-spin" style="font-size: 2em; margin-bottom: 10px;"></i><br>
+                        Funcionalidade em desenvolvimento...
+                    </p>
+                </div>
+            </section>
+        </div>
+        <!-- Fim da Aba 3 -->
+
+        <!-- Aba 4: Cobertura UV -->
+        <div class="tab-content" data-tab-content="uv-coverage" id="uv-coverage-panel" role="tabpanel">
+            <section class="uv-coverage-container">
+                <h2>Cobertura UV e Ângulo Paralático</h2>
+                <p class="description">Visualize a cobertura do plano UV e análise do ângulo paralático para suas estações.</p>
+                
+                <div id="uv-coverage-content">
+                    <!-- Conteúdo será adicionado por JavaScript -->
+                    <p style="text-align: center; padding: 40px; color: var(--text-color); opacity: 0.7;">
+                        <i class="fas fa-chart-scatter fa-spin" style="font-size: 2em; margin-bottom: 10px;"></i><br>
+                        Funcionalidade em desenvolvimento...
+                    </p>
+                </div>
+            </section>
+        </div>
+        <!-- Fim da Aba 4 -->
+
     </main>
 
     <footer role="contentinfo">
-        <p style='text-align: center; opacity: 0.7;'>Versão 1.0.2</p>
+        <p style='text-align: center; opacity: 0.7;'>Versão 1.0.3</p>
         <p>Gerador de Layouts de Antenas BINGO - Ferramenta para design e simulação no projeto de rádio astronomia BINGO.</p>
         <nav class="footer-links" aria-label="Links externos">
             <a href="https://github.com/Geovannisz/LayoutGeneratorBINGO/tree/main" target="_blank" rel="noopener noreferrer" title="Documentação do Projeto (README)">
@@ -370,6 +446,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
     <script src="js/constants.js"></script>
+    <script src="js/tabs.js"></script>
     <script src="js/bingo_layouts.js"></script>
     <script src="js/generator.js"></script>
     <script src="js/map.js"></script>

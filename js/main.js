@@ -37,10 +37,17 @@ function checkComponentsAndSetup() {
      if (!window.psfAnalyzer) { missingComponents.push('PSFAnalyzer'); allComponentsReady = false; }
      // Adiciona verificação para o novo plotter
      if (!window.psfEeThetaPlotter) { missingComponents.push('PSFEeThetaPlotter'); allComponentsReady = false; }
+     if (!window.tabManager) { missingComponents.push('TabManager'); allComponentsReady = false; }
 
 
      if (allComponentsReady) {
          console.log('Todos os componentes principais foram carregados com sucesso!');
+         
+         // Inicializa o sistema de abas
+         if (window.tabManager) {
+             window.tabManager.init();
+         }
+         
          setupGlobalEventListeners();
          setupDarkMode();
 

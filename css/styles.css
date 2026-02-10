@@ -886,3 +886,104 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     font-size: 0.85em;
     opacity: 0.8;
 }
+
+/* ==================== Sistema de Abas ==================== */
+
+.tab-navigation {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+    background-color: var(--card-bg-color);
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    overflow-x: auto;
+    flex-wrap: wrap;
+}
+
+.tab-button {
+    flex: 1;
+    min-width: 150px;
+    padding: 12px 20px;
+    background-color: var(--highlight-color);
+    color: var(--text-color);
+    border: 2px solid var(--border-color);
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    white-space: nowrap;
+}
+
+.tab-button i {
+    font-size: 16px;
+}
+
+.tab-button:hover:not(.disabled) {
+    background-color: var(--highlight-hover-color);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px var(--shadow-color);
+}
+
+.tab-button.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+    font-weight: 600;
+}
+
+.tab-button.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsividade para abas em dispositivos pequenos */
+@media (max-width: 768px) {
+    .tab-navigation {
+        flex-direction: column;
+    }
+    
+    .tab-button {
+        min-width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Estilos para conteúdo das abas */
+.tab-content section h2 {
+    margin-bottom: 10px;
+}
+
+.tab-content .description {
+    color: var(--text-color);
+    opacity: 0.8;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.5;
+}
+}
