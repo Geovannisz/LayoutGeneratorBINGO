@@ -51,6 +51,7 @@ class InteractiveMap {
         this.activeMarkerIndex = -1;
 
         this.arrangementLayer = L.featureGroup();
+        this.distanceLinesLayer = L.featureGroup(); // Camada para linhas de distância (oculta por padrão)
         this.isArrangementLayerActive = false;
         this.activeBaseLayerName = '';
         this.layersControl = null;
@@ -137,6 +138,7 @@ class InteractiveMap {
         };
         const overlayMaps = {
             "Nomes e Limites (ESRI)": labelsLayer,
+            "Mostrar distâncias ao BINGO": this.distanceLinesLayer,
             "Visualizar o Arranjo": this.arrangementLayer
         };
 
@@ -216,7 +218,7 @@ class InteractiveMap {
         window.addEventListener('themeChanged', () => {
             const newPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || 'blue';
             this.distanceLines.forEach(line => {
-                if (this.map.hasLayer(line)) {
+                if (this.distanceLinesLayer.hasLayer(line)) {
                     line.setStyle({ color: newPrimaryColor });
                 }
             });
@@ -324,7 +326,8 @@ class InteractiveMap {
         const line = L.polyline([[lat, lng], [BINGO_LATITUDE, BINGO_LONGITUDE]], {
             color: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || 'blue',
             weight: 2, opacity: 0.7, dashArray: '5, 5'
-        }).addTo(this.map);
+        });
+        this.distanceLinesLayer.addLayer(line);
 
         const tooltip = L.tooltip({ permanent: true, direction: 'center', className: 'distance-tooltip', offset: [0, -7] });
         const midPoint = this.calculateMidpoint(lat, lng, BINGO_LATITUDE, BINGO_LONGITUDE);
@@ -475,7 +478,7 @@ class InteractiveMap {
         if (index >= 0 && index < this.stationMarkers.length) {
             const removedName = this.selectedCoordinates[index].name;
             this.map.removeLayer(this.stationMarkers[index]);
-            this.map.removeLayer(this.distanceLines[index]);
+            this.distanceLinesLayer.removeLayer(this.distanceLines[index]);
             this.stationMarkers.splice(index, 1);
             this.distanceLines.splice(index, 1);
             this.selectedCoordinates.splice(index, 1);

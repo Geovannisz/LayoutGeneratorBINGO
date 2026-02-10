@@ -1090,6 +1090,32 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     border-color: #e74c3c;
     box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.2);
 }
+.ini-file-input-wrapper {
+    flex: 2;
+    min-width: 200px;
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+.ini-file-input-wrapper .ini-param-input {
+    flex: 1;
+    min-width: 0;
+}
+.ini-browse-btn {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--highlight-color);
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background-color 0.15s, color 0.15s;
+}
+.ini-browse-btn:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+}
 .ini-collapsible-toggle {
     cursor: pointer;
     padding: 8px;
