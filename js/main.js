@@ -37,8 +37,8 @@ function checkComponentsAndSetup() {
      if (!window.psfEeThetaPlotter) { missingComponents.push('PSFEeThetaPlotter'); allComponentsReady = false; }
      if (!window.tabManager) { missingComponents.push('TabManager'); allComponentsReady = false; }
 
-     // Componentes opcionais (podem falhar por CDN bloqueado)
-     if (!window.interactiveMap) { console.warn('InteractiveMap não disponível (CDN pode estar bloqueado).'); }
+     // Componentes opcionais (podem falhar por CDN bloqueado - Leaflet, Plotly)
+     if (!window.interactiveMap) { console.warn('InteractiveMap não disponível (CDN Leaflet pode estar bloqueado).'); }
      if (!window.stationManager) { console.warn('StationManager não inicializado.'); }
      if (!window.oskarIniGenerator) { console.warn('OskarIniGenerator não inicializado.'); }
      if (!window.skyModelGenerator) { console.warn('SkyModelGenerator não inicializado.'); }

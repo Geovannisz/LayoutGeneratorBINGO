@@ -1003,7 +1003,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 }
 .ini-category-essential { background-color: rgba(231, 76, 60, 0.1); color: #e74c3c; }
 .ini-category-recommended { background-color: rgba(52, 152, 219, 0.1); color: #3498db; }
-.ini-category-advanced { background-color: rgba(149, 165, 166, 0.1); color: #95a5a6; }
+.ini-category-advanced { background-color: rgba(127, 140, 141, 0.1); color: #566573; }
 [data-theme="dark"] .ini-category-essential { background-color: rgba(255, 121, 198, 0.15); color: #ff79c6; }
 [data-theme="dark"] .ini-category-recommended { background-color: rgba(139, 233, 253, 0.15); color: #8be9fd; }
 [data-theme="dark"] .ini-category-advanced { background-color: rgba(98, 114, 164, 0.15); color: #6272a4; }

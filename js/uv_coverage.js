@@ -165,7 +165,7 @@ class UVCoverageSimulator {
         const halfDuration = params.duration / 2;
         const hourAngles = [];
         for (let i = 0; i < params.timesteps; i++) {
-            const hHours = -halfDuration + (params.duration * i) / (params.timesteps > 1 ? params.timesteps - 1 : 1);
+            const hHours = params.timesteps === 1 ? 0 : -halfDuration + (params.duration * i) / (params.timesteps - 1);
             // Converter horas para radianos (1h = 15°)
             hourAngles.push(hHours * 15 * BingoConstants.DEG_TO_RAD);
         }
