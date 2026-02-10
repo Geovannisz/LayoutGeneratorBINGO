@@ -196,6 +196,60 @@ function getLayoutHash(antennaCoords) {
     return JSON.stringify(antennaCoords.map(a => [Math.round(a[0] * 100), Math.round(a[1] * 100)]));
 }
 
+/**
+ * Tenta buscar dados localmente primeiro, depois IPFS como fallback.
+ * @param {string} localPath - Caminho local relativo do arquivo
+ * @param {string} ipfsCidPath - Caminho IPFS (CID/arquivo)
+ * @param {object} options - Opções de fetch
+ * @returns {Promise<Response>} Resposta do fetch
+ * @throws {Error} Se ambos local e IPFS falharem
+ */
+async function fetchDataWithLocalFallback(localPath, ipfsCidPath, options = {}) {
+    const fetchTimer = PerformanceMetrics.startTimer();
+    const LOCAL_TIMEOUT = 3000;
+
+    // Tentativa 1: Carregar do caminho local
+    let timeoutId = null;
+    try {
+        if (statusDiv) statusDiv.textContent = `Carregando dados locais...`;
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), LOCAL_TIMEOUT);
+        const fetchOptions = { ...options, signal: controller.signal };
+
+        const response = await fetch(localPath, fetchOptions);
+        clearTimeout(timeoutId);
+        timeoutId = null;
+
+        if (response.ok) {
+            // Ler o texto uma única vez
+            const text = await response.text();
+            
+            // Verificar se é um LFS pointer (formato: version https://git-lfs + oid sha256: + size)
+            if (text.startsWith('version https://git-lfs') && text.includes('oid sha256:') && text.includes('size ')) {
+                console.warn(`[Local] ${localPath} é um LFS pointer, tentando IPFS...`);
+                throw new Error('LFS Pointer detectado');
+            }
+
+            PerformanceMetrics.lastFetchTime = fetchTimer();
+            console.log(`[Local] Carregado: ${localPath} em ${PerformanceMetrics.formatTime(PerformanceMetrics.lastFetchTime)}`);
+            
+            // Retornar uma nova Response com o texto já lido
+            return new Response(text, {
+                status: 200,
+                statusText: 'OK',
+                headers: response.headers
+            });
+        }
+    } catch (error) {
+        console.log(`[Local] Fallback para IPFS: ${error.message}`);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+    }
+
+    // Tentativa 2: Fallback para IPFS
+    return fetchDataFromIPFS(ipfsCidPath, options);
+}
+
 async function fetchDataFromIPFS(cidWithPath, options = {}) {
     const fetchTimer = PerformanceMetrics.startTimer();
     let lastError = null;
@@ -266,11 +320,14 @@ async function _fetchAndParseSinglePhiWithRetry(phiValue) {
         throw new Error(`Valor de Phi inválido: ${phiValue}. Deve estar entre 0 e 90° (primeiro quadrante).`);
     }
 
-    const filePathInCID = `efield_phi_${roundedPhi}.csv`;
+    const fileName = `efield_phi_${roundedPhi}.csv`;
+    const localPath = `data/efield_phi_data/${fileName}`;
+    const ipfsCidPath = E_FIELD_BASE_CID_PHI_SPECIFIC + "/" + fileName;
+    
     if (statusDiv) statusDiv.textContent = `Carregando dados 2D (Phi ${roundedPhi}°)...`;
 
     try {
-        const response = await fetchDataFromIPFS(E_FIELD_BASE_CID_PHI_SPECIFIC + "/" + filePathInCID);
+        const response = await fetchDataWithLocalFallback(localPath, ipfsCidPath);
         const csvText = await response.text();
 
         // Validação inicial do CSV
@@ -368,8 +425,11 @@ async function _fetchAndParseFullEFieldDataRecursive3D() {
     const parseTimer = PerformanceMetrics.startTimer();
     if (statusDiv) statusDiv.textContent = `Carregando dados Completos (3D)...`;
 
+    // Caminho local para o arquivo 3D completo
+    const localPath = 'data/rE_table_vivaldi_filtrado_reduzido.csv';
+    
     try {
-        const response = await fetchDataFromIPFS(E_FIELD_FULL_DATA_CID);
+        const response = await fetchDataWithLocalFallback(localPath, E_FIELD_FULL_DATA_CID);
         const csvText = await response.text();
 
         // Validações iniciais
@@ -623,6 +683,7 @@ function plotBeamPattern3D(uniquePhis, uniqueThetas, mags_dB, mags_linear, scale
 
 // Heatmap Native (Canvas)
 function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleType) {
+    console.log(`triggerHeatmapGeneration chamado: ${uniquePhis?.length} phis, ${uniqueThetas?.length} thetas, scale=${scaleType}`);
     if (!heatmapWorker) {
         console.error("Heatmap Worker not init");
         return;
@@ -634,6 +695,7 @@ function triggerHeatmapGeneration(uniquePhis, uniqueThetas, mags_linear, scaleTy
     if (statusDiv) statusDiv.textContent = `Gerando Heatmap...`;
 
     currentHeatmapRenderId++;
+    console.log(`Enviando para heatmap worker, renderId=${currentHeatmapRenderId}`);
     heatmapWorker.postMessage({
         width: HEATMAP_RESOLUTION,
         height: HEATMAP_RESOLUTION,
@@ -945,7 +1007,7 @@ function setupHeatmapInteraction() {
             return;
         }
 
-        const { uniqueThetas_deg } = cachedCalculationResult3D;
+        const { uniqueThetas_deg, uniquePhis_deg, magnitudes_grid_linear_normalized } = cachedCalculationResult3D;
         const maxTheta = uniqueThetas_deg[uniqueThetas_deg.length - 1];
 
         const theta = (rPx / maxRadiusPx) * maxTheta;
@@ -953,11 +1015,153 @@ function setupHeatmapInteraction() {
         let angleDeg = angleRad * 180 / Math.PI;
         if (angleDeg < 0) angleDeg += 360;
 
+        // Interpolate the intensity value from the grid data using supersampling for precision
+        let intensityValue = 0;
+        let intensityDisplay = '';
+        
+        try {
+            // Get current scale type
+            const currentScale = scaleSelect ? scaleSelect.value : 'sqrt';
+            
+            // Helper function for bilinear interpolation at a single point
+            const interpolateAtPoint = (theta, phi) => {
+                // Find theta index
+                let thetaIdx = 0;
+                if (theta <= uniqueThetas_deg[0]) {
+                    thetaIdx = 0;
+                } else if (theta >= uniqueThetas_deg[uniqueThetas_deg.length - 1]) {
+                    thetaIdx = uniqueThetas_deg.length - 2;
+                } else {
+                    for (let i = 0; i < uniqueThetas_deg.length - 1; i++) {
+                        if (uniqueThetas_deg[i] <= theta && theta <= uniqueThetas_deg[i + 1]) {
+                            thetaIdx = i;
+                            break;
+                        }
+                    }
+                }
+                
+                // Normalize phi to [0, 360)
+                let normPhi = phi % 360;
+                if (normPhi < 0) normPhi += 360;
+                
+                // Find phi index
+                let phiIdx = 0;
+                const maxPhi = uniquePhis_deg[uniquePhis_deg.length - 1];
+                const minPhi = uniquePhis_deg[0];
+                
+                if (normPhi <= minPhi) {
+                    phiIdx = 0;
+                } else if (normPhi >= maxPhi) {
+                    phiIdx = uniquePhis_deg.length - 1;
+                } else {
+                    for (let i = 0; i < uniquePhis_deg.length - 1; i++) {
+                        if (uniquePhis_deg[i] <= normPhi && normPhi <= uniquePhis_deg[i + 1]) {
+                            phiIdx = i;
+                            break;
+                        }
+                    }
+                }
+                
+                // Bilinear interpolation
+                const thetaLow = uniqueThetas_deg[thetaIdx];
+                const thetaHigh = uniqueThetas_deg[Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1)];
+                const phiLow = uniquePhis_deg[phiIdx];
+                const phiNextIdx = (phiIdx + 1) % uniquePhis_deg.length;
+                let phiHigh = uniquePhis_deg[phiNextIdx];
+                if (phiIdx === uniquePhis_deg.length - 1) {
+                    phiHigh = uniquePhis_deg[0] + 360;
+                }
+                
+                const thetaWeight = (thetaHigh !== thetaLow) ? (theta - thetaLow) / (thetaHigh - thetaLow) : 0;
+                const phiWeight = (phiHigh !== phiLow) ? (normPhi - phiLow) / (phiHigh - phiLow) : 0;
+                
+                const u = Math.max(0, Math.min(1, thetaWeight));
+                const v = Math.max(0, Math.min(1, phiWeight));
+                
+                const tIdx1 = Math.min(thetaIdx + 1, uniqueThetas_deg.length - 1);
+                
+                const v00 = magnitudes_grid_linear_normalized[thetaIdx][phiIdx];
+                const v10 = magnitudes_grid_linear_normalized[tIdx1][phiIdx];
+                const v01 = magnitudes_grid_linear_normalized[thetaIdx][phiNextIdx];
+                const v11 = magnitudes_grid_linear_normalized[tIdx1][phiNextIdx];
+                
+                return (1 - u) * (1 - v) * v00 + u * (1 - v) * v10 + (1 - u) * v * v01 + u * v * v11;
+            };
+            
+            // Supersampling Anti-Aliasing: 3x3 grid around the cursor position
+            // This provides smoother, more accurate intensity readings
+            const SSAA = 3;
+            const pixelSize = 1.0; // Sample within +/- half pixel
+            let sumVal = 0;
+            let sampleCount = 0;
+            
+            for (let sy = 0; sy < SSAA; sy++) {
+                for (let sx = 0; sx < SSAA; sx++) {
+                    const offsetX = ((sx + 0.5) / SSAA - 0.5) * pixelSize;
+                    const offsetY = ((sy + 0.5) / SSAA - 0.5) * pixelSize;
+                    
+                    const sampleDx = dx + offsetX;
+                    const sampleDy = dy + offsetY;
+                    const sampleR = Math.sqrt(sampleDx * sampleDx + sampleDy * sampleDy);
+                    
+                    if (sampleR > maxRadiusPx) continue;
+                    
+                    const sampleTheta = (sampleR / maxRadiusPx) * maxTheta;
+                    let sampleAngleRad = Math.atan2(-sampleDy, sampleDx);
+                    let sampleAngleDeg = sampleAngleRad * 180 / Math.PI;
+                    if (sampleAngleDeg < 0) sampleAngleDeg += 360;
+                    
+                    sumVal += interpolateAtPoint(sampleTheta, sampleAngleDeg);
+                    sampleCount++;
+                }
+            }
+            
+            const linearValue = sampleCount > 0 ? sumVal / sampleCount : interpolateAtPoint(theta, angleDeg);
+            
+            // Apply the current scale transformation
+            switch (currentScale) {
+                case 'dB':
+                    if (linearValue <= 1e-10) {
+                        intensityValue = -60;
+                    } else {
+                        intensityValue = 20 * Math.log10(linearValue);
+                        if (intensityValue < -60) intensityValue = -60;
+                    }
+                    intensityDisplay = `|E|: ${intensityValue.toFixed(1)} dB`;
+                    break;
+                case 'linear':
+                    intensityValue = linearValue;
+                    intensityDisplay = `|E|: ${intensityValue.toFixed(4)}`;
+                    break;
+                case 'sqrt':
+                    intensityValue = Math.sqrt(linearValue);
+                    intensityDisplay = `|E|^½: ${intensityValue.toFixed(4)}`;
+                    break;
+                case 'quadratic':
+                    intensityValue = linearValue * linearValue;
+                    intensityDisplay = `|E|²: ${intensityValue.toFixed(6)}`;
+                    break;
+                case 'fourth_root':
+                    intensityValue = Math.pow(linearValue, 0.25);
+                    intensityDisplay = `|E|^¼: ${intensityValue.toFixed(4)}`;
+                    break;
+                default:
+                    intensityValue = linearValue;
+                    intensityDisplay = `|E|: ${intensityValue.toFixed(4)}`;
+            }
+        } catch (err) {
+            console.warn('Error calculating intensity for tooltip:', err);
+            intensityDisplay = '';
+        }
+
         heatmapTooltip.style.display = 'block';
         heatmapTooltip.style.left = (x + 10) + 'px';
         heatmapTooltip.style.top = (y + 10) + 'px';
 
-        heatmapTooltip.textContent = `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°`;
+        const tooltipText = intensityDisplay 
+            ? `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°, ${intensityDisplay}`
+            : `Θ: ${theta.toFixed(1)}°, Φ: ${angleDeg.toFixed(1)}°`;
+        heatmapTooltip.textContent = tooltipText;
     });
 
     heatmapCanvas.addEventListener('mouseleave', () => {
@@ -1001,12 +1205,57 @@ function setupWorkers() {
         // 3D Worker
         beamCalculationWorker3D = new Worker('js/beam_worker_3d.js');
         beamCalculationWorker3D.onmessage = (e) => {
-            if (e.data.id !== current3DCalculationId) return;
+            // Ignore progress updates for outdated calculations
             if (e.data.type === 'progress') {
-                if (statusDiv) statusDiv.textContent = e.data.data;
-            } else if (e.data.type === 'result3D') {
-                cachedCalculationResult3D = e.data.data;
-                refreshVisualization();
+                if (e.data.id === current3DCalculationId && statusDiv) {
+                    statusDiv.textContent = e.data.data;
+                }
+                return;
+            }
+            
+            // For final results (result3D or error), check if this is the latest request
+            if (e.data.id !== current3DCalculationId) {
+                // This is an outdated result - don't store it in cache
+                console.log(`Ignorando resultado 3D obsoleto (ID ${e.data.id} vs atual ${current3DCalculationId})`);
+                // Don't change isProcessingPlot - the newer calculation is still in progress
+                return;
+            }
+            
+            if (e.data.type === 'result3D') {
+                // Get the layoutHash that the worker calculated for
+                const workerLayoutHash = e.data.layoutHash;
+                
+                // Get the current layout hash
+                const currentAntennas = window.antennaGenerator ? window.antennaGenerator.getAllAntennas() : [];
+                const currentLayoutHash = getLayoutHash(currentAntennas);
+                
+                // Validate: the worker's result is valid if it matches the CURRENT layout
+                // This is more robust than checking against cachedCalculationParams3D which may have been invalidated
+                if (workerLayoutHash && workerLayoutHash === currentLayoutHash) {
+                    // Worker result matches current layout - cache and display
+                    cachedCalculationResult3D = e.data.data;
+                    cachedCalculationParams3D = { layoutHash: currentLayoutHash };
+                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash corresponde ao layout atual).`);
+                    try {
+                        refreshVisualization();
+                    } catch (err) {
+                        console.error('Erro em refreshVisualization:', err);
+                    }
+                } else if (!workerLayoutHash && cachedCalculationParams3D && cachedCalculationParams3D.layoutHash === currentLayoutHash) {
+                    // Fallback for older worker without layoutHash support - use cachedCalculationParams3D
+                    cachedCalculationResult3D = e.data.data;
+                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash válido via cache params).`);
+                    try {
+                        refreshVisualization();
+                    } catch (err) {
+                        console.error('Erro em refreshVisualization:', err);
+                    }
+                } else {
+                    // Layout changed during calculation - discard
+                    console.log(`Resultado 3D descartado - layout mudou (worker hash: ${workerLayoutHash?.slice(0,50) || 'N/A'}..., atual: ${currentLayoutHash?.slice(0,50)}...)`);
+                    // Don't clear cache here - let the next calculation populate it
+                }
+                
                 isProcessingPlot = false;
                 if (pendingRequestFn) {
                     const fn = pendingRequestFn;
@@ -1026,15 +1275,27 @@ function setupWorkers() {
 
         // Heatmap Worker
         heatmapWorker = new Worker('js/heatmap_worker.js');
+        let lastDisplayedHeatmapRenderId = 0; // Track the ID of the last heatmap we displayed
+        
         heatmapWorker.onmessage = (e) => {
-            // Check if this result matches the latest request
-            if (e.data.renderId && e.data.renderId !== currentHeatmapRenderId) {
-                console.warn("Ignorando resultado de heatmap obsoleto (RenderID mismatch).");
+            const resultRenderId = e.data.renderId || 0;
+            
+            // Only accept results that are newer than what we've already displayed
+            // This prevents showing an older heatmap after a newer one
+            if (resultRenderId < lastDisplayedHeatmapRenderId) {
+                console.log(`Ignorando heatmap obsoleto (ID ${resultRenderId} < último exibido ${lastDisplayedHeatmapRenderId})`);
                 return;
             }
 
             if (e.data.pixels) {
+                lastDisplayedHeatmapRenderId = resultRenderId;
+                console.log(`Heatmap recebido do worker, renderId=${resultRenderId}, desenhando...`);
                 drawHeatmapToCanvas(e.data.pixels, e.data.width, e.data.height);
+                
+                // Log if this wasn't the most recent request (but still show it)
+                if (resultRenderId !== currentHeatmapRenderId) {
+                    console.log(`Exibindo heatmap ID ${resultRenderId} (mais recente solicitado: ${currentHeatmapRenderId})`);
+                }
             } else if (e.data.error) {
                 console.error(e.data.error);
             }
@@ -1047,24 +1308,31 @@ function setupWorkers() {
 }
 
 function refreshVisualization() {
+    console.log('refreshVisualization() chamado, cachedCalculationResult3D:', !!cachedCalculationResult3D);
     if (!cachedCalculationResult3D) return;
 
     const { uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized } = cachedCalculationResult3D;
 
     // Check Active Mode
-    if (visualizeHeatmapBtn.classList.contains('primary')) {
+    const isHeatmapMode = visualizeHeatmapBtn?.classList.contains('primary');
+    const is3DMode = visualize3DBtn?.classList.contains('primary');
+    console.log(`refreshVisualization: isHeatmapMode=${isHeatmapMode}, is3DMode=${is3DMode}`);
+    
+    if (isHeatmapMode) {
         // Heatmap Mode
+        console.log('Chamando triggerHeatmapGeneration...');
         triggerHeatmapGeneration(
             uniquePhis_deg,
             uniqueThetas_deg,
             magnitudes_grid_linear_normalized,
             storedFullDataScaleType
         );
-    } else if (visualize3DBtn.classList.contains('primary')) {
+    } else if (is3DMode) {
         // 3D Mode
         plotBeamPattern3D(uniquePhis_deg, uniqueThetas_deg, magnitudes_grid_dB, magnitudes_grid_linear_normalized, storedFullDataScaleType);
     } else {
         // Default Fallback: Force Heatmap as per user request (reverted from 3D)
+        console.log('Modo não detectado, usando fallback para heatmap...');
         triggerHeatmapGeneration(
             uniquePhis_deg,
             uniqueThetas_deg,
@@ -1086,16 +1354,30 @@ async function processFullDataPlotRequest() {
     // Scale
     storedFullDataScaleType = scaleSelect.value;
 
-    // Cache Check
+    // Cache Check - must have both result AND matching params
     const layoutHash = getLayoutHash(antennaCoords);
-    if (cachedCalculationResult3D && cachedCalculationParams3D?.layoutHash === layoutHash) {
-        console.log("Usando cache 3D.");
+    const cacheIsValid = cachedCalculationResult3D && 
+                         cachedCalculationParams3D && 
+                         cachedCalculationParams3D.layoutHash === layoutHash;
+    
+    if (cacheIsValid) {
+        console.log("Usando cache 3D (hash válido).");
         refreshVisualization();
         return;
+    }
+    
+    // Cache is invalid - clear it to prevent stale data
+    if (cachedCalculationResult3D && (!cachedCalculationParams3D || cachedCalculationParams3D.layoutHash !== layoutHash)) {
+        console.log(`Cache 3D inválido (hash mismatch). Recalculando...`);
+        cachedCalculationResult3D = null;
+        cachedCalculationParams3D = null;
     }
 
     isProcessingPlot = true;
     current3DCalculationId++;
+    
+    // Store the hash we're calculating for - this will be used to validate when worker returns
+    const calculationLayoutHash = layoutHash;
 
     // Load Data
     try {
@@ -1104,9 +1386,10 @@ async function processFullDataPlotRequest() {
             id: current3DCalculationId,
             antennaCoords: antennaCoords,
             elementFieldData3D: fullData,
-            K_CONST: K
+            K_CONST: K,
+            layoutHash: calculationLayoutHash // Pass hash to worker for validation
         });
-        cachedCalculationParams3D = { layoutHash };
+        cachedCalculationParams3D = { layoutHash: calculationLayoutHash };
     } catch (e) {
         console.error(e);
         isProcessingPlot = false;
@@ -1211,8 +1494,14 @@ function initBeamPatternControls() {
 
     window.addEventListener('layoutGenerated', () => {
         clearTimeout(layoutUpdateTimeout);
+        // Invalidate 3D cache when layout changes to force recalculation
+        console.log('BeamPattern: layoutGenerated recebido - invalidando cache 3D');
+        cachedCalculationResult3D = null;
+        cachedCalculationParams3D = null;
+        
         layoutUpdateTimeout = setTimeout(() => {
             // Reverted auto-switch to 3D. Now just triggers update.
+            console.log('BeamPattern: Timeout expirado - iniciando atualização do plot');
             if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
             else processFullDataPlotRequest();
         }, 200);

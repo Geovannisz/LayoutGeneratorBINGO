@@ -92,7 +92,7 @@ const DEFAULT_PARAMS = {
 
 const PARAM_CONTROLS = {
     grid: [ { id: 'numCols', label: 'Número de Colunas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'numRows', label: 'Número de Linhas', type: 'number', min: 1, max: 20, step: 1 }, { id: 'spacingXFactor', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingYFactor', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
-    spiral: [ { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, max: 12, step: 1 }, { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, max: 30, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: Math.PI.toFixed(3), step: 0.01 }, { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
+    spiral: [ { id: 'numArms', label: 'Número de Braços', type: 'number', min: 1, max: 12, step: 1 }, { id: 'tilesPerArm', label: 'Tiles por Braço', type: 'number', min: 1, max: 30, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'angleStepRad', label: 'Passo Angular (rad)', type: 'number', min: 0.01, max: parseFloat(Math.PI.toFixed(3)), step: 0.01 }, { id: 'includeCenterTile', label: 'Incluir Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
     ring: [ { id: 'numRings', label: 'Número de Anéis', type: 'number', min: 1, max: 10, step: 1 }, { id: 'radiusStartFactor', label: 'Fator Raio Inicial', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'radiusStepFactor', label: 'Fator Passo Raio Lin.', type: 'number', min: 0.1, max: 2, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
     rhombus: [ { id: 'numRowsHalf', label: 'Metade Linhas', type: 'number', min: 1, max: 15, step: 1 }, { id: 'sideLengthFactor', label: 'Fator Lado Célula', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'hCompressFactor', label: 'Compressão Horiz.', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'vCompressFactor', label: 'Compressão Vert.', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
     hex_grid: [ { id: 'numRingsHex', label: 'Nº Anéis Hex.', type: 'number', min: 0, max: 10, step: 1 }, { id: 'spacingFactorX', label: 'Fator Espaç. X', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'spacingFactorY', label: 'Fator Espaç. Y', type: 'number', min: 0.1, max: 5, step: 0.01 }, { id: 'centerExpScaleFactor', label: 'Fator Exp. Central', type: 'number', min: 0.5, max: 3, step: 0.01 }, { id: 'addCenterTile', label: 'Adicionar Tile Central', type: 'checkbox' }, { id: 'randomOffsetStddevM', label: 'Offset Aleatório (m)', type: 'number', min: 0, max: 1, step: 0.01 }, { id: 'minSeparationFactor', label: 'Fator Sep. Mín.', type: 'number', min: 0.5, max: 2, step: 0.01, condition: 'this.params.randomOffsetStddevM > 0' } ],
@@ -142,6 +142,14 @@ class AntennaLayoutGenerator {
         this.collisions = [];    
         this.showCollisions = true;
         this.lastProfile = null; // For advanced_density
+        
+        // Tile grouping configuration (1x1 = single tile, default)
+        this.tileGroupCols = 1;
+        this.tileGroupRows = 1;
+        
+        // Cache for expanded tile centers (invalidated when layout or grouping changes)
+        this._cachedExpandedTiles = null;
+        this._cachedExpansionKey = null;
 
         // Universal Drag-and-drop state variables
         this.isDragging = false;
@@ -255,6 +263,55 @@ class AntennaLayoutGenerator {
         } else {
             console.warn("Input #import-config-input não encontrado.");
         }
+        
+        // Tile grouping controls
+        const tileGroupColsInput = document.getElementById('tile-group-cols');
+        const tileGroupRowsInput = document.getElementById('tile-group-rows');
+        const tileGroupHint = document.getElementById('tile-group-hint');
+        
+        const updateTileGroupHint = () => {
+            const cols = this.tileGroupCols;
+            const rows = this.tileGroupRows;
+            if (tileGroupHint) {
+                if (cols === 1 && rows === 1) {
+                    tileGroupHint.textContent = '1×1 = tile individual';
+                } else {
+                    const totalTiles = cols * rows;
+                    tileGroupHint.textContent = `${cols}×${rows} = ${totalTiles} tiles por grupo`;
+                }
+            }
+        };
+        
+        if (tileGroupColsInput) {
+            tileGroupColsInput.addEventListener('change', () => {
+                this.tileGroupCols = Math.max(1, Math.min(10, parseInt(tileGroupColsInput.value) || 1));
+                tileGroupColsInput.value = this.tileGroupCols;
+                updateTileGroupHint();
+                this.generateLayout();
+            });
+            tileGroupColsInput.addEventListener('input', () => {
+                this.tileGroupCols = Math.max(1, Math.min(10, parseInt(tileGroupColsInput.value) || 1));
+                tileGroupColsInput.value = this.tileGroupCols;
+                updateTileGroupHint();
+            });
+        }
+        
+        if (tileGroupRowsInput) {
+            tileGroupRowsInput.addEventListener('change', () => {
+                this.tileGroupRows = Math.max(1, Math.min(10, parseInt(tileGroupRowsInput.value) || 1));
+                tileGroupRowsInput.value = this.tileGroupRows;
+                updateTileGroupHint();
+                this.generateLayout();
+            });
+            tileGroupRowsInput.addEventListener('input', () => {
+                this.tileGroupRows = Math.max(1, Math.min(10, parseInt(tileGroupRowsInput.value) || 1));
+                tileGroupRowsInput.value = this.tileGroupRows;
+                updateTileGroupHint();
+            });
+        }
+        
+        // Initialize the hint text on load
+        updateTileGroupHint();
 
         // Attach universal drag-and-drop listeners
         this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
@@ -350,7 +407,11 @@ class AntennaLayoutGenerator {
         const config = {
             layoutType: this.layoutType,
             params: this.params, // this.params should already contain profileParams if layoutType is advanced_density
-            currentTileLayout: JSON.parse(JSON.stringify(this.currentLayout || [])) // Add this line
+            currentTileLayout: JSON.parse(JSON.stringify(this.currentLayout || [])), // Add this line
+            tileGrouping: {
+                cols: this.tileGroupCols,
+                rows: this.tileGroupRows
+            }
         };
         // If advanced_density, ensure profileParams is part of the params to be saved
         // Note: The previous check for advanced_density and profileParams is implicitly handled
@@ -373,7 +434,7 @@ class AntennaLayoutGenerator {
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
         }
-        console.log('Layout configuration exported, including currentTileLayout:', filename);
+        console.log('Layout configuration exported, including currentTileLayout and tileGrouping:', filename);
     }
 
     importLayoutConfiguration(event) {
@@ -438,6 +499,26 @@ class AntennaLayoutGenerator {
                     layoutTypeSelect.value = this.layoutType;
                     // Update all dynamic controls based on the new this.params
                     this.updateDynamicControls();
+                    
+                    // Import tile grouping configuration if available
+                    if (config.tileGrouping && typeof config.tileGrouping.cols === 'number' && typeof config.tileGrouping.rows === 'number') {
+                        this.tileGroupCols = Math.max(1, Math.min(10, config.tileGrouping.cols));
+                        this.tileGroupRows = Math.max(1, Math.min(10, config.tileGrouping.rows));
+                        // Update UI inputs
+                        const tileGroupColsInput = document.getElementById('tile-group-cols');
+                        const tileGroupRowsInput = document.getElementById('tile-group-rows');
+                        const tileGroupHint = document.getElementById('tile-group-hint');
+                        if (tileGroupColsInput) tileGroupColsInput.value = this.tileGroupCols;
+                        if (tileGroupRowsInput) tileGroupRowsInput.value = this.tileGroupRows;
+                        if (tileGroupHint) {
+                            if (this.tileGroupCols === 1 && this.tileGroupRows === 1) {
+                                tileGroupHint.textContent = '1×1 = tile individual';
+                            } else {
+                                tileGroupHint.textContent = `${this.tileGroupCols}×${this.tileGroupRows} = ${this.tileGroupCols * this.tileGroupRows} tiles por grupo`;
+                            }
+                        }
+                        console.log(`Tile grouping importado: ${this.tileGroupCols}×${this.tileGroupRows}`);
+                    }
 
                     // Check for and apply currentTileLayout override
                     if (config.currentTileLayout && Array.isArray(config.currentTileLayout)) {
@@ -563,10 +644,17 @@ class AntennaLayoutGenerator {
                         sliderInput.value = this.params[control.id]; 
                         sliderGroup.appendChild(sliderInput);
                         const numberInput = document.createElement('input'); numberInput.type = 'number'; numberInput.id = control.id; numberInput.name = control.id;
-                         if (control.min !== undefined) numberInput.min = control.min;
-                         if (control.max !== undefined) numberInput.max = control.max;
-                         if (control.step !== undefined) numberInput.step = control.step;
-                         numberInput.value = this.params[control.id]; 
+                        if (control.min !== undefined) numberInput.min = control.min;
+                        // Only set max on text input for parameters that have periodic/normalized constraints
+                        // (e.g., angles, factors between 0-1, etc.)
+                        const requiresMaxLimit = control.id.includes('Rad') || 
+                                                 control.id === 'densityInfluenceFactor' ||
+                                                 control.id === 'centerOffsetFactor';
+                        if (control.max !== undefined && requiresMaxLimit) {
+                            numberInput.max = control.max;
+                        }
+                        if (control.step !== undefined) numberInput.step = control.step;
+                        numberInput.value = this.params[control.id]; 
                         sliderGroup.appendChild(numberInput);
                         sliderInput.addEventListener('input', () => {
                             const v = parseFloat(sliderInput.value);
@@ -574,33 +662,47 @@ class AntennaLayoutGenerator {
                             this.params[control.id] = v; 
                             this.generateLayout(); 
                         });
-                         numberInput.addEventListener('input', () => {
-                             let v = parseFloat(numberInput.value);
-                             if (!isNaN(v)) {
-                                 if (control.min !== undefined) v = Math.max(control.min, v);
-                                 if (control.max !== undefined) v = Math.min(control.max, v);
-                                 sliderInput.value = v; 
-                                 this.params[control.id] = v; 
-                                 this.generateLayout(); 
-                             }
-                         });
-                         numberInput.addEventListener('change', () => {
-                             let v = parseFloat(numberInput.value);
-                             if (isNaN(v)) { v = parseFloat(sliderInput.value); numberInput.value = v; } 
-                             if (control.min !== undefined) v = Math.max(control.min, v);
-                             if (control.max !== undefined) v = Math.min(control.max, v);
-                             if (control.step !== undefined && control.step !== 0) {
-                                 const dp = (String(control.step).split('.')[1] || '').length;
-                                 v = parseFloat((Math.round(v / control.step) * control.step).toFixed(dp));
-                             }
-                             numberInput.value = v;
-                             sliderInput.value = v;
-                             if(this.params[control.id] !== v) {
-                                 this.params[control.id] = v;
-                                 this.updateDynamicControls(); 
-                                 this.generateLayout();
-                             }
-                         });
+                        numberInput.addEventListener('input', () => {
+                            let v = parseFloat(numberInput.value);
+                            if (!isNaN(v)) {
+                                // Always apply minimum constraint
+                                if (control.min !== undefined) v = Math.max(control.min, v);
+                                // Apply max constraint only for periodic/normalized parameters
+                                if (control.max !== undefined && requiresMaxLimit) {
+                                    v = Math.min(control.max, v);
+                                }
+                                // Update slider if within its range
+                                if (control.max !== undefined && v <= control.max) {
+                                    sliderInput.value = v;
+                                } else if (control.max !== undefined) {
+                                    sliderInput.value = control.max; // Pin slider to max
+                                }
+                                this.params[control.id] = v; 
+                                this.generateLayout(); 
+                            }
+                        });
+                        numberInput.addEventListener('change', () => {
+                            let v = parseFloat(numberInput.value);
+                            if (isNaN(v)) { v = parseFloat(sliderInput.value); numberInput.value = v; } 
+                            // Always apply minimum constraint
+                            if (control.min !== undefined) v = Math.max(control.min, v);
+                            // Apply max constraint only for periodic/normalized parameters
+                            if (control.max !== undefined && requiresMaxLimit) {
+                                v = Math.min(control.max, v);
+                            }
+                            numberInput.value = v;
+                            // Update slider if within its range
+                            if (control.max !== undefined && v <= control.max) {
+                                sliderInput.value = v;
+                            } else if (control.max !== undefined) {
+                                sliderInput.value = control.max; // Pin slider to max
+                            }
+                            if(this.params[control.id] !== v) {
+                                this.params[control.id] = v;
+                                this.updateDynamicControls(); 
+                                this.generateLayout();
+                            }
+                        });
                         formGroup.appendChild(sliderGroup);
                         break;
                     default:
@@ -632,12 +734,20 @@ class AntennaLayoutGenerator {
                     const sliderGroup = document.createElement('div'); sliderGroup.className = 'slider-group';
                     const sliderInput = document.createElement('input'); sliderInput.type = 'range';
                     sliderInput.id = `profile_param_slider_${paramSchema.key}`;
-                    sliderInput.min = paramSchema.min; sliderInput.max = paramSchema.max; sliderInput.step = paramSchema.step;
+                    if (paramSchema.min !== undefined) sliderInput.min = paramSchema.min;
+                    if (paramSchema.max !== undefined) sliderInput.max = paramSchema.max;
+                    sliderInput.step = paramSchema.step;
                     sliderInput.value = this.params.profileParams[paramSchema.key];
 
                     const numberInput = document.createElement('input'); numberInput.type = 'number';
                     numberInput.id = `profile_param_input_${paramSchema.key}`;
-                    numberInput.min = paramSchema.min; numberInput.max = paramSchema.max; numberInput.step = paramSchema.step;
+                    if (paramSchema.min !== undefined) numberInput.min = paramSchema.min;
+                    // Only set max for parameters that have normalized/periodic constraints (0-1 range)
+                    const requiresMaxLimit = (paramSchema.key === 'mean' || paramSchema.key === 'location') && paramSchema.max === 1;
+                    if (paramSchema.max !== undefined && requiresMaxLimit) {
+                        numberInput.max = paramSchema.max;
+                    }
+                    numberInput.step = paramSchema.step;
                     numberInput.value = this.params.profileParams[paramSchema.key];
 
                     sliderInput.addEventListener('input', () => {
@@ -649,24 +759,38 @@ class AntennaLayoutGenerator {
                     numberInput.addEventListener('input', () => {
                         let val = parseFloat(numberInput.value);
                         if (!isNaN(val)) {
+                            // Always apply minimum constraint
                             if (paramSchema.min !== undefined) val = Math.max(paramSchema.min, val);
-                            if (paramSchema.max !== undefined) val = Math.min(paramSchema.max, val);
+                            // Apply max constraint only for normalized parameters
+                            if (paramSchema.max !== undefined && requiresMaxLimit) {
+                                val = Math.min(paramSchema.max, val);
+                            }
                             this.params.profileParams[paramSchema.key] = val;
-                            sliderInput.value = val;
+                            // Update slider if within range
+                            if (paramSchema.max !== undefined && val <= paramSchema.max) {
+                                sliderInput.value = val;
+                            } else if (paramSchema.max !== undefined) {
+                                sliderInput.value = paramSchema.max;
+                            }
                             this.generateLayout();
                         }
                     });
-                     numberInput.addEventListener('change', () => {
+                    numberInput.addEventListener('change', () => {
                         let val = parseFloat(numberInput.value);
                         if (isNaN(val)) { val = parseFloat(sliderInput.value); }
+                        // Always apply minimum constraint
                         if (paramSchema.min !== undefined) val = Math.max(paramSchema.min, val);
-                        if (paramSchema.max !== undefined) val = Math.min(paramSchema.max, val);
-                        if (paramSchema.step !== undefined && paramSchema.step !== 0) {
-                            const dp = (String(paramSchema.step).split('.')[1] || '').length;
-                            val = parseFloat((Math.round(val / paramSchema.step) * control.step).toFixed(dp));
+                        // Apply max constraint only for normalized parameters
+                        if (paramSchema.max !== undefined && requiresMaxLimit) {
+                            val = Math.min(paramSchema.max, val);
                         }
                         numberInput.value = val;
-                        sliderInput.value = val;
+                        // Update slider if within range
+                        if (paramSchema.max !== undefined && val <= paramSchema.max) {
+                            sliderInput.value = val;
+                        } else if (paramSchema.max !== undefined) {
+                            sliderInput.value = paramSchema.max;
+                        }
                         if(this.params.profileParams[paramSchema.key] !== val) {
                              this.params.profileParams[paramSchema.key] = val;
                              this.generateLayout();
@@ -890,8 +1014,12 @@ class AntennaLayoutGenerator {
 
     generateAllAntennas() {
         this.allAntennas = []; 
-        if (!this.currentLayout || this.currentLayout.length === 0) return; 
-        for (const center of this.currentLayout) {
+        if (!this.currentLayout || this.currentLayout.length === 0) return;
+        
+        // Expand group centers to individual tile centers
+        const expandedTileCenters = this.expandGroupsToTiles(this.currentLayout);
+        
+        for (const center of expandedTileCenters) {
             if (Array.isArray(center) && center.length >= 2 && typeof center[0] === 'number' && typeof center[1] === 'number') {
                  const tileAntennas = this.createTileLayout64Antennas(center[0], center[1]);
                  this.allAntennas.push(...tileAntennas); 
@@ -899,22 +1027,98 @@ class AntennaLayoutGenerator {
                  console.warn("Gerador: Centro de tile inválido encontrado:", center);
             }
         }
-        console.log(`Geradas ${this.allAntennas.length} antenas a partir de ${this.currentLayout.length} tiles.`);
+        const totalTiles = expandedTileCenters.length;
+        const totalGroups = this.currentLayout.length;
+        const tilesPerGroup = this.tileGroupCols * this.tileGroupRows;
+        if (tilesPerGroup > 1) {
+            console.log(`Geradas ${this.allAntennas.length} antenas a partir de ${totalTiles} tiles (${totalGroups} grupos de ${tilesPerGroup} tiles cada).`);
+        } else {
+            console.log(`Geradas ${this.allAntennas.length} antenas a partir de ${totalTiles} tiles.`);
+        }
+    }
+    
+    /**
+     * Expands group centers into individual tile centers based on tileGroupCols and tileGroupRows.
+     * For 1x1 groups, returns the same centers. For larger groups, expands each center into
+     * a grid of tile centers arranged as closely as possible without overlap.
+     * @param {Array<[number, number]>} groupCenters - Array of [x, y] group center coordinates
+     * @returns {Array<[number, number]>} - Array of individual tile center coordinates
+     */
+    expandGroupsToTiles(groupCenters) {
+        // Handle null/undefined/empty input
+        if (!groupCenters || !Array.isArray(groupCenters) || groupCenters.length === 0) {
+            return [];
+        }
+        
+        if (this.tileGroupCols === 1 && this.tileGroupRows === 1) {
+            return groupCenters; // No expansion needed for 1x1
+        }
+        
+        // Create a cache key based on groupCenters, cols, and rows
+        const cacheKey = `${this.tileGroupCols}-${this.tileGroupRows}-${JSON.stringify(groupCenters)}`;
+        if (this._cachedExpansionKey === cacheKey && this._cachedExpandedTiles) {
+            return this._cachedExpandedTiles;
+        }
+        
+        const expandedCenters = [];
+        const cols = this.tileGroupCols;
+        const rows = this.tileGroupRows;
+        
+        // Calculate offsets for tiles within a group
+        // Tiles are placed touching each other (minimal spacing)
+        const tileSpacingX = TILE_WIDTH;  // Tiles touch horizontally
+        const tileSpacingY = TILE_HEIGHT; // Tiles touch vertically
+        
+        // Calculate the starting offset to center the group around the group center
+        const startOffsetX = -((cols - 1) / 2) * tileSpacingX;
+        const startOffsetY = -((rows - 1) / 2) * tileSpacingY;
+        
+        for (const groupCenter of groupCenters) {
+            if (!Array.isArray(groupCenter) || groupCenter.length < 2) continue;
+            
+            const [gx, gy] = groupCenter;
+            
+            // Generate individual tile centers for this group
+            for (let row = 0; row < rows; row++) {
+                for (let col = 0; col < cols; col++) {
+                    const tileX = gx + startOffsetX + col * tileSpacingX;
+                    const tileY = gy + startOffsetY + row * tileSpacingY;
+                    expandedCenters.push([tileX, tileY]);
+                }
+            }
+        }
+        
+        // Cache the result
+        this._cachedExpandedTiles = expandedCenters;
+        this._cachedExpansionKey = cacheKey;
+        
+        return expandedCenters;
     }
 
     checkCollisions() {
         this.collisions = []; 
-        if (!this.currentLayout || this.currentLayout.length < 2) return; 
+        if (!this.currentLayout || this.currentLayout.length < 2) return;
+        
+        // Expand groups to individual tiles for collision checking
+        const expandedTiles = this.expandGroupsToTiles(this.currentLayout);
+        const tilesPerGroup = this.tileGroupCols * this.tileGroupRows;
+        
         const minCenterXDist = TILE_WIDTH;
         const minCenterYDist = TILE_HEIGHT;
         const epsilon = 1e-6;
-        for (let i = 0; i < this.currentLayout.length; i++) {
-            for (let j = i + 1; j < this.currentLayout.length; j++) {
-                const tile1 = this.currentLayout[i];
-                const tile2 = this.currentLayout[j];
+        
+        // Check collisions between tiles from different groups
+        for (let i = 0; i < expandedTiles.length; i++) {
+            for (let j = i + 1; j < expandedTiles.length; j++) {
+                // Skip collision check within the same group
+                const groupI = Math.floor(i / tilesPerGroup);
+                const groupJ = Math.floor(j / tilesPerGroup);
+                if (groupI === groupJ) continue; // Same group, tiles are designed to not collide
+                
+                const tile1 = expandedTiles[i];
+                const tile2 = expandedTiles[j];
                 if (!Array.isArray(tile1) || tile1.length < 2 || typeof tile1[0] !== 'number' || typeof tile1[1] !== 'number' ||
                     !Array.isArray(tile2) || tile2.length < 2 || typeof tile2[0] !== 'number' || typeof tile2[1] !== 'number') {
-                     console.warn(`Gerador: Dados de tile inválidos ao verificar colisão entre índices ${i} e ${j}.`, tile1, tile2);
                      continue; 
                 }
                 const deltaX = Math.abs(tile1[0] - tile2[0]);
@@ -924,12 +1128,28 @@ class AntennaLayoutGenerator {
                     this.collisions.push({
                         tile1Index: i,
                         tile2Index: j,
+                        tile1GroupIndex: groupI,
+                        tile2GroupIndex: groupJ,
                         distance: distance
                     });
                 }
             }
         }
-        console.log(`Verificação de colisões concluída. ${this.collisions.length} colisões retangulares encontradas.`);
+        
+        const collisionCount = this.collisions.length;
+        if (tilesPerGroup > 1) {
+            // Count unique group collisions
+            const groupCollisions = new Set();
+            for (const c of this.collisions) {
+                const key = c.tile1GroupIndex < c.tile2GroupIndex 
+                    ? `${c.tile1GroupIndex}-${c.tile2GroupIndex}`
+                    : `${c.tile2GroupIndex}-${c.tile1GroupIndex}`;
+                groupCollisions.add(key);
+            }
+            console.log(`Verificação de colisões concluída. ${collisionCount} colisões de tiles (${groupCollisions.size} pares de grupos afetados).`);
+        } else {
+            console.log(`Verificação de colisões concluída. ${collisionCount} colisões retangulares encontradas.`);
+        }
     }
 
     generateRandomLayout() {
@@ -1078,7 +1298,9 @@ class AntennaLayoutGenerator {
         const antennaColor = currentBodyStyle.getPropertyValue('--primary-color').trim() || '#3498db';
         const collisionColor = currentBodyStyle.getPropertyValue('--secondary-color').trim() || 'red'; 
         ctx.fillStyle = centerColor;
-        for (const center of this.currentLayout) {
+        // Expand groups to individual tiles for drawing
+        const expandedTileCenters = this.expandGroupsToTiles(this.currentLayout);
+        for (const center of expandedTileCenters) {
             if (Array.isArray(center) && center.length >= 2) {
                 const { x, y } = transformCoord(center[0], center[1]);
                 ctx.beginPath();
@@ -1098,10 +1320,11 @@ class AntennaLayoutGenerator {
         if (this.showCollisions && this.collisions.length > 0) {
             ctx.strokeStyle = collisionColor;
             ctx.lineWidth = 1.5;
-            ctx.globalAlpha = 0.6; 
+            ctx.globalAlpha = 0.6;
+            // Use expanded tile centers for collision drawing
             for (const collision of this.collisions) {
-                const tile1 = this.currentLayout[collision.tile1Index];
-                const tile2 = this.currentLayout[collision.tile2Index];
+                const tile1 = expandedTileCenters[collision.tile1Index];
+                const tile2 = expandedTileCenters[collision.tile2Index];
                 if (!Array.isArray(tile1) || tile1.length < 2 || !Array.isArray(tile2) || tile2.length < 2) continue;
                 const { x: x1, y: y1 } = transformCoord(tile1[0], tile1[1]);
                 const { x: x2, y: y2 } = transformCoord(tile2[0], tile2[1]);
@@ -1238,12 +1461,27 @@ class AntennaLayoutGenerator {
     updateStats() {
         const tileCountSpan = document.getElementById('tile-count');
         const antennaCountSpan = document.getElementById('antenna-count');
-        const tileCount = this.currentLayout ? this.currentLayout.length : 0;
+        // Count expanded tiles (total individual tiles across all groups)
+        const expandedTiles = this.expandGroupsToTiles(this.currentLayout || []);
+        const tileCount = expandedTiles.length;
+        const groupCount = this.currentLayout ? this.currentLayout.length : 0;
         const antennaCount = this.allAntennas ? this.allAntennas.length : 0;
-        if (tileCountSpan) tileCountSpan.textContent = tileCount;
+        const tilesPerGroup = this.tileGroupCols * this.tileGroupRows;
+        
+        if (tileCountSpan) {
+            if (tilesPerGroup > 1) {
+                tileCountSpan.textContent = `${tileCount} (${groupCount} grupos)`;
+            } else {
+                tileCountSpan.textContent = tileCount;
+            }
+        }
         if (antennaCountSpan) antennaCountSpan.textContent = antennaCount;
         this.updateCollisionInfo();
-        console.log(`Estatísticas atualizadas: ${tileCount} tiles, ${antennaCount} antenas.`);
+        if (tilesPerGroup > 1) {
+            console.log(`Estatísticas atualizadas: ${tileCount} tiles (${groupCount} grupos de ${tilesPerGroup}), ${antennaCount} antenas.`);
+        } else {
+            console.log(`Estatísticas atualizadas: ${tileCount} tiles, ${antennaCount} antenas.`);
+        }
     }
 
     updateCollisionInfo() {
@@ -1333,6 +1571,22 @@ class AntennaLayoutGenerator {
         let includeAxes = true;
         try { includeAxes = document.querySelector('input[name="imageAxes"]:checked')?.value === 'yes'; } catch (e) { console.warn("Não foi possível ler a opção de eixos.", e); }
 
+        // Get custom filename from input
+        const filenameInput = document.getElementById('image-filename-input');
+        let customFilename = filenameInput ? filenameInput.value.trim() : '';
+        // Sanitize filename: remove invalid characters, control chars, and handle edge cases
+        customFilename = customFilename
+            .replace(/[<>:"/\\|?*\x00-\x1f]/g, '') // Remove invalid chars and control characters
+            .replace(/\s+/g, '_')                   // Replace whitespace with underscore
+            .replace(/^\.+|\.+$/g, '')              // Remove leading/trailing dots
+            .substring(0, 100);                      // Limit length
+        
+        // Check for Windows reserved names
+        const reservedNames = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
+        if (reservedNames.test(customFilename)) {
+            customFilename = '';
+        }
+
         const selectedFormat = 'png';
         const fileExtension = 'png';
         const mimeType = 'image/png';
@@ -1360,6 +1614,10 @@ class AntennaLayoutGenerator {
              console.log("Processo de download da imagem finalizado, estado restaurado.");
         };
 
+        // Build filename: use custom name if provided and valid, otherwise use default pattern
+        const defaultFilename = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}`;
+        const finalFilename = (customFilename && customFilename.length > 0) ? customFilename : defaultFilename;
+
         const generateAndDownload = () => {
             try {
                 this.drawLayout(includeAxes); 
@@ -1369,7 +1627,7 @@ class AntennaLayoutGenerator {
                         const dataURL = this.canvas.toDataURL(mimeType);
                         const link = document.createElement('a');
                         link.href = dataURL;
-                        link.download = `bingo_layout_${this.layoutType}_${selectedTheme}${includeAxes ? '_com_eixos' : '_sem_eixos'}.${fileExtension}`;
+                        link.download = `${finalFilename}.${fileExtension}`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);

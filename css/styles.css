@@ -389,6 +389,24 @@ button.small-btn {
     margin-right: 5px;
     cursor: pointer;
 }
+.download-image-options .option-group input[type="text"] {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+    font-size: 0.9em;
+    width: 180px;
+}
+.download-image-options .option-group input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+.download-image-options .option-group input[type="text"]::placeholder {
+    color: var(--text-color);
+    opacity: 0.5;
+}
 #image-format-group label { margin-right: 5px;}
 #jpeg-quality-group { 
     display: none; 
@@ -628,6 +646,56 @@ button.small-btn {
 .slider-group input[type="number"] { width: 65px; flex-shrink: 0; text-align: right; }
 .slider-group input[type=number]::-webkit-inner-spin-button, .slider-group input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .slider-group input[type=number] { -moz-appearance: textfield; }
+
+/* Tile Grouping Configuration */
+.tile-group-config { 
+    border: 1px solid var(--border-color); 
+    border-radius: 6px; 
+    padding: 12px; 
+    background: var(--highlight-color); 
+    margin-bottom: 15px;
+}
+.tile-group-config > label { 
+    font-weight: 600; 
+    margin-bottom: 8px; 
+    display: block;
+    font-size: 13px;
+    color: var(--text-color);
+}
+.tile-group-inputs { 
+    display: flex; 
+    flex-direction: column;
+    gap: 6px;
+}
+.tile-group-field { 
+    display: flex; 
+    align-items: center; 
+    gap: 6px; 
+}
+.tile-group-field input[type="number"] { 
+    width: 50px; 
+    padding: 6px 8px;
+    text-align: center; 
+    font-weight: 600;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--input-bg-color);
+    color: var(--input-text-color);
+}
+.tile-group-label { 
+    color: var(--text-color);
+    font-size: 14px;
+    font-weight: 500;
+}
+.tile-group-hint { 
+    font-size: 11px; 
+    color: #666; 
+    font-style: italic;
+}
+[data-theme="dark"] .tile-group-hint { 
+    color: #aaa; 
+}
+
 .button-group { display: flex; gap: 10px; margin-top: 20px; }
 button { padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-weight: 500; transition: background-color 0.2s; }
 button.primary { background-color: var(--primary-color); color: var(--card-bg-color); }
