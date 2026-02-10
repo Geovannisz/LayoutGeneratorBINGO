@@ -2,26 +2,24 @@
 
 **Acesse o site:** [https://geovannisz.github.io/LayoutGeneratorBINGO/](https://geovannisz.github.io/LayoutGeneratorBINGO/)
 
-**Versão:** 1.0.2 | **Autor:** Geovanni Fernandes Garcia | **Licença:** MIT
+**Versão:** 1.0.3 | **Autor:** Geovanni Fernandes Garcia | **Licença:** MIT
 
 ---
 
-O "Gerador de Layouts de Antenas BINGO" é uma aplicação web interativa e abrangente, meticulosamente projetada para facilitar o design, simulação e análise de arranjos de antenas (tiles) para o projeto BINGO (Baryon Acoustic Oscillations from Integrated Neutral Gas Observations). A interface do usuário é intuitiva e dividida em seções funcionais, cada uma dedicada a um aspecto específico do fluxo de trabalho de design de arranjos.
+O "Gerador de Layouts de Antenas BINGO" é uma aplicação web interativa e abrangente, meticulosamente projetada para facilitar o design, simulação e análise de arranjos de antenas (tiles) e estações de interferômetro para o projeto BINGO (Baryon Acoustic Oscillations from Integrated Neutral Gas Observations). A interface do usuário é intuitiva e organizada em abas, cada uma dedicada a um aspecto específico do fluxo de trabalho de design de arranjos.
 
 ## 🌟 Visão Geral da Interface
 
-A aplicação recebe o usuário com um cabeçalho limpo, contendo o título e um prático **Seletor de Tema (Modo Escuro/Claro)**, permitindo a personalização da aparência para maior conforto visual. A estrutura principal da página organiza as ferramentas em seções bem definidas:
+A aplicação apresenta um cabeçalho com o título e um **Seletor de Tema (Modo Escuro/Claro)**. A estrutura principal organiza as ferramentas em **4 abas navegáveis**:
 
-1.  **Gerador de Layout, Download de Imagem & Análise PSF**: Criação e visualização de arranjos, download de imagens do layout e análise da função de dispersão do ponto (PSF).
-2.  **Padrão de Feixe Simulado & Curva EE(Θ)**: Simulação e visualização dos padrões de radiação 2D/3D do arranjo, e visualização da curva de Energia Circunscrita (EE) em função do ângulo de integração Θ da PSF.
-3.  **Mapa Interativo**: Seleção geoespacial e gerenciamento de posições de estações.
-4.  **Exportação (Estrutura OSKAR)**: Geração de arquivos de configuração para o software de simulação OSKAR.
+1.  **Layout Principal**: Gerador de layouts de tiles e stations, visualização, análise PSF, padrão de feixe, mapa interativo e exportação OSKAR
+2.  **Configuração OSKAR**: Geração de arquivos INI para simulação OSKAR (em desenvolvimento)
+3.  **Modelo de Céu**: Criação de modelos de céu para simulações (em desenvolvimento)
+4.  **Cobertura UV**: Visualização de cobertura UV e análise do ângulo paralático (em desenvolvimento)
 
-## 💠 Seção 1: Gerador de Layout, Download de Imagem & Análise PSF
+## 💠 Aba 1: Layout Principal
 
-Esta é a primeira e uma das mais interativas seções, combinando a criação do arranjo físico com sua análise de desempenho inicial e opções de exportação visual.
-
-### 📐 Gerador de Layout
+### 📐 Gerador de Layout de Tiles
 
 O núcleo desta seção permite a criação de diversos tipos de arranjos de antenas (tiles).
 
@@ -67,6 +65,26 @@ Também integrada à seção de geração de layout, esta sub-seção permite an
     *   **SLL (Side Lobe Level)**: O usuário pode inserir um ângulo `Θ_SLL`. O sistema calcula o volume da PSF contido neste cone e o `Resultado` percentual em relação ao volume total da PSF.
     *   **EE (Encircled Energy)**: O usuário define uma `Porcentagem de Energia Circunscrita` desejada. O sistema calcula o volume fracionário correspondente e o ângulo `Θ_EE` que engloba essa porcentagem.
 *   **Status da Análise**: Uma mensagem informa o estado atual dos cálculos da PSF.
+
+### 🛰️ Gerador de Posições de Stations **NOVO em v1.0.3**
+
+Esta seção permite criar layouts de estações de interferômetro com escala apropriada para observações de larga baseline.
+
+*   **Tipos de Layout Disponíveis**:
+    *   `Grade (Grid)`: Arranjo retangular de stations
+    *   `Circular`: Stations distribuídas em círculo com uma central
+    *   `Espiral`: Stations em braços espirais
+    *   `Forma Y`: Três braços a 120°, ideal para síntese de abertura
+    *   `Cruz`: Quatro braços ortogonais
+    *   `Aleatório`: Distribuição aleatória uniforme
+*   **Escala Apropriada**: Espaçamentos padrão ~30x maiores que tiles (30m vs 1.5m)
+*   **Parâmetros Dinâmicos**: Controles específicos para cada tipo de layout (número de estações, espaçamentos, raios, etc.)
+*   **Controle de Frequência**: Slider de 400-1500 MHz para cálculo da resolução angular
+*   **Resolução Angular Teórica**: Cálculo e exibição em tempo real de θ ≈ λ/B<sub>max</sub>
+    *   Mostra baseline máxima em metros
+    *   Formato automático (graus, arcmin ou arcsec)
+    *   Exemplo: "12.15' (84.9 m baseline)" para 9 stations em grade 3x3 com 30m de espaçamento a 1 GHz
+*   **Exportação**: Posições exportadas automaticamente para `station/layout.txt` no formato OSKAR
 
 ## 📡 Padrão de Feixe Simulado & Curva EE(Θ)
 
@@ -135,8 +153,10 @@ A seção final permite exportar os dados configurados em formatos compatíveis 
 *   **Estrutura JavaScript Modular**:
     *   `constants.js`: Constantes físicas, dimensões e configurações centralizadas.
     *   `main.js`: Ponto de entrada e orquestração.
-    *   `bingo_layouts.js`: Algoritmos de geração de layouts.
-    *   `generator.js`: UI e lógica do "Gerador de Layout".
+    *   `tabs.js`: **NOVO** - Gerenciamento de navegação por abas.
+    *   `stations.js`: **NOVO** - Geração de posições de stations do interferômetro.
+    *   `bingo_layouts.js`: Algoritmos de geração de layouts de tiles.
+    *   `generator.js`: UI e lógica do "Gerador de Layout" de tiles.
     *   `map.js`: Funcionalidades do mapa interativo.
     *   `export.js`: Exportação de dados OSKAR.
     *   `beam_pattern.js`: Simulação do padrão de feixe.
@@ -150,9 +170,39 @@ A seção final permite exportar os dados configurados em formatos compatíveis 
     *   `csv_filter.py`: Filtro de dados CSV.
     *   `telescope_gen.py`: Geração de configurações de telescópio (desenvolvimento).
 
-## 🔧 Melhorias Recentes (v1.0.2)
+## 🔧 Melhorias Recentes
 
-### Organização do Código
+### v1.0.3 - Sistema de Abas e Gerador de Stations
+
+#### Nova Arquitetura de Interface
+*   **Sistema de Navegação por Abas**: Interface reorganizada em 4 abas principais
+    *   Aba 1: Layout Principal (tiles + stations + visualizações)
+    *   Aba 2: Configuração OSKAR (em desenvolvimento)
+    *   Aba 3: Modelo de Céu (em desenvolvimento)
+    *   Aba 4: Cobertura UV (em desenvolvimento)
+*   Design responsivo com transições suaves
+*   Gerenciamento de estado com eventos customizados
+
+#### Gerador de Posições de Stations
+*   **6 tipos de layouts geométricos**: Grid, Circular, Spiral, Y-shape, Cruz, Aleatório
+*   **Parâmetros dinâmicos**: Controles adaptam-se ao tipo selecionado
+*   **Escala apropriada**: ~30x maior que tiles (espaçamentos de 30m vs 1.5m)
+*   **Cálculo de resolução angular**: θ ≈ λ/B<sub>max</sub> em tempo real
+    *   Baseline máxima calculada automaticamente
+    *   Formato inteligente (graus/arcmin/arcsec)
+    *   Suporte a frequências de 400-1500 MHz
+*   **Exportação**: Integrado com formato OSKAR (station/layout.txt)
+
+#### Melhorias Técnicas
+*   Módulo `tabs.js` para gerenciamento de abas
+*   Módulo `stations.js` com algoritmos de geração de layouts
+*   CSS aprimorado para seções de stations e navegação por abas
+*   InteractiveMap tornado opcional para evitar falhas de inicialização
+*   Código modular e bem documentado
+
+### v1.0.2 - Organização e Otimização
+
+#### Organização do Código
 *   Criado arquivo `js/constants.js` centralizando constantes físicas, CIDs IPFS e configurações compartilhadas
 *   Adicionadas diretivas `'use strict'` e documentação JSDoc em todos os módulos JavaScript
 *   Melhorado `.gitignore` e adicionado `.editorconfig` para estilo de código consistente
