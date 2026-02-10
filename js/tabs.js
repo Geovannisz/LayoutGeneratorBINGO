@@ -106,11 +106,15 @@ class TabManager {
         const previousTabId = this.activeTabId;
 
         // Remove classe ativa de todos os botões e painéis
-        this.tabButtons.forEach((btn) => btn.classList.remove('active'));
+        this.tabButtons.forEach((btn) => {
+            btn.classList.remove('active');
+            btn.setAttribute('aria-selected', 'false');
+        });
         this.tabPanels.forEach((panel) => panel.classList.remove('active'));
 
         // Ativa o botão e painel selecionados
         targetBtn.classList.add('active');
+        targetBtn.setAttribute('aria-selected', 'true');
         targetPanel.classList.add('active');
 
         this.activeTabId = tabId;
