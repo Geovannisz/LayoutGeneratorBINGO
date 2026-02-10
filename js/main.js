@@ -32,7 +32,8 @@ function checkComponentsAndSetup() {
 
      if (!window.BingoLayouts) { missingComponents.push('BingoLayouts'); allComponentsReady = false; }
      if (!window.antennaGenerator) { missingComponents.push('AntennaLayoutGenerator'); allComponentsReady = false; }
-     if (!window.interactiveMap) { missingComponents.push('InteractiveMap'); allComponentsReady = false; }
+     // InteractiveMap is optional - will fail if Leaflet is blocked
+     // if (!window.interactiveMap) { missingComponents.push('InteractiveMap'); allComponentsReady = false; }
      if (!window.oskarExporter) { missingComponents.push('OskarLayoutExporter'); allComponentsReady = false; }
      if (!window.psfAnalyzer) { missingComponents.push('PSFAnalyzer'); allComponentsReady = false; }
      // Adiciona verificação para o novo plotter
