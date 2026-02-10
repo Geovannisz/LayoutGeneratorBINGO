@@ -309,6 +309,7 @@ class StationManager {
     /**
      * Converte posição local (x: East, y: North) em metros relativas ao BINGO Central
      * para coordenadas WGS84 (lat, lon).
+     * Usa aproximação WGS84 para metros por grau no ponto de referência.
      * @param {number} xEast Deslocamento East em metros
      * @param {number} yNorth Deslocamento North em metros
      * @returns {{lat: number, lon: number, alt: number}}
@@ -319,7 +320,7 @@ class StationManager {
         const refAlt = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_ALTITUDE : 396.4;
 
         const latRad = refLat * Math.PI / 180;
-        // metros por grau de latitude e longitude
+        // WGS84 ellipsoid series expansion for meters per degree (IAG 1980)
         const mPerDegLat = 111132.92 - 559.82 * Math.cos(2 * latRad) + 1.175 * Math.cos(4 * latRad);
         const mPerDegLon = 111412.84 * Math.cos(latRad) - 93.5 * Math.cos(3 * latRad);
 
@@ -475,10 +476,10 @@ class StationManager {
         const positions = [];
         const baseAngle = angleDeg * Math.PI / 180;
         let stationsLeft = addCore ? count - 1 : count;
-        if (addCore && stationsLeft >= 0) {
+        if (addCore) {
             positions.push({ x: 0, y: 0 });
         }
-        if (stationsLeft < 1) stationsLeft = count;
+        if (stationsLeft < 1) return positions;
 
         const perArm = Math.floor(stationsLeft / arms);
         const remainder = stationsLeft - perArm * arms;
@@ -507,10 +508,10 @@ class StationManager {
         const rotRad = rotDeg * Math.PI / 180;
         const positions = [];
         let stationsLeft = addCore ? count - 1 : count;
-        if (addCore && stationsLeft >= 0) {
+        if (addCore) {
             positions.push({ x: 0, y: 0 });
         }
-        if (stationsLeft < 1) stationsLeft = count;
+        if (stationsLeft < 1) return positions;
 
         const arms = 4;
         const perArm = Math.floor(stationsLeft / arms);
@@ -537,11 +538,13 @@ class StationManager {
         const minDist = this._getExtraParam('sp-rand-mindist', 0);
         const seed = this._getExtraParam('sp-rand-seed', 0);
 
-        // Pseudo-random com semente
+        // Pseudo-random with seed using Park-Miller MINSTD algorithm
         let rng;
         if (seed > 0) {
             let s = seed;
-            rng = () => { s = (s * 16807 + 0) % 2147483647; return (s - 1) / 2147483646; };
+            const PRNG_MULTIPLIER = 16807;      // 7^5
+            const PRNG_MODULUS = 2147483647;     // 2^31 - 1
+            rng = () => { s = (s * PRNG_MULTIPLIER + 0) % PRNG_MODULUS; return (s - 1) / (PRNG_MODULUS - 1); };
         } else {
             rng = Math.random;
         }

@@ -826,7 +826,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 }
 .station-generator-panel {
     flex: 0 0 280px;
-    max-width: 300px;
+    max-width: 280px;
     overflow-y: auto;
     max-height: 620px;
     padding-right: 10px;
@@ -1376,12 +1376,21 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     .generator-beam-row { flex-direction: column; }
     .layout-generator, .beam-pattern-container { flex-basis: auto; min-width: unset; width: 100%; }
     .map-content { flex-direction: column; }
-    .map, .map-info {
+    .map, .map-info, .map-info-panel {
         flex: unset; min-width: unset; width: 100%;
         height: auto; 
         max-height: none; 
     }
     .map { height: 450px; }
+    .station-map-row {
+        flex-wrap: wrap;
+    }
+    .station-generator-panel {
+        flex: 0 0 260px;
+    }
+    .map-info-panel {
+        flex: 0 0 220px;
+    }
     .coordinates-list {
         max-height: 250px; 
         height: 250px; 
