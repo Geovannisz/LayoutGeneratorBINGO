@@ -986,4 +986,101 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     font-size: 14px;
     line-height: 1.5;
 }
+
+/* ==================== Seção de Stations ==================== */
+
+.stations-section {
+    background-color: var(--card-bg-color);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px var(--shadow-color);
+    margin-top: 20px;
+}
+
+.stations-section h3 {
+    margin: 0 0 10px 0;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stations-section h3 i {
+    color: var(--primary-color);
+}
+
+.stations-section .description {
+    margin-bottom: 15px;
+    font-size: 13px;
+    opacity: 0.8;
+}
+
+.stations-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.stations-controls .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.stations-controls .slider-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.stations-controls .slider-group input[type="range"] {
+    flex: 1;
+}
+
+.stations-controls .slider-group input[type="number"] {
+    width: 80px;
+}
+
+.angular-resolution-display {
+    background-color: var(--highlight-color);
+    padding: 15px;
+    border-radius: 6px;
+    border-left: 4px solid var(--primary-color);
+}
+
+.angular-resolution-display strong {
+    display: block;
+    margin-bottom: 8px;
+    color: var(--text-color);
+}
+
+.angular-resolution-display #angular-resolution-value {
+    font-size: 18px;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.angular-resolution-display small {
+    display: block;
+    opacity: 0.7;
+    font-size: 11px;
+}
+
+.stations-controls .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.stations-controls .control-group label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+}
+
+.stations-controls .control-group label span {
+    font-weight: 600;
+    color: var(--primary-color);
+}
 }

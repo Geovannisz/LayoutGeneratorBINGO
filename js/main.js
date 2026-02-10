@@ -38,6 +38,7 @@ function checkComponentsAndSetup() {
      // Adiciona verificação para o novo plotter
      if (!window.psfEeThetaPlotter) { missingComponents.push('PSFEeThetaPlotter'); allComponentsReady = false; }
      if (!window.tabManager) { missingComponents.push('TabManager'); allComponentsReady = false; }
+     if (!window.stationManager) { missingComponents.push('StationManager'); allComponentsReady = false; }
 
 
      if (allComponentsReady) {
@@ -46,6 +47,11 @@ function checkComponentsAndSetup() {
          // Inicializa o sistema de abas
          if (window.tabManager) {
              window.tabManager.init();
+         }
+         
+         // Inicializa o gerenciador de stations
+         if (window.stationManager) {
+             window.stationManager.init();
          }
          
          setupGlobalEventListeners();
