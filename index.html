@@ -130,6 +130,112 @@
     </header>
 
     <main id="main-content" class="container" role="main">
+        <!-- Navegação por Abas -->
+        <nav class="tab-navigation" role="tablist" aria-label="Seções principais">
+            <button class="tab-btn active" data-tab="tab-layout" role="tab" aria-selected="true" aria-controls="tab-layout">
+                <i class="fas fa-satellite-dish"></i> Layout Principal
+            </button>
+            <button class="tab-btn" data-tab="tab-oskar-config" role="tab" aria-selected="false" aria-controls="tab-oskar-config">
+                <i class="fas fa-cogs"></i> Configuração OSKAR
+            </button>
+            <button class="tab-btn" data-tab="tab-sky-model" role="tab" aria-selected="false" aria-controls="tab-sky-model">
+                <i class="fas fa-star"></i> Modelo de Céu
+            </button>
+            <button class="tab-btn" data-tab="tab-uv-coverage" role="tab" aria-selected="false" aria-controls="tab-uv-coverage">
+                <i class="fas fa-project-diagram"></i> Cobertura UV
+            </button>
+        </nav>
+
+        <!-- === ABA 1: LAYOUT PRINCIPAL === -->
+        <div id="tab-layout" class="tab-content active" role="tabpanel">
+
+        <!-- Stations + Mapa Interativo em layout lado-a-lado -->
+        <section class="station-map-row">
+            <!-- Coluna ESQUERDA: Gerador de Stations -->
+            <div class="station-generator-panel">
+                <h3><i class="fas fa-broadcast-tower"></i> Gerador de Posições de Stations</h3>
+                <div class="form-group">
+                    <label for="station-layout-type">Tipo de Layout:</label>
+                    <select id="station-layout-type">
+                        <option value="grid">Grid Regular</option>
+                        <option value="circular">Circular (Anel)</option>
+                        <option value="spiral">Espiral</option>
+                        <option value="y_shape">Forma em Y</option>
+                        <option value="cross">Cruz</option>
+                        <option value="random">Aleatório</option>
+                        <option value="logarithmic">Logarítmico</option>
+                        <option value="sunflower">Girassol (Fibonacci)</option>
+                        <option value="dual_ring">Anéis Duplos</option>
+                        <option value="elliptical">Elíptico</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="station-count">Número de Stations:</label>
+                    <input type="number" id="station-count" value="7" min="2" max="100" step="1">
+                </div>
+                <div class="form-group">
+                    <label for="station-spacing">Espaçamento (m): <span id="station-spacing-value">300</span></label>
+                    <input type="range" id="station-spacing" min="0" max="1" step="0.001" value="0.565"
+                        title="Escala logarítmica: 15m — 3000m">
+                    <small class="slider-hint">Escala log: 15m — 3km (~30× a escala dos tiles)</small>
+                </div>
+
+                <!-- Parâmetros extras por tipo de layout -->
+                <div id="station-extra-params" class="station-extra-params"></div>
+
+                <div class="button-group">
+                    <button id="station-generate-btn" class="primary"><i class="fas fa-sync-alt"></i> Gerar Stations</button>
+                    <button id="station-random-btn" class="secondary"><i class="fas fa-random"></i> Randomizar</button>
+                </div>
+
+                <div id="station-stats" class="info-box" style="margin-top: 12px;">
+                    <h4>Estatísticas do Array</h4>
+                    <div class="stat-grid">
+                        <div class="stat-item"><span class="stat-label">Stations:</span> <span id="stat-station-count">0</span></div>
+                        <div class="stat-item"><span class="stat-label">Baselines:</span> <span id="stat-baseline-count">0</span></div>
+                    </div>
+                </div>
+                <div id="angular-resolution-display" class="info-box highlight-box" style="margin-top: 8px;">
+                    <h4><i class="fas fa-crosshairs"></i> Resolução Angular</h4>
+                    <div class="resolution-values">
+                        <div>θ ≈ λ/D<sub>max</sub></div>
+                        <div id="resolution-arcmin" class="resolution-main">-- arcmin</div>
+                        <div id="resolution-arcsec" class="resolution-sub">-- arcsec</div>
+                    </div>
+                </div>
+                <div id="baseline-info" class="info-box" style="margin-top: 8px;">
+                    <h4>Baselines</h4>
+                    <div class="stat-grid">
+                        <div class="stat-item"><span class="stat-label">Mín:</span> <span id="baseline-min">--</span></div>
+                        <div class="stat-item"><span class="stat-label">Máx:</span> <span id="baseline-max">--</span></div>
+                        <div class="stat-item baseline-short"><span class="stat-label">Curtas (&lt;50m):</span> <span id="baseline-short-count">0</span></div>
+                        <div class="stat-item baseline-long"><span class="stat-label">Longas (&gt;1km):</span> <span id="baseline-long-count">0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Coluna CENTRAL: Mapa Interativo -->
+            <div class="map-center-column">
+                <h3>Mapa Interativo</h3>
+                <div id="map" class="map"></div>
+            </div>
+
+            <!-- Coluna DIREITA: Informações do Mapa -->
+            <div class="map-info-panel">
+                <h3>Informações</h3>
+                <p>Coordenadas selecionadas:</p>
+                <p><span id="selected-coords">Nenhuma</span></p>
+                <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
+                <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
+                <p>Clique no mapa ou escolha um arranjo:</p>
+                <div class="form-group">
+                    <label for="arranjo-select">Arranjo:</label>
+                    <select id="arranjo-select"><option value="0">Selecione um arranjo</option></select>
+                </div>
+                <div id="coordinates-list" class="coordinates-list"></div>
+            </div>
+        </section>
+
         <div class="generator-beam-row">
             <section class="layout-generator">
                  <h2>Gerador de Layout</h2>
@@ -320,25 +426,6 @@
             </section>
         </div>
 
-        <section class="map-container">
-             <h2>Mapa Interativo</h2>
-             <div class="map-content">
-                 <div id="map" class="map"></div>
-                 <div class="map-info">
-                     <p>Coordenadas selecionadas:</p>
-                     <p><span id="selected-coords">Nenhuma</span></p>
-                     <p>Distância ao BINGO: <span id="distance-to-bingo">0 km</span></p>
-                     <p>Distância do cursor ao BINGO: <span id="dynamic-distance">0 km</span></p>
-                     <p>Clique no mapa ou escolha um arranjo:</p>
-                     <div class="form-group">
-                         <label for="arranjo-select">Arranjo:</label>
-                         <select id="arranjo-select"><option value="0">Selecione um arranjo</option></select>
-                     </div>
-                     <div id="coordinates-list" class="coordinates-list"></div>
-                 </div>
-             </div>
-         </section>
-
         <section class="export-container" aria-labelledby="export-heading">
             <h2 id="export-heading">Exportação (Estrutura OSKAR)</h2>
             <div class="export-fields">
@@ -358,6 +445,34 @@
                     <label for="export-tile-layout">station/tile/layout.txt:</label>
                     <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas no tile"></textarea>
                 </div>
+
+                <!-- Seletor de formato de coordenadas (ECEF vs ENU) -->
+                <div class="export-field coord-format-section">
+                    <div class="coord-format-header">
+                        <span class="coord-format-title">Formato alternativo de coordenadas:</span>
+                        <span class="coord-help-icon" title="WGS84 (acima) é o formato padrão (lat,lon,alt). Aqui você pode escolher um formato alternativo para incluir na exportação.">&#9432;</span>
+                    </div>
+                    <div class="coord-format-selector" role="radiogroup" aria-label="Formato de coordenadas">
+                        <label class="coord-radio-label">
+                            <input type="radio" name="coord-format" value="ecef" checked>
+                            <span>ECEF</span>
+                            <span class="coord-help-icon" title="ECEF (Earth-Centered Earth-Fixed): Coordenadas cartesianas geocêntricas (X,Y,Z em metros) com origem no centro da Terra. Usado pelo OSKAR para definir posições absolutas das estações no espaço 3D. Ideal quando se precisa de precisão absoluta na geometria do arranjo.">&#9432;</span>
+                        </label>
+                        <label class="coord-radio-label">
+                            <input type="radio" name="coord-format" value="enu">
+                            <span>ENU</span>
+                            <span class="coord-help-icon" title="ENU (East-North-Up): Coordenadas locais topocêntricas (Leste,Norte,Cima em metros) relativas ao centro do BINGO. Usado pelo OSKAR como sistema de referência local para layouts de estações. Ideal para visualizar e editar distâncias relativas entre estações.">&#9432;</span>
+                        </label>
+                    </div>
+                    <div id="coord-format-ecef" class="coord-format-panel">
+                        <label for="export-layout-ecef">layout_ecef.txt:</label>
+                        <textarea id="export-layout-ecef" readonly title="Coordenadas ECEF (Earth-Centered Earth-Fixed) das estações"></textarea>
+                    </div>
+                    <div id="coord-format-enu" class="coord-format-panel" style="display:none;">
+                        <label for="export-layout-enu">layout_enu.txt:</label>
+                        <textarea id="export-layout-enu" readonly title="Coordenadas ENU (East-North-Up) relativas ao BINGO Central"></textarea>
+                    </div>
+                </div>
             </div>
             <div class="download-zip-group">
                 <label for="zip-filename-input" class="sr-only">Nome do arquivo ZIP</label>
@@ -365,6 +480,207 @@
                 <button id="download-zip-btn" class="primary"><i class="fas fa-file-archive" aria-hidden="true"></i> Baixar Layout (ZIP)</button>
             </div>
         </section>
+
+        <!-- Atalhos rápidos -->
+        <div class="quick-access-bar">
+            <button class="quick-btn" data-target="tab-oskar-config"><i class="fas fa-cogs"></i> Gerar .ini</button>
+            <button class="quick-btn" data-target="tab-sky-model"><i class="fas fa-star"></i> Modelo de Céu</button>
+            <button class="quick-btn" data-target="tab-uv-coverage"><i class="fas fa-project-diagram"></i> Cobertura UV</button>
+        </div>
+
+        </div><!-- Fim #tab-layout -->
+
+        <!-- === ABA 2: CONFIGURAÇÃO OSKAR (.ini) === -->
+        <div id="tab-oskar-config" class="tab-content" role="tabpanel">
+            <section class="ini-generator-section">
+                <h2><i class="fas fa-cogs"></i> Gerador de Arquivo de Observação (.ini)</h2>
+                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do OSKAR. Preencha os parâmetros abaixo — campos essenciais estão destacados. Todos os valores possuem tooltips com a documentação detalhada em PT-BR.</p>
+                <div class="ini-layout">
+                    <div class="ini-params-area">
+                        <div class="ini-toolbar">
+                            <button id="ini-fill-from-layout-btn" class="primary small-btn" title="Preenche os campos do telescópio com os dados do layout e mapa atuais">
+                                <i class="fas fa-magic"></i> Preencher a partir do Layout Atual
+                            </button>
+                            <button id="ini-use-sky-model-btn" class="secondary small-btn" title="Usa o modelo de céu gerado na aba Sky Model como entrada. Ambos serão baixados juntos.">
+                                <i class="fas fa-star"></i> Usar Modelo de Céu Gerado
+                            </button>
+                        </div>
+                        <div id="ini-params-container" class="ini-params-container">
+                            <!-- Parâmetros renderizados dinamicamente por ini_generator.js -->
+                            <p class="placeholder-text">Carregando parâmetros OSKAR...</p>
+                        </div>
+                        <div id="ini-validation-messages" class="validation-messages"></div>
+                    </div>
+                    <div class="ini-preview-area">
+                        <h3>Preview do arquivo .ini</h3>
+                        <textarea id="ini-preview" readonly placeholder="O conteúdo do arquivo .ini aparecerá aqui..."></textarea>
+                        <div class="ini-actions">
+                            <button id="ini-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button id="ini-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar .ini</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === BLOCO 2: OSKAR IMAGER (.ini) === -->
+            <section class="ini-generator-section" style="margin-top: 30px;">
+                <h2><i class="fas fa-image"></i> Gerador de Arquivo do Imager (.ini)</h2>
+                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do <strong>oskar_imager</strong>. Configura a geração de imagens a partir dos dados de visibilidade simulados.</p>
+                <div class="ini-layout">
+                    <div class="ini-params-area">
+                        <div class="ini-toolbar">
+                            <button id="imager-use-interf-output-btn" class="secondary small-btn" title="Usa o mesmo caminho do arquivo .vis definido no bloco do interferômetro como entrada para o imager.">
+                                <i class="fas fa-link"></i> Usar saída do Interferômetro
+                            </button>
+                        </div>
+                        <div id="imager-params-container" class="ini-params-container">
+                            <p class="placeholder-text">Carregando parâmetros do imager...</p>
+                        </div>
+                        <div id="imager-validation-messages" class="validation-messages"></div>
+                    </div>
+                    <div class="ini-preview-area">
+                        <h3>Preview do arquivo oskar_imager.ini</h3>
+                        <textarea id="imager-preview" readonly placeholder="O conteúdo do arquivo .ini do imager aparecerá aqui..."></textarea>
+                        <div class="ini-actions">
+                            <button id="imager-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button id="imager-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar oskar_imager.ini</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === BLOCO 3: OSKAR SIM BEAM PATTERN (.ini) === -->
+            <section class="ini-generator-section" style="margin-top: 30px;">
+                <h2><i class="fas fa-satellite-dish"></i> Gerador de Arquivo do Beam Pattern (.ini)</h2>
+                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do <strong>oskar_sim_beam_pattern</strong>. Simula o padrão de feixe (beam pattern) de stations do telescópio.</p>
+                <div class="ini-layout">
+                    <div class="ini-params-area">
+                        <div id="beam-pattern-ini-params-container" class="ini-params-container">
+                            <p class="placeholder-text">Carregando parâmetros do beam pattern...</p>
+                        </div>
+                        <div id="beam-pattern-ini-validation-messages" class="validation-messages"></div>
+                    </div>
+                    <div class="ini-preview-area">
+                        <h3>Preview do arquivo oskar_sim_beam_pattern.ini</h3>
+                        <textarea id="beam-pattern-ini-preview" readonly placeholder="O conteúdo do arquivo .ini do beam pattern aparecerá aqui..."></textarea>
+                        <div class="ini-actions">
+                            <button id="beam-pattern-ini-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button id="beam-pattern-ini-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar oskar_sim_beam_pattern.ini</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div><!-- Fim #tab-oskar-config -->
+
+        <!-- === ABA 3: MODELO DE CÉU === -->
+        <div id="tab-sky-model" class="tab-content" role="tabpanel">
+            <section class="sky-model-section">
+                <h2><i class="fas fa-star"></i> Gerador de Modelo de Céu (Sky Model)</h2>
+                <p class="section-description">Crie modelos de céu para simulações OSKAR. Use o modo simples para fontes pontuais e grids, ou o modo avançado para distribuições complexas.</p>
+                <div class="sky-model-layout">
+                    <div class="sky-controls-area">
+                        <div class="form-group">
+                            <label for="sky-mode-select">Modo:</label>
+                            <select id="sky-mode-select">
+                                <option value="simple">Simples</option>
+                                <option value="advanced">Avançado</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="sky-generation-type">Tipo de Geração:</label>
+                            <select id="sky-generation-type">
+                                <option value="single">Fonte Pontual Individual</option>
+                                <option value="grid">Grid de Fontes</option>
+                                <option value="random">Distribuição Aleatória</option>
+                                <option value="power_law">Distribuição Power-Law</option>
+                            </select>
+                        </div>
+                        <div id="sky-params-container" class="sky-params-container">
+                            <!-- Parâmetros renderizados dinamicamente por sky_model.js -->
+                        </div>
+                        <div class="button-group">
+                            <button id="sky-add-btn" class="primary"><i class="fas fa-plus"></i> Adicionar Fontes</button>
+                            <button id="sky-clear-btn" class="secondary"><i class="fas fa-trash"></i> Limpar Tudo</button>
+                        </div>
+                    </div>
+                    <div class="sky-preview-area">
+                        <div class="sky-source-info">
+                            <span>Total de fontes: <strong id="sky-source-count">0</strong></span>
+                        </div>
+                        <div id="sky-source-table-container" class="source-table-container">
+                            <table id="sky-source-table" class="source-table">
+                                <thead>
+                                    <tr>
+                                        <th>RA (°)</th>
+                                        <th>Dec (°)</th>
+                                        <th>I (Jy)</th>
+                                        <th>Spix</th>
+                                        <th>Freq₀ (Hz)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="5" class="empty-msg">Nenhuma fonte adicionada</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <h3>Preview (formato OSKAR)</h3>
+                        <textarea id="sky-preview" readonly placeholder="O modelo de céu em formato OSKAR aparecerá aqui..."></textarea>
+                        <div class="sky-actions">
+                            <button id="sky-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button id="sky-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar sky_model.txt</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div><!-- Fim #tab-sky-model -->
+
+        <!-- === ABA 4: COBERTURA UV === -->
+        <div id="tab-uv-coverage" class="tab-content" role="tabpanel">
+            <section class="uv-coverage-section">
+                <h2><i class="fas fa-project-diagram"></i> Visualização de Cobertura UV</h2>
+                <p class="section-description">Simule e visualize a cobertura UV baseada no arranjo atual e nos parâmetros de observação. Modifique parâmetros para ver o impacto em tempo real.</p>
+                <div class="uv-layout">
+                    <div class="uv-controls-area">
+                        <div class="form-group">
+                            <label for="uv-dec-input">Declinação (°):</label>
+                            <input type="number" id="uv-dec-input" value="-7.04" min="-90" max="90" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="uv-duration-input">Duração da Observação (h):</label>
+                            <input type="number" id="uv-duration-input" value="4" min="0.1" max="24" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="uv-timesteps-input">Passos de Tempo:</label>
+                            <input type="number" id="uv-timesteps-input" value="60" min="1" max="1000" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="uv-freq-input">Frequência (MHz):</label>
+                            <input type="number" id="uv-freq-input" value="1000" min="1" max="100000" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="uv-latitude-input">Latitude do Observatório (°):</label>
+                            <input type="number" id="uv-latitude-input" value="-7.04" min="-90" max="90" step="0.01">
+                        </div>
+                        <div class="button-group">
+                            <button id="uv-generate-btn" class="primary"><i class="fas fa-play"></i> Gerar Cobertura UV</button>
+                            <button id="uv-export-btn" class="secondary"><i class="fas fa-image"></i> Exportar PNG</button>
+                        </div>
+                        <div id="uv-resolution-display" class="info-box highlight-box" style="margin-top: 15px;">
+                            <h3><i class="fas fa-crosshairs"></i> Resolução Angular</h3>
+                            <div id="uv-resolution-text" class="resolution-values">
+                                <div>Gere a cobertura UV para calcular</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="uv-plot-area">
+                        <div id="uv-plot-container" class="uv-plot-container">
+                        </div>
+                        <div id="uv-status" class="status-message">Aguardando geração...</div>
+                    </div>
+                </div>
+            </section>
+        </div><!-- Fim #tab-uv-coverage -->
+
     </main>
 
     <footer role="contentinfo">
@@ -395,6 +711,11 @@
     <script src="js/beam_pattern.js"></script>
     <script src="js/psf_analyzer.js"></script>
     <script src="js/psf_ee_theta_plot.js"></script>
+    <script src="js/tabs.js"></script>
+    <script src="js/stations.js"></script>
+    <script src="js/ini_generator.js"></script>
+    <script src="js/sky_model.js"></script>
+    <script src="js/uv_coverage.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

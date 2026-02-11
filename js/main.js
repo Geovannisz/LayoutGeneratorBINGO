@@ -32,22 +32,28 @@ function checkComponentsAndSetup() {
 
      if (!window.BingoLayouts) { missingComponents.push('BingoLayouts'); allComponentsReady = false; }
      if (!window.antennaGenerator) { missingComponents.push('AntennaLayoutGenerator'); allComponentsReady = false; }
-     if (!window.interactiveMap) { missingComponents.push('InteractiveMap'); allComponentsReady = false; }
      if (!window.oskarExporter) { missingComponents.push('OskarLayoutExporter'); allComponentsReady = false; }
      if (!window.psfAnalyzer) { missingComponents.push('PSFAnalyzer'); allComponentsReady = false; }
-     // Adiciona verificação para o novo plotter
      if (!window.psfEeThetaPlotter) { missingComponents.push('PSFEeThetaPlotter'); allComponentsReady = false; }
+     if (!window.tabManager) { missingComponents.push('TabManager'); allComponentsReady = false; }
 
+     // Componentes opcionais (podem falhar por CDN bloqueado - Leaflet, Plotly)
+     if (!window.interactiveMap) { console.warn('InteractiveMap não disponível (CDN Leaflet pode estar bloqueado).'); }
+     if (!window.stationManager) { console.warn('StationManager não inicializado.'); }
+     if (!window.oskarIniGenerator) { console.warn('OskarIniGenerator não inicializado.'); }
+     if (!window.skyModelGenerator) { console.warn('SkyModelGenerator não inicializado.'); }
+     if (!window.uvCoverageSimulator) { console.warn('UVCoverageSimulator não inicializado.'); }
 
      if (allComponentsReady) {
          console.log('Todos os componentes principais foram carregados com sucesso!');
          setupGlobalEventListeners();
          setupDarkMode();
+         setupQuickAccessButtons();
 
          if (window.antennaGenerator) {
             console.log("Chamando geração de layout inicial a partir de main.js...");
-            window.antennaGenerator.resizeCanvas(); // Garante que o canvas tenha o tamanho certo
-            window.antennaGenerator.generateLayout(); // Gera o layout inicial
+            window.antennaGenerator.resizeCanvas();
+            window.antennaGenerator.generateLayout();
         }
      } else {
           console.error("Falha na inicialização: Componentes ausentes:", missingComponents);
@@ -181,6 +187,61 @@ function setupGlobalEventListeners() {
 
 
     console.log('Listeners globais configurados.');
+}
+
+/**
+ * Configura os botões de acesso rápido na barra de atalhos abaixo do mapa.
+ */
+function setupQuickAccessButtons() {
+    const quickBtns = document.querySelectorAll('.quick-btn[data-target]');
+    quickBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const targetTab = btn.getAttribute('data-target');
+            if (targetTab && window.tabManager) {
+                window.tabManager.switchToTab(targetTab);
+            }
+        });
+    });
+
+    // Listener para evento tabChanged - redimensiona plots ao trocar de aba
+    document.addEventListener('tabChanged', (event) => {
+        const { tabId } = event.detail;
+        console.log(`Main.js: Aba alterada para "${tabId}".`);
+
+        // Redimensiona o canvas do gerador e plots Plotly quando voltar à aba de layout
+        if (tabId === 'tab-layout') {
+            setTimeout(() => {
+                if (window.antennaGenerator?.resizeCanvas) {
+                    window.antennaGenerator.resizeCanvas();
+                }
+                // Redimensiona plots Plotly
+                const plotIds = ['beam-pattern-plot', 'psf-ee-theta-plot'];
+                plotIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el && typeof Plotly !== 'undefined') {
+                        try { Plotly.Plots.resize(el); } catch(e) { /* plot pode não existir */ }
+                    }
+                });
+            }, 100);
+        }
+
+        // Redimensiona o plot UV quando a aba UV é ativada
+        if (tabId === 'tab-uv-coverage') {
+            setTimeout(() => {
+                const uvPlot = document.getElementById('uv-plot-container');
+                if (uvPlot && typeof Plotly !== 'undefined') {
+                    try { Plotly.Plots.resize(uvPlot); } catch(e) { /* plot pode não existir */ }
+                }
+            }, 100);
+        }
+    });
+
+    // Listener para evento stationsGenerated - atualiza módulos dependentes
+    window.addEventListener('stationsGenerated', () => {
+        console.log("Main.js: Evento 'stationsGenerated' recebido.");
+    });
+
+    console.log('Botões de acesso rápido configurados.');
 }
 
 function setupDarkMode() {

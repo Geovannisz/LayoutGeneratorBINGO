@@ -51,6 +51,7 @@ class InteractiveMap {
         this.activeMarkerIndex = -1;
 
         this.arrangementLayer = L.featureGroup();
+        this.distanceLinesLayer = L.featureGroup(); // Camada para linhas de distância (oculta por padrão)
         this.isArrangementLayerActive = false;
         this.activeBaseLayerName = '';
         this.layersControl = null;
@@ -109,8 +110,12 @@ class InteractiveMap {
         const osmMaxZoom = 19;
 
         this.map = L.map('map', {
-            maxZoom: maxZoomLevel 
+            maxZoom: maxZoomLevel,
+            scrollWheelZoom: false  // Desabilitado por padrão, requer Ctrl+scroll
         }).setView([BINGO_LATITUDE, BINGO_LONGITUDE], 10);
+
+        // Ctrl+Scroll zoom: habilita scroll zoom apenas com Ctrl pressionado
+        this._setupCtrlScrollZoom();
 
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -137,6 +142,7 @@ class InteractiveMap {
         };
         const overlayMaps = {
             "Nomes e Limites (ESRI)": labelsLayer,
+            "Mostrar distâncias ao BINGO": this.distanceLinesLayer,
             "Visualizar o Arranjo": this.arrangementLayer
         };
 
@@ -216,7 +222,7 @@ class InteractiveMap {
         window.addEventListener('themeChanged', () => {
             const newPrimaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || 'blue';
             this.distanceLines.forEach(line => {
-                if (this.map.hasLayer(line)) {
+                if (this.distanceLinesLayer.hasLayer(line)) {
                     line.setStyle({ color: newPrimaryColor });
                 }
             });
@@ -226,6 +232,45 @@ class InteractiveMap {
         });
 
         console.log("Mapa Leaflet inicializado.");
+    }
+
+    /**
+     * Configura o comportamento Ctrl+Scroll para zoom no mapa.
+     * Scroll sem Ctrl apenas rola a página normalmente.
+     * Exibe mensagem de orientação quando o usuário tenta dar scroll sem Ctrl.
+     */
+    _setupCtrlScrollZoom() {
+        const mapContainer = this.map.getContainer();
+
+        // Cria overlay de mensagem (CSS no stylesheet: .map-scroll-overlay)
+        const overlay = document.createElement('div');
+        overlay.className = 'map-scroll-overlay';
+        overlay.textContent = 'Use Ctrl + scroll para dar zoom no mapa';
+        mapContainer.style.position = 'relative';
+        mapContainer.appendChild(overlay);
+
+        let overlayTimeout = null;
+
+        const showOverlay = () => {
+            overlay.style.opacity = '1';
+            if (overlayTimeout) clearTimeout(overlayTimeout);
+            overlayTimeout = setTimeout(() => { overlay.style.opacity = '0'; }, 1500);
+        };
+
+        // Intercepta eventos de wheel no container do mapa
+        mapContainer.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                // Ctrl pressionado: habilita zoom e previne scroll da página
+                e.preventDefault();
+                // Aplica zoom manualmente
+                const delta = e.deltaY > 0 ? -1 : 1;
+                const currentZoom = this.map.getZoom();
+                this.map.setZoom(currentZoom + delta, { animate: true });
+            } else {
+                // Sem Ctrl: mostra mensagem de orientação (a página rola normalmente)
+                showOverlay();
+            }
+        }, { passive: false });
     }
 
     // initControls() - sem alterações na lógica interna
@@ -324,7 +369,8 @@ class InteractiveMap {
         const line = L.polyline([[lat, lng], [BINGO_LATITUDE, BINGO_LONGITUDE]], {
             color: getComputedStyle(document.documentElement).getPropertyValue('--primary-color').trim() || 'blue',
             weight: 2, opacity: 0.7, dashArray: '5, 5'
-        }).addTo(this.map);
+        });
+        this.distanceLinesLayer.addLayer(line);
 
         const tooltip = L.tooltip({ permanent: true, direction: 'center', className: 'distance-tooltip', offset: [0, -7] });
         const midPoint = this.calculateMidpoint(lat, lng, BINGO_LATITUDE, BINGO_LONGITUDE);
@@ -475,7 +521,7 @@ class InteractiveMap {
         if (index >= 0 && index < this.stationMarkers.length) {
             const removedName = this.selectedCoordinates[index].name;
             this.map.removeLayer(this.stationMarkers[index]);
-            this.map.removeLayer(this.distanceLines[index]);
+            this.distanceLinesLayer.removeLayer(this.distanceLines[index]);
             this.stationMarkers.splice(index, 1);
             this.distanceLines.splice(index, 1);
             this.selectedCoordinates.splice(index, 1);

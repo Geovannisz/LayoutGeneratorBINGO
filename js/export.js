@@ -88,7 +88,9 @@ class OskarLayoutExporter {
             'export-layout-wgs84',
             'export-position',
             'export-station-layout',
-            'export-tile-layout'
+            'export-tile-layout',
+            'export-layout-ecef',
+            'export-layout-enu'
         ];
         textareaIds.forEach(id => this._addSingleCopyButtonToTextarea(id));
     }
@@ -217,6 +219,8 @@ class OskarLayoutExporter {
         // this.updateBingoPositionField(); // Já chamado no construtor, é fixo.
         this.updateStationLayoutField();
         // this.updateTileLayoutField(); // Já chamado no construtor e generateSingleTileLayout, é fixo.
+        this.updateLayoutEcefField();
+        this.updateLayoutEnuField();
         
         console.log("Campos de exportação OSKAR atualizados com os dados mais recentes.");
     }
@@ -296,6 +300,102 @@ class OskarLayoutExporter {
              return '';
         }).filter(line => line).join('\n');
     }
+
+    // --- Conversões de Coordenadas (WGS84 → ECEF → ENU) ---
+
+    /**
+     * Converte coordenadas WGS84 (lat, lon, alt) para ECEF (X, Y, Z).
+     * @param {number} latDeg Latitude em graus
+     * @param {number} lonDeg Longitude em graus
+     * @param {number} altM Altitude em metros
+     * @returns {{x: number, y: number, z: number}} Coordenadas ECEF em metros
+     */
+    wgs84ToEcef(latDeg, lonDeg, altM) {
+        const a = 6378137.0; // WGS84 semi-eixo maior
+        const f = 1.0 / 298.257223563; // WGS84 achatamento
+        const e2 = 2 * f - f * f; // excentricidade ao quadrado
+
+        const latRad = latDeg * Math.PI / 180;
+        const lonRad = lonDeg * Math.PI / 180;
+        const sinLat = Math.sin(latRad);
+        const cosLat = Math.cos(latRad);
+        const sinLon = Math.sin(lonRad);
+        const cosLon = Math.cos(lonRad);
+
+        const N = a / Math.sqrt(1 - e2 * sinLat * sinLat);
+
+        return {
+            x: (N + altM) * cosLat * cosLon,
+            y: (N + altM) * cosLat * sinLon,
+            z: (N * (1 - e2) + altM) * sinLat
+        };
+    }
+
+    /**
+     * Converte coordenadas ECEF para ENU relativas a um ponto de referência.
+     * @param {number} x ECEF X
+     * @param {number} y ECEF Y
+     * @param {number} z ECEF Z
+     * @param {number} refLatDeg Latitude de referência em graus
+     * @param {number} refLonDeg Longitude de referência em graus
+     * @param {number} refAltM Altitude de referência em metros
+     * @returns {{e: number, n: number, u: number}} Coordenadas ENU em metros
+     */
+    ecefToEnu(x, y, z, refLatDeg, refLonDeg, refAltM) {
+        const ref = this.wgs84ToEcef(refLatDeg, refLonDeg, refAltM);
+        const dx = x - ref.x;
+        const dy = y - ref.y;
+        const dz = z - ref.z;
+
+        const latRad = refLatDeg * Math.PI / 180;
+        const lonRad = refLonDeg * Math.PI / 180;
+        const sinLat = Math.sin(latRad);
+        const cosLat = Math.cos(latRad);
+        const sinLon = Math.sin(lonRad);
+        const cosLon = Math.cos(lonRad);
+
+        return {
+            e: -sinLon * dx + cosLon * dy,
+            n: -sinLat * cosLon * dx - sinLat * sinLon * dy + cosLat * dz,
+            u: cosLat * cosLon * dx + cosLat * sinLon * dy + sinLat * dz
+        };
+    }
+
+    /**
+     * Atualiza o textarea para layout_ecef.txt (Coordenadas ECEF das estações).
+     */
+    updateLayoutEcefField() {
+        const textarea = document.getElementById('export-layout-ecef');
+        if (!textarea) return;
+
+        if (!this.selectedStationsCoords || this.selectedStationsCoords.length === 0) {
+            textarea.value = 'Nenhuma estação selecionada.\nGere stations primeiro.';
+            return;
+        }
+        textarea.value = this.selectedStationsCoords.map(station => {
+            const ecef = this.wgs84ToEcef(station.lat || 0, station.lon || 0, station.alt || 0);
+            return `${ecef.x.toFixed(4)},${ecef.y.toFixed(4)},${ecef.z.toFixed(4)}`;
+        }).join('\n');
+    }
+
+    /**
+     * Atualiza o textarea para layout_enu.txt (Coordenadas ENU relativas ao BINGO Central).
+     */
+    updateLayoutEnuField() {
+        const textarea = document.getElementById('export-layout-enu');
+        if (!textarea) return;
+
+        if (!this.selectedStationsCoords || this.selectedStationsCoords.length === 0) {
+            textarea.value = 'Nenhuma estação selecionada.\nGere stations primeiro.';
+            return;
+        }
+        textarea.value = this.selectedStationsCoords.map(station => {
+            const ecef = this.wgs84ToEcef(station.lat || 0, station.lon || 0, station.alt || 0);
+            const enu = this.ecefToEnu(ecef.x, ecef.y, ecef.z,
+                BINGO_CENTRAL_LATITUDE, BINGO_CENTRAL_LONGITUDE, BINGO_CENTRAL_ALTITUDE);
+            return `${enu.e.toFixed(4)},${enu.n.toFixed(4)},${enu.u.toFixed(4)}`;
+        }).join('\n');
+    }
 } // Fim da classe OskarLayoutExporter
 
 // --- Inicialização da Exportação e Funcionalidade de Download ZIP ---
@@ -327,6 +427,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- Seletor de formato de coordenadas (ECEF / ENU) ---
+    const coordRadios = document.querySelectorAll('input[name="coord-format"]');
+    const ecefPanel = document.getElementById('coord-format-ecef');
+    const enuPanel = document.getElementById('coord-format-enu');
+    coordRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (ecefPanel) ecefPanel.style.display = radio.value === 'ecef' ? '' : 'none';
+            if (enuPanel) enuPanel.style.display = radio.value === 'enu' ? '' : 'none';
+        });
+    });
+
     // --- Lógica para o Botão de Download ZIP ---
     const downloadBtn = document.getElementById('download-zip-btn');
     const filenameInput = document.getElementById('zip-filename-input');
@@ -350,10 +461,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 const contentPosition = document.getElementById('export-position').value;
                 const contentStationLayout = document.getElementById('export-station-layout').value;
                 const contentTileLayout = document.getElementById('export-tile-layout').value;
+                const contentEcef = document.getElementById('export-layout-ecef')?.value || '';
+                const contentEnu = document.getElementById('export-layout-enu')?.value || '';
 
                 // Adiciona os arquivos ao ZIP com a estrutura de diretórios OSKAR.
                 zip.file("layout_wgs84.txt", contentWGS84);
                 zip.file("position.txt", contentPosition);
+                if (contentEcef && !contentEcef.startsWith('Nenhuma')) {
+                    zip.file("layout_ecef.txt", contentEcef);
+                }
+                if (contentEnu && !contentEnu.startsWith('Nenhuma')) {
+                    zip.file("layout_enu.txt", contentEnu);
+                }
                 const stationFolder = zip.folder("station"); // Cria pasta "station"
                 stationFolder.file("layout.txt", contentStationLayout);
                 const tileFolder = stationFolder.folder("tile"); // Cria pasta "station/tile"
