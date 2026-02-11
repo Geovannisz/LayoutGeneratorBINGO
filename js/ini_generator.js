@@ -491,7 +491,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
     {
         key: 'length',
         section: 'observation',
-        label: 'Duração da observação',
+        label: 'Duração da observação (s ou HH:MM:SS)',
         tooltip: 'Duração total da observação. Pode ser especificada em segundos (ex: 3600 = 1 hora) ou no formato "HH:MM:SS.S" (ex: "12000:00:00.0" para 12000 horas). Observações mais longas produzem melhor cobertura UV graças à rotação da Terra, resultando em imagens de melhor qualidade.',
         type: 'text',
         defaultValue: '3600',
@@ -1265,7 +1265,7 @@ class OskarIniGenerator {
         // Duração e passos de tempo devem ser positivos
         if (param.key === 'length' && value !== '') {
             // Aceita segundos numéricos ou formato HH:MM:SS.S
-            if (!/^\d+(\.\d+)?$/.test(value) && !/^\d+:\d{2}:\d{2}(\.\d+)?$/.test(value)) {
+            if (!/^\d+(\.\d+)?$/.test(value) && !/^\d+:\d{1,2}:\d{1,2}(\.\d+)?$/.test(value)) {
                 return 'A duração deve ser em segundos (ex: 3600) ou formato HH:MM:SS.S.';
             }
             if (/^\d+(\.\d+)?$/.test(value) && Number(value) <= 0) {
