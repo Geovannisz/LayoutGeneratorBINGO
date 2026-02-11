@@ -216,7 +216,6 @@ class OskarLayoutExporter {
         }
 
         // Chama os métodos para atualizar cada campo de exportação.
-        this.updateLayoutWgs84Field();
         this.updateLayoutWgs84AltField();
         // this.updateBingoPositionField(); // Já chamado no construtor, é fixo.
         this.updateStationLayoutField();
@@ -230,11 +229,11 @@ class OskarLayoutExporter {
     // --- Métodos específicos para cada arquivo de exportação ---
 
     /**
-     * Atualiza o textarea para ../layout_wgs84.txt (Coordenadas WGS84 das estações).
+     * Atualiza o textarea para layout_wgs84.txt no painel de formato de coordenadas.
      * Usa dados de `this.selectedStationsCoords` (do mapa).
      */
-    updateLayoutWgs84Field() {
-        const textarea = document.getElementById('export-layout-wgs84');
+    updateLayoutWgs84AltField() {
+        const textarea = document.getElementById('export-layout-wgs84-alt');
         if (!textarea) return;
 
         if (!this.selectedStationsCoords || this.selectedStationsCoords.length === 0) {
@@ -248,20 +247,6 @@ class OskarLayoutExporter {
             const alt = station.alt || 0;
             return `${lon.toFixed(7)},${lat.toFixed(7)},${alt.toFixed(1)}`;
         }).join('\n');
-    }
-
-    /**
-     * Atualiza o textarea alternativo para layout_wgs84.txt no painel de formato de coordenadas.
-     * Reutiliza os mesmos dados de `this.selectedStationsCoords`.
-     */
-    updateLayoutWgs84AltField() {
-        const textarea = document.getElementById('export-layout-wgs84-alt');
-        if (!textarea) return;
-
-        const source = document.getElementById('export-layout-wgs84');
-        if (source) {
-            textarea.value = source.value;
-        }
     }
 
     /**
@@ -475,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const zip = new JSZip();
                 // Obtém o conteúdo atual dos textareas.
-                const contentWGS84 = document.getElementById('export-layout-wgs84').value;
+                const contentWGS84 = document.getElementById('export-layout-wgs84-alt').value;
                 const contentPosition = document.getElementById('export-position').value;
                 const contentStationLayout = document.getElementById('export-station-layout').value;
                 const contentTileLayout = document.getElementById('export-tile-layout').value;
