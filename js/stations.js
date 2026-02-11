@@ -306,8 +306,7 @@ class StationManager {
         this.extraParamsContainer.innerHTML = html;
 
         // Vincula listeners nos novos parâmetros dinâmicos para geração automática
-        const defs2 = paramDefs[layout] || [];
-        for (const p of defs2) {
+        for (const p of defs) {
             const el = document.getElementById(p.id);
             if (el) {
                 el.addEventListener(p.type === 'select' ? 'change' : 'input', () => this._autoGenerate());
