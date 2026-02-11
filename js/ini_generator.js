@@ -20,6 +20,20 @@ const INI_BINGO_LONGITUDE = (typeof BingoConstants !== 'undefined') ? BingoConst
 const INI_BINGO_ALTITUDE = (typeof BingoConstants !== 'undefined') ? BingoConstants.BINGO_ALTITUDE : 396.4;
 
 /**
+ * Detecta a quebra de linha adequada para o SO do usuário.
+ * Windows usa CRLF (\r\n), Linux/Mac usam LF (\n). Sempre UTF-8.
+ * @returns {string} '\r\n' para Windows, '\n' para outros.
+ */
+function getOsLineEnding() {
+    if (typeof navigator === 'undefined') return '\n';
+    // Prefere navigator.userAgentData.platform (moderno) com fallback
+    const platform = navigator.userAgentData?.platform || navigator.platform || '';
+    if (/Win/i.test(platform)) return '\r\n';
+    if (/Windows/i.test(navigator.userAgent || '')) return '\r\n';
+    return '\n';
+}
+
+/**
  * Definição dos parâmetros OSKAR suportados pelo gerador.
  * Cada entrada descreve um parâmetro de configuração do .ini.
  * @constant {Array<Object>}
@@ -992,8 +1006,9 @@ class OskarIniGenerator {
                 : 'Selecionar arquivo do computador';
             browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
 
-            // Para diretórios, usa um input de arquivo regular (sem webkitdirectory)
-            // para evitar popup de confirmação do navegador e obter caminho completo
+            // Usa input de arquivo regular (sem webkitdirectory) para evitar popup
+            // de confirmação do navegador. O caminho completo é limitado por segurança
+            // do navegador — o campo é editável para que o usuário cole o caminho real.
             const hiddenFileInput = document.createElement('input');
             hiddenFileInput.type = 'file';
             hiddenFileInput.style.display = 'none';
@@ -1037,22 +1052,11 @@ class OskarIniGenerator {
     // =========================================================================
 
     /**
-     * Detecta se o sistema operacional é Windows para usar CRLF.
-     * @private
-     * @returns {string} Quebra de linha adequada ('\r\n' para Windows, '\n' para outros).
-     */
-    _getLineEnding() {
-        const isWindows = (typeof navigator !== 'undefined') &&
-            (navigator.platform?.indexOf('Win') >= 0 || /Windows/i.test(navigator.userAgent || ''));
-        return isWindows ? '\r\n' : '\n';
-    }
-
-    /**
      * Gera o conteúdo completo do arquivo .ini a partir dos valores atuais.
      * @returns {string} Conteúdo formatado do arquivo .ini.
      */
     generateIni() {
-        const eol = this._getLineEnding();
+        const eol = getOsLineEnding();
         const sections = {};
 
         OSKAR_INI_PARAMS.forEach(param => {
@@ -1834,16 +1838,6 @@ class OskarImagerGenerator {
     }
 
     /**
-     * Detecta se o sistema operacional é Windows para usar CRLF.
-     * @private
-     */
-    _getLineEnding() {
-        const isWindows = (typeof navigator !== 'undefined') &&
-            (navigator.platform?.indexOf('Win') >= 0 || /Windows/i.test(navigator.userAgent || ''));
-        return isWindows ? '\r\n' : '\n';
-    }
-
-    /**
      * Renderiza os inputs de parâmetros agrupados por categoria.
      */
     renderParameters() {
@@ -2016,7 +2010,7 @@ class OskarImagerGenerator {
      * Gera o conteúdo do arquivo .ini do imager.
      */
     generateIni() {
-        const eol = this._getLineEnding();
+        const eol = getOsLineEnding();
         const sections = {};
 
         OSKAR_IMAGER_PARAMS.forEach(param => {
