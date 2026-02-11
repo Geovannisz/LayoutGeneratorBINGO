@@ -1022,6 +1022,7 @@ class OskarIniGenerator {
                     // Fallback: foca e seleciona o campo para o usuário colar manualmente
                     input.focus();
                     input.select();
+                    input.placeholder = '⚠ Use Ctrl+V para colar o caminho aqui';
                 }
             });
 
@@ -2004,6 +2005,7 @@ class OskarImagerGenerator {
                 } catch (_err) {
                     input.focus();
                     input.select();
+                    input.placeholder = '⚠ Use Ctrl+V para colar o caminho aqui';
                 }
             });
 
@@ -3149,6 +3151,7 @@ class OskarBeamPatternGenerator {
                 } catch (_err) {
                     input.focus();
                     input.select();
+                    input.placeholder = '⚠ Use Ctrl+V para colar o caminho aqui';
                 }
             });
 

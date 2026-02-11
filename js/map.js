@@ -242,15 +242,10 @@ class InteractiveMap {
     _setupCtrlScrollZoom() {
         const mapContainer = this.map.getContainer();
 
-        // Cria overlay de mensagem
+        // Cria overlay de mensagem (CSS no stylesheet: .map-scroll-overlay)
         const overlay = document.createElement('div');
         overlay.className = 'map-scroll-overlay';
         overlay.textContent = 'Use Ctrl + scroll para dar zoom no mapa';
-        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;' +
-            'display:flex;align-items:center;justify-content:center;' +
-            'background:rgba(0,0,0,0.5);color:#fff;font-size:16px;font-weight:600;' +
-            'z-index:1000;pointer-events:none;opacity:0;transition:opacity 0.3s;' +
-            'text-shadow:0 1px 3px rgba(0,0,0,0.8);border-radius:8px;';
         mapContainer.style.position = 'relative';
         mapContainer.appendChild(overlay);
 

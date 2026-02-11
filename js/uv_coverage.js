@@ -17,6 +17,9 @@
 
 'use strict';
 
+/** Número mínimo de estações para usar aceleração via WebGPU. */
+const GPU_MIN_STATIONS_THRESHOLD = 10;
+
 class UVCoverageSimulator {
     constructor() {
         // IDs dos elementos da UI
@@ -56,7 +59,7 @@ class UVCoverageSimulator {
         // WebGPU: tenta inicializar se disponível
         this.gpuDevice = null;
         this.gpuAvailable = false;
-        this._initWebGPU();
+        this._gpuReadyPromise = this._initWebGPU();
 
         this._initUI();
         this._bindEvents();
@@ -67,7 +70,9 @@ class UVCoverageSimulator {
     /**
      * Tenta inicializar WebGPU para aceleração de hardware.
      * Se não disponível, usa CPU como fallback silencioso.
+     * Retorna uma promise que resolve quando a verificação é concluída.
      * @private
+     * @returns {Promise<void>}
      */
     async _initWebGPU() {
         try {
@@ -180,6 +185,11 @@ class UVCoverageSimulator {
 
         this.updateStatus("Calculando cobertura UV...");
 
+        // Aguarda WebGPU ficar pronto (se ainda estiver inicializando)
+        if (this._gpuReadyPromise) {
+            await this._gpuReadyPromise;
+        }
+
         const params = this._readParams();
         const decRad = params.dec * BingoConstants.DEG_TO_RAD;
         const lambda = BingoConstants.SPEED_OF_LIGHT / params.freqHz;
@@ -197,7 +207,7 @@ class UVCoverageSimulator {
         let uvResult;
 
         // Tenta usar WebGPU para cálculos massivos
-        if (this.gpuAvailable && this.gpuDevice && stations.length >= 10) {
+        if (this.gpuAvailable && this.gpuDevice && stations.length >= GPU_MIN_STATIONS_THRESHOLD) {
             try {
                 this.updateStatus("Calculando cobertura UV (WebGPU)...");
                 uvResult = await this._computeUVonGPU(stations, hourAngles, sinDec, cosDec, lambda);
@@ -212,7 +222,7 @@ class UVCoverageSimulator {
 
         this.uvData = { ...uvResult, lambda, params };
 
-        const accel = (this.gpuAvailable && stations.length >= 10) ? 'GPU' : 'CPU';
+        const accel = (this.gpuAvailable && stations.length >= GPU_MIN_STATIONS_THRESHOLD) ? 'GPU' : 'CPU';
         console.log(`UVCoverageSimulator [${accel}]: ${uvResult.nBaselines} baselines, ${uvResult.uPoints.length} pontos UV.`);
 
         this.plotUVCoverage(this.uvData);
@@ -417,6 +427,7 @@ class UVCoverageSimulator {
         device.queue.submit([commandEncoder.finish()]);
 
         await readBuffer.mapAsync(GPUMapMode.READ);
+        // slice(0) is required: getMappedRange() returns a buffer that is detached after unmap()
         const resultData = new Float32Array(readBuffer.getMappedRange().slice(0));
         readBuffer.unmap();
 

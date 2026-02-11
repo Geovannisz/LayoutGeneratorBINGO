@@ -60,6 +60,12 @@ const SHORT_BASELINE_THRESHOLD = 50;
  */
 const LONG_BASELINE_THRESHOLD = 1000;
 
+/**
+ * Ângulo dourado (radianos) para padrão girassol/Fibonacci: π(3 - √5) ≈ 137.508°.
+ * @constant {number}
+ */
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
 class StationManager {
     constructor() {
         // IDs dos elementos da UI
@@ -455,8 +461,8 @@ class StationManager {
         for (let r = 0; r < rows && positions.length < count; r++) {
             for (let c = 0; c < cols && positions.length < count; c++) {
                 // Espaçamento exponencial: distância cresce com o índice
-                const xSpacing = spacing * sx * Math.pow(c + 1, expGrowth) / Math.pow(1, expGrowth);
-                const ySpacing = spacing * sy * Math.pow(r + 1, expGrowth) / Math.pow(1, expGrowth);
+                const xSpacing = spacing * sx * Math.pow(c + 1, expGrowth);
+                const ySpacing = spacing * sy * Math.pow(r + 1, expGrowth);
                 let x = (expGrowth === 1.0) ? c * spacing * sx : xSpacing - spacing * sx;
                 let y = (expGrowth === 1.0) ? r * spacing * sy : ySpacing - spacing * sy;
                 if (jitter > 0) {
@@ -694,7 +700,7 @@ class StationManager {
                     const r = area * Math.sqrt(rng());
                     const theta = 2 * Math.PI * rng();
                     x = r * Math.cos(theta);
-                    y = r * 0.6 * Math.sin(theta);
+                    y = r * sigma * Math.sin(theta); // sigma como razão de eixos
                 } else {
                     x = (rng() - 0.5) * 2 * area;
                     y = (rng() - 0.5) * 2 * area;
@@ -771,13 +777,12 @@ class StationManager {
         const offsetDeg = this._getExtraParam('sp-sun-offset', 0);
         const radialExp = this._getExtraParam('sp-sun-exp', 0.5);
         const offsetRad = offsetDeg * Math.PI / 180;
-        const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // ~137.508°
 
         const positions = [];
         for (let i = 0; i < count; i++) {
             const n = i + alpha;
             const r = spacing * Math.pow(n / count, radialExp);
-            const theta = i * goldenAngle + offsetRad;
+            const theta = i * GOLDEN_ANGLE + offsetRad;
             positions.push({ x: r * Math.cos(theta), y: r * Math.sin(theta) });
         }
         return positions;
