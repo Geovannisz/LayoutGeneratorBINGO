@@ -55,6 +55,11 @@ class SkyModelGenerator {
         /** @type {HTMLButtonElement|null} */
         this.copyBtn = document.getElementById('sky-copy-btn');
 
+        /** @type {string|null} Coluna de ordenação atual da tabela de fontes */
+        this._sortColumn = null;
+        /** @type {boolean} Direção de ordenação (true = ascendente) */
+        this._sortAsc = true;
+
         this._bindEvents();
         this.renderControls();
         this.updatePreview();
@@ -164,8 +169,8 @@ class SkyModelGenerator {
             <div class="param-group">
                 <label for="sky-advanced-text">Lista de fontes (formato OSKAR):</label>
                 <textarea id="sky-advanced-text" rows="10" class="form-control"
-                    placeholder="RA(deg) Dec(deg) I(Jy) Q U V freq0(Hz) spix e_maj(arcsec) e_min(arcsec) e_pa(deg)"></textarea>
-                <small class="form-text">Cole fontes no formato OSKAR, uma por linha.</small>
+                    placeholder="RA(deg) Dec(deg) I(Jy) Q U V freq0(Hz) spix RM(rad/m²) e_maj(arcsec) e_min(arcsec) e_pa(deg)"></textarea>
+                <small class="form-text">Cole fontes no formato OSKAR, uma por linha. Colunas 9-12 definem fontes Gaussianas estendidas.</small>
             </div>
         `;
     }
@@ -178,15 +183,27 @@ class SkyModelGenerator {
         return `
             <div class="param-group">
                 <label for="sky-ra">RA (graus):</label>
-                <input type="number" id="sky-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-dec">Dec (graus):</label>
-                <input type="number" id="sky-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-flux">Fluxo Stokes I (Jy):</label>
                 <input type="number" id="sky-flux" value="1.0" step="0.01" min="0" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="sky-q">Stokes Q (Jy):</label>
+                <input type="number" id="sky-q" value="0.0" step="0.01" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="sky-u">Stokes U (Jy):</label>
+                <input type="number" id="sky-u" value="0.0" step="0.01" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="sky-v">Stokes V (Jy):</label>
+                <input type="number" id="sky-v" value="0.0" step="0.01" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-spix">Índice espectral:</label>
@@ -197,8 +214,13 @@ class SkyModelGenerator {
                 <input type="number" id="sky-ref-freq" value="${SKY_DEFAULT_REF_FREQ}" step="1e6" class="form-control">
             </div>
             <div class="param-group">
+                <label for="sky-rm">Medida de rotação (rad/m²):</label>
+                <input type="number" id="sky-rm" value="0.0" step="0.1" class="form-control">
+            </div>
+            <div class="param-group">
                 <label for="sky-major">Eixo maior (arcsec):</label>
                 <input type="number" id="sky-major" value="0.0" step="0.1" min="0" class="form-control">
+                <small class="form-text">0 = fonte pontual; > 0 = fonte Gaussiana estendida</small>
             </div>
             <div class="param-group">
                 <label for="sky-minor">Eixo menor (arcsec):</label>
@@ -207,6 +229,31 @@ class SkyModelGenerator {
             <div class="param-group">
                 <label for="sky-pa">Ângulo de posição (graus):</label>
                 <input type="number" id="sky-pa" value="0.0" step="0.1" class="form-control">
+            </div>
+        `;
+    }
+
+    /**
+     * Gera HTML dos campos de parâmetros Gaussianos/estendidos comuns.
+     * @param {string} prefix Prefixo para os IDs dos campos (ex: 'sky-grid', 'sky-rand').
+     * @returns {string} HTML dos campos de fonte estendida.
+     * @private
+     */
+    _buildGaussianFields(prefix) {
+        return `
+            <hr style="margin: 10px 0; opacity: 0.3;">
+            <small class="form-text" style="display:block; margin-bottom:6px; font-weight:600;">Parâmetros de fonte estendida (Gaussiana) — deixe zeros para fontes pontuais:</small>
+            <div class="param-group">
+                <label for="${prefix}-major">Eixo maior (arcsec):</label>
+                <input type="number" id="${prefix}-major" value="0.0" step="0.1" min="0" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="${prefix}-minor">Eixo menor (arcsec):</label>
+                <input type="number" id="${prefix}-minor" value="0.0" step="0.1" min="0" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="${prefix}-pa">Ângulo de posição (graus):</label>
+                <input type="number" id="${prefix}-pa" value="0.0" step="0.1" class="form-control">
             </div>
         `;
     }
@@ -227,17 +274,25 @@ class SkyModelGenerator {
             </div>
             <div class="param-group">
                 <label for="sky-grid-ra">RA central (graus):</label>
-                <input type="number" id="sky-grid-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-grid-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-grid-dec">Dec central (graus):</label>
-                <input type="number" id="sky-grid-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-grid-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-grid-flux">Fluxo por fonte (Jy):</label>
                 <input type="number" id="sky-grid-flux" value="1.0" step="0.01" min="0" class="form-control">
             </div>
-        `;
+            <div class="param-group">
+                <label for="sky-grid-spix">Índice espectral:</label>
+                <input type="number" id="sky-grid-spix" value="0.0" step="0.01" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="sky-grid-ref-freq">Frequência de referência (Hz):</label>
+                <input type="number" id="sky-grid-ref-freq" value="${SKY_DEFAULT_REF_FREQ}" step="1e6" class="form-control">
+            </div>
+        ` + this._buildGaussianFields('sky-grid');
     }
 
     /**
@@ -252,11 +307,11 @@ class SkyModelGenerator {
             </div>
             <div class="param-group">
                 <label for="sky-rand-ra">RA central (graus):</label>
-                <input type="number" id="sky-rand-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-rand-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-rand-dec">Dec central (graus):</label>
-                <input type="number" id="sky-rand-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-rand-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-rand-radius">Raio do campo (graus):</label>
@@ -278,7 +333,11 @@ class SkyModelGenerator {
                 <label for="sky-rand-spix-max">Índice espectral máx.:</label>
                 <input type="number" id="sky-rand-spix-max" value="0.0" step="0.1" class="form-control">
             </div>
-        `;
+            <div class="param-group">
+                <label for="sky-rand-ref-freq">Frequência de referência (Hz):</label>
+                <input type="number" id="sky-rand-ref-freq" value="${SKY_DEFAULT_REF_FREQ}" step="1e6" class="form-control">
+            </div>
+        ` + this._buildGaussianFields('sky-rand');
     }
 
     /**
@@ -293,11 +352,11 @@ class SkyModelGenerator {
             </div>
             <div class="param-group">
                 <label for="sky-pl-ra">RA central (graus):</label>
-                <input type="number" id="sky-pl-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-pl-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-pl-dec">Dec central (graus):</label>
-                <input type="number" id="sky-pl-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-pl-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-pl-radius">Raio do campo (graus):</label>
@@ -315,7 +374,15 @@ class SkyModelGenerator {
                 <label for="sky-pl-alpha">Expoente α:</label>
                 <input type="number" id="sky-pl-alpha" value="1.6" step="0.1" min="0.01" class="form-control">
             </div>
-        `;
+            <div class="param-group">
+                <label for="sky-pl-spix">Índice espectral:</label>
+                <input type="number" id="sky-pl-spix" value="0.0" step="0.01" class="form-control">
+            </div>
+            <div class="param-group">
+                <label for="sky-pl-ref-freq">Frequência de referência (Hz):</label>
+                <input type="number" id="sky-pl-ref-freq" value="${SKY_DEFAULT_REF_FREQ}" step="1e6" class="form-control">
+            </div>
+        ` + this._buildGaussianFields('sky-pl');
     }
 
     // =========================================================================
@@ -354,13 +421,33 @@ class SkyModelGenerator {
         const ra = parseFloat(document.getElementById('sky-ra')?.value) || 0;
         const dec = parseFloat(document.getElementById('sky-dec')?.value) || 0;
         const flux = parseFloat(document.getElementById('sky-flux')?.value) || 1;
+        const q = parseFloat(document.getElementById('sky-q')?.value) || 0;
+        const u = parseFloat(document.getElementById('sky-u')?.value) || 0;
+        const v = parseFloat(document.getElementById('sky-v')?.value) || 0;
         const spix = parseFloat(document.getElementById('sky-spix')?.value) || 0;
         const refFreq = parseFloat(document.getElementById('sky-ref-freq')?.value) || SKY_DEFAULT_REF_FREQ;
+        const rm = parseFloat(document.getElementById('sky-rm')?.value) || 0;
         const major = parseFloat(document.getElementById('sky-major')?.value) || 0;
         const minor = parseFloat(document.getElementById('sky-minor')?.value) || 0;
         const pa = parseFloat(document.getElementById('sky-pa')?.value) || 0;
 
-        this.addSingleSource(ra, dec, flux, spix, refFreq, major, minor, pa);
+        this.addSingleSource(ra, dec, flux, spix, refFreq, major, minor, pa, q, u, v, rm);
+    }
+
+    /**
+     * Valida os parâmetros de uma fonte celeste.
+     * @param {number} ra Ascensão reta em graus.
+     * @param {number} dec Declinação em graus.
+     * @param {number} flux Fluxo Stokes I em Jy.
+     * @returns {string[]} Lista de erros encontrados.
+     * @private
+     */
+    _validateSource(ra, dec, flux) {
+        const errors = [];
+        if (ra < 0 || ra >= 360) errors.push(`RA=${ra}° fora do intervalo [0°, 360°).`);
+        if (dec < -90 || dec > 90) errors.push(`Dec=${dec}° fora do intervalo [-90°, +90°].`);
+        if (flux < 0) errors.push(`Fluxo=${flux} Jy não pode ser negativo.`);
+        return errors;
     }
 
     /**
@@ -373,17 +460,29 @@ class SkyModelGenerator {
      * @param {number} [major=0] Eixo maior em arcsec.
      * @param {number} [minor=0] Eixo menor em arcsec.
      * @param {number} [pa=0] Ângulo de posição em graus.
+     * @param {number} [q=0] Stokes Q em Jy.
+     * @param {number} [u=0] Stokes U em Jy.
+     * @param {number} [v=0] Stokes V em Jy.
+     * @param {number} [rm=0] Medida de rotação em rad/m².
      */
-    addSingleSource(ra, dec, flux, spectralIndex, refFreq, major = 0, minor = 0, pa = 0) {
+    addSingleSource(ra, dec, flux, spectralIndex, refFreq, major = 0, minor = 0, pa = 0, q = 0, u = 0, v = 0, rm = 0) {
+        const errors = this._validateSource(ra, dec, flux);
+        if (errors.length > 0) {
+            console.warn(`SkyModel: Fonte rejeitada — ${errors.join(' ')}`);
+            alert(`Fonte inválida:\n${errors.join('\n')}`);
+            return;
+        }
+
         this.sources.push({
             ra: ra,
             dec: dec,
             flux: flux,
-            q: 0,
-            u: 0,
-            v: 0,
+            q: q,
+            u: u,
+            v: v,
             refFreq: refFreq,
             spectralIndex: spectralIndex,
+            rotationMeasure: rm,
             major: major,
             minor: minor,
             pa: pa
@@ -403,7 +502,12 @@ class SkyModelGenerator {
             spacing: parseFloat(document.getElementById('sky-grid-spacing')?.value) || 1.0,
             centerRA: parseFloat(document.getElementById('sky-grid-ra')?.value) || 0,
             centerDec: parseFloat(document.getElementById('sky-grid-dec')?.value) || 0,
-            flux: parseFloat(document.getElementById('sky-grid-flux')?.value) || 1.0
+            flux: parseFloat(document.getElementById('sky-grid-flux')?.value) || 1.0,
+            spix: parseFloat(document.getElementById('sky-grid-spix')?.value) || 0,
+            refFreq: parseFloat(document.getElementById('sky-grid-ref-freq')?.value) || SKY_DEFAULT_REF_FREQ,
+            major: parseFloat(document.getElementById('sky-grid-major')?.value) || 0,
+            minor: parseFloat(document.getElementById('sky-grid-minor')?.value) || 0,
+            pa: parseFloat(document.getElementById('sky-grid-pa')?.value) || 0
         };
         this.generateGrid(params);
     }
@@ -418,7 +522,9 @@ class SkyModelGenerator {
      * @param {number} params.flux Fluxo de cada fonte em Jy.
      */
     generateGrid(params) {
-        const { n, spacing, centerRA, centerDec, flux } = params;
+        const { n, spacing, centerRA, centerDec, flux,
+                spix = 0, refFreq = SKY_DEFAULT_REF_FREQ,
+                major = 0, minor = 0, pa = 0 } = params;
         const offset = (n - 1) / 2;
 
         for (let i = 0; i < n; i++) {
@@ -430,9 +536,10 @@ class SkyModelGenerator {
                     dec: dec,
                     flux: flux,
                     q: 0, u: 0, v: 0,
-                    refFreq: SKY_DEFAULT_REF_FREQ,
-                    spectralIndex: 0,
-                    major: 0, minor: 0, pa: 0
+                    refFreq: refFreq,
+                    spectralIndex: spix,
+                    rotationMeasure: 0,
+                    major: major, minor: minor, pa: pa
                 });
             }
         }
@@ -454,7 +561,11 @@ class SkyModelGenerator {
             fluxMin: parseFloat(document.getElementById('sky-rand-flux-min')?.value) || 0.01,
             fluxMax: parseFloat(document.getElementById('sky-rand-flux-max')?.value) || 10.0,
             spixMin: parseFloat(document.getElementById('sky-rand-spix-min')?.value) || -1.0,
-            spixMax: parseFloat(document.getElementById('sky-rand-spix-max')?.value) || 0.0
+            spixMax: parseFloat(document.getElementById('sky-rand-spix-max')?.value) || 0.0,
+            refFreq: parseFloat(document.getElementById('sky-rand-ref-freq')?.value) || SKY_DEFAULT_REF_FREQ,
+            major: parseFloat(document.getElementById('sky-rand-major')?.value) || 0,
+            minor: parseFloat(document.getElementById('sky-rand-minor')?.value) || 0,
+            pa: parseFloat(document.getElementById('sky-rand-pa')?.value) || 0
         };
         this.generateRandom(params);
     }
@@ -472,14 +583,15 @@ class SkyModelGenerator {
      * @param {number} params.spixMax Índice espectral máximo.
      */
     generateRandom(params) {
-        const { count, centerRA, centerDec, radius, fluxMin, fluxMax, spixMin, spixMax } = params;
+        const { count, centerRA, centerDec, radius, fluxMin, fluxMax, spixMin, spixMax,
+                refFreq = SKY_DEFAULT_REF_FREQ, major = 0, minor = 0, pa = 0 } = params;
 
         for (let i = 0; i < count; i++) {
             // Distribuição uniforme em disco circular
             const r = radius * Math.sqrt(Math.random());
             const theta = 2 * Math.PI * Math.random();
-            const ra = centerRA + r * Math.cos(theta);
-            const dec = centerDec + r * Math.sin(theta);
+            const ra = ((centerRA + r * Math.cos(theta)) % 360 + 360) % 360;
+            const dec = Math.max(-90, Math.min(90, centerDec + r * Math.sin(theta)));
             const flux = fluxMin + Math.random() * (fluxMax - fluxMin);
             const spix = spixMin + Math.random() * (spixMax - spixMin);
 
@@ -488,9 +600,10 @@ class SkyModelGenerator {
                 dec: dec,
                 flux: flux,
                 q: 0, u: 0, v: 0,
-                refFreq: SKY_DEFAULT_REF_FREQ,
+                refFreq: refFreq,
                 spectralIndex: spix,
-                major: 0, minor: 0, pa: 0
+                rotationMeasure: 0,
+                major: major, minor: minor, pa: pa
             });
         }
 
@@ -510,7 +623,12 @@ class SkyModelGenerator {
             radius: parseFloat(document.getElementById('sky-pl-radius')?.value) || 5.0,
             sMin: parseFloat(document.getElementById('sky-pl-smin')?.value) || 0.001,
             sMax: parseFloat(document.getElementById('sky-pl-smax')?.value) || 10.0,
-            alpha: parseFloat(document.getElementById('sky-pl-alpha')?.value) || 1.6
+            alpha: parseFloat(document.getElementById('sky-pl-alpha')?.value) || 1.6,
+            spix: parseFloat(document.getElementById('sky-pl-spix')?.value) || 0,
+            refFreq: parseFloat(document.getElementById('sky-pl-ref-freq')?.value) || SKY_DEFAULT_REF_FREQ,
+            major: parseFloat(document.getElementById('sky-pl-major')?.value) || 0,
+            minor: parseFloat(document.getElementById('sky-pl-minor')?.value) || 0,
+            pa: parseFloat(document.getElementById('sky-pl-pa')?.value) || 0
         };
         this.generatePowerLaw(params);
     }
@@ -527,7 +645,9 @@ class SkyModelGenerator {
      * @param {number} params.alpha Expoente da power-law.
      */
     generatePowerLaw(params) {
-        const { count, centerRA, centerDec, radius, sMin, sMax, alpha } = params;
+        const { count, centerRA, centerDec, radius, sMin, sMax, alpha,
+                spix = 0, refFreq = SKY_DEFAULT_REF_FREQ,
+                major = 0, minor = 0, pa = 0 } = params;
         const exponent = 1 - alpha;
 
         for (let i = 0; i < count; i++) {
@@ -545,17 +665,18 @@ class SkyModelGenerator {
             // Posição aleatória no campo
             const r = radius * Math.sqrt(Math.random());
             const theta = 2 * Math.PI * Math.random();
-            const ra = centerRA + r * Math.cos(theta);
-            const dec = centerDec + r * Math.sin(theta);
+            const ra = ((centerRA + r * Math.cos(theta)) % 360 + 360) % 360;
+            const dec = Math.max(-90, Math.min(90, centerDec + r * Math.sin(theta)));
 
             this.sources.push({
                 ra: ra,
                 dec: dec,
                 flux: flux,
                 q: 0, u: 0, v: 0,
-                refFreq: SKY_DEFAULT_REF_FREQ,
-                spectralIndex: 0,
-                major: 0, minor: 0, pa: 0
+                refFreq: refFreq,
+                spectralIndex: spix,
+                rotationMeasure: 0,
+                major: major, minor: minor, pa: pa
             });
         }
 
@@ -590,9 +711,10 @@ class SkyModelGenerator {
                 v: parseFloat(parts[5]) || 0,
                 refFreq: parseFloat(parts[6]) || SKY_DEFAULT_REF_FREQ,
                 spectralIndex: parseFloat(parts[7]) || 0,
-                major: parseFloat(parts[8]) || 0,
-                minor: parseFloat(parts[9]) || 0,
-                pa: parseFloat(parts[10]) || 0
+                rotationMeasure: parseFloat(parts[8]) || 0,
+                major: parseFloat(parts[9]) || 0,
+                minor: parseFloat(parts[10]) || 0,
+                pa: parseFloat(parts[11]) || 0
             });
             imported++;
         }
@@ -635,35 +757,76 @@ class SkyModelGenerator {
         if (!this.sourceTable) return;
 
         if (this.sources.length === 0) {
-            this.sourceTable.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhuma fonte adicionada.</td></tr>';
+            this._sortColumn = null;
+            this.sourceTable.innerHTML = '<tr><td colspan="7" style="text-align:center;">Nenhuma fonte adicionada.</td></tr>';
             return;
         }
 
-        let html = `
-            <tr>
-                <th>#</th>
-                <th>RA (°)</th>
-                <th>Dec (°)</th>
-                <th>I (Jy)</th>
-                <th>Índ. Esp.</th>
-                <th>Ação</th>
-            </tr>
-        `;
+        // Cria índices ordenados sem modificar this.sources (preserva ordem original para exportação)
+        const sortedIndices = this.sources.map((_, i) => i);
+        if (this._sortColumn) {
+            const col = this._sortColumn;
+            const asc = this._sortAsc;
+            sortedIndices.sort((a, b) => {
+                const va = this.sources[a][col] ?? 0;
+                const vb = this.sources[b][col] ?? 0;
+                return asc ? (va - vb) : (vb - va);
+            });
+        }
 
-        this.sources.forEach((src, idx) => {
+        // Indicador de direção por coluna
+        const sortCols = [
+            { key: 'ra',            label: 'RA (°)' },
+            { key: 'dec',           label: 'Dec (°)' },
+            { key: 'flux',          label: 'I (Jy)' },
+            { key: 'spectralIndex', label: 'Índ. Esp.' },
+            { key: 'major',         label: 'Tipo' }
+        ];
+
+        let html = '<tr><th>#</th>';
+        for (const col of sortCols) {
+            let arrow = '';
+            if (this._sortColumn === col.key) {
+                arrow = this._sortAsc ? ' ▲' : ' ▼';
+            }
+            html += `<th class="sky-sortable-th" data-sort-key="${col.key}">${col.label}${arrow}</th>`;
+        }
+        html += '<th>Ação</th></tr>';
+
+        for (const origIdx of sortedIndices) {
+            const src = this.sources[origIdx];
+            const isExtended = (src.major > 0 || src.minor > 0);
+            const typeLabel = isExtended
+                ? `<span title="Gaussiana: ${src.major.toFixed(1)}″×${src.minor.toFixed(1)}″ PA=${src.pa.toFixed(0)}°" style="color:var(--primary-color);font-weight:600;">Gauss</span>`
+                : '<span style="opacity:0.6;">Pont.</span>';
             html += `
                 <tr>
-                    <td>${idx + 1}</td>
+                    <td>${origIdx + 1}</td>
                     <td>${src.ra.toFixed(4)}</td>
                     <td>${src.dec.toFixed(4)}</td>
                     <td>${src.flux.toFixed(4)}</td>
                     <td>${src.spectralIndex.toFixed(2)}</td>
-                    <td><button class="sky-remove-btn" data-index="${idx}" title="Remover fonte">✕</button></td>
+                    <td>${typeLabel}</td>
+                    <td><button class="sky-remove-btn" data-index="${origIdx}" title="Remover fonte">✕</button></td>
                 </tr>
             `;
-        });
+        }
 
         this.sourceTable.innerHTML = html;
+
+        // Liga eventos de ordenação nos cabeçalhos
+        this.sourceTable.querySelectorAll('.sky-sortable-th').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.sortKey;
+                if (this._sortColumn === key) {
+                    this._sortAsc = !this._sortAsc;
+                } else {
+                    this._sortColumn = key;
+                    this._sortAsc = true;
+                }
+                this.updateSourceTable();
+            });
+        });
 
         // Liga eventos de remoção individual
         this.sourceTable.querySelectorAll('.sky-remove-btn').forEach(btn => {
@@ -702,7 +865,7 @@ class SkyModelGenerator {
         lines.push(`# OSKAR Sky Model`);
         lines.push(`# Gerado pelo BINGO Layout Generator`);
         lines.push(`# Número de fontes: ${this.sources.length}`);
-        lines.push(`# Formato: RA(deg) Dec(deg) I(Jy) Q U V freq0(Hz) spix e_maj(arcsec) e_min(arcsec) e_pa(deg)`);
+        lines.push(`# Formato: RA(deg) Dec(deg) I(Jy) Q U V freq0(Hz) spix RM(rad/m²) e_maj(arcsec) e_min(arcsec) e_pa(deg)`);
 
         for (const src of this.sources) {
             const parts = [
@@ -714,6 +877,7 @@ class SkyModelGenerator {
                 src.v.toFixed(1),
                 src.refFreq.toExponential(6),
                 src.spectralIndex.toFixed(4),
+                (src.rotationMeasure || 0).toFixed(2),
                 src.major.toFixed(2),
                 src.minor.toFixed(2),
                 src.pa.toFixed(2)

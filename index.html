@@ -42,7 +42,7 @@
     <link rel="dns-prefetch" href="https://ipfs.io">
 
     <link rel="stylesheet" href="css/styles.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" />
     <link rel="icon" href="favicon.ico" type="image/x-icon">
     <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
@@ -430,10 +430,6 @@
             <h2 id="export-heading">Exportação (Estrutura OSKAR)</h2>
             <div class="export-fields">
                  <div class="export-field">
-                    <label for="export-layout-wgs84">layout_wgs84.txt:</label>
-                    <textarea id="export-layout-wgs84" readonly title="Coordenadas WGS84 das estações"></textarea>
-                </div>
-                 <div class="export-field">
                     <label for="export-position">position.txt:</label>
                     <textarea id="export-position" readonly title="Coordenadas WGS84 fixas do BINGO"></textarea>
                 </div>
@@ -446,15 +442,20 @@
                     <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas no tile"></textarea>
                 </div>
 
-                <!-- Seletor de formato de coordenadas (ECEF vs ENU) -->
+                <!-- Seletor de formato de coordenadas (WGS84 / ECEF / ENU) -->
                 <div class="export-field coord-format-section">
                     <div class="coord-format-header">
                         <span class="coord-format-title">Formato alternativo de coordenadas:</span>
-                        <span class="coord-help-icon" title="WGS84 (acima) é o formato padrão (lat,lon,alt). Aqui você pode escolher um formato alternativo para incluir na exportação.">&#9432;</span>
+                        <span class="coord-help-icon" title="Selecione o formato de coordenadas para visualização e exportação. WGS84 é o formato padrão do OSKAR para layout_wgs84.txt.">&#9432;</span>
                     </div>
                     <div class="coord-format-selector" role="radiogroup" aria-label="Formato de coordenadas">
                         <label class="coord-radio-label">
-                            <input type="radio" name="coord-format" value="ecef" checked>
+                            <input type="radio" name="coord-format" value="wgs84" checked>
+                            <span>WGS84</span>
+                            <span class="coord-help-icon" title="WGS84 (lon, lat, alt): Sistema geodésico padrão. Formato nativo do OSKAR para layout_wgs84.txt. Ideal para interferômetros de longa baseline onde a curvatura da Terra é relevante.">&#9432;</span>
+                        </label>
+                        <label class="coord-radio-label">
+                            <input type="radio" name="coord-format" value="ecef">
                             <span>ECEF</span>
                             <span class="coord-help-icon" title="ECEF (Earth-Centered Earth-Fixed): Coordenadas cartesianas geocêntricas (X,Y,Z em metros) com origem no centro da Terra. Usado pelo OSKAR para definir posições absolutas das estações no espaço 3D. Ideal quando se precisa de precisão absoluta na geometria do arranjo.">&#9432;</span>
                         </label>
@@ -464,7 +465,11 @@
                             <span class="coord-help-icon" title="ENU (East-North-Up): Coordenadas locais topocêntricas (Leste,Norte,Cima em metros) relativas ao centro do BINGO. Usado pelo OSKAR como sistema de referência local para layouts de estações. Ideal para visualizar e editar distâncias relativas entre estações.">&#9432;</span>
                         </label>
                     </div>
-                    <div id="coord-format-ecef" class="coord-format-panel">
+                    <div id="coord-format-wgs84" class="coord-format-panel">
+                        <label for="export-layout-wgs84-alt">layout_wgs84.txt (Lon, Lat, Alt):</label>
+                        <textarea id="export-layout-wgs84-alt" readonly title="Coordenadas WGS84 das estações (lon, lat, alt)"></textarea>
+                    </div>
+                    <div id="coord-format-ecef" class="coord-format-panel" style="display:none;">
                         <label for="export-layout-ecef">layout_ecef.txt:</label>
                         <textarea id="export-layout-ecef" readonly title="Coordenadas ECEF (Earth-Centered Earth-Fixed) das estações"></textarea>
                     </div>
@@ -493,8 +498,8 @@
         <!-- === ABA 2: CONFIGURAÇÃO OSKAR (.ini) === -->
         <div id="tab-oskar-config" class="tab-content" role="tabpanel">
             <section class="ini-generator-section">
-                <h2><i class="fas fa-cogs"></i> Gerador de Arquivo de Observação (.ini)</h2>
-                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do OSKAR. Preencha os parâmetros abaixo — campos essenciais estão destacados. Todos os valores possuem tooltips com a documentação detalhada em PT-BR.</p>
+                <h2><i class="fas fa-cogs"></i> Gerador de Arquivo do Interferometer (.ini)</h2>
+                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do <strong>oskar_sim_interferometer</strong>. Preencha os parâmetros abaixo — campos essenciais estão destacados. Todos os valores possuem tooltips com a documentação detalhada em PT-BR.</p>
                 <div class="ini-layout">
                     <div class="ini-params-area">
                         <div class="ini-toolbar">
@@ -615,11 +620,12 @@
                                         <th>Dec (°)</th>
                                         <th>I (Jy)</th>
                                         <th>Spix</th>
+                                        <th>Tipo</th>
                                         <th>Freq₀ (Hz)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <tr><td colspan="5" class="empty-msg">Nenhuma fonte adicionada</td></tr>
+                                    <tr><td colspan="6" class="empty-msg">Nenhuma fonte adicionada</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -700,7 +706,7 @@
         <p class="copyright">© 2026 Geovanni Fernandes Garcia. Código aberto sob licença MIT.</p>
     </footer>
 
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.0/FileSaver.min.js"></script>
     <script src="js/constants.js"></script>

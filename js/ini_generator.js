@@ -46,7 +46,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'double_precision',
         section: 'simulator',
         label: 'Precisão dupla',
-        tooltip: 'Ativa cálculos em precisão dupla (64 bits). Mais exato, porém mais lento na GPU.',
+        tooltip: 'Define a precisão aritmética nos cálculos numéricos. Se "Sim" (true), usa aritmética de ponto flutuante de dupla precisão (64-bit); se "Não" (false), usa precisão simples (32-bit). Dupla precisão dobra o requisito de memória e geralmente reduz a velocidade na GPU, especialmente em GPUs de consumo (GeForce) que são otimizadas para 32-bit. Para simulações interferométricas de alta fidelidade, onde o acúmulo de erros de fase pode degradar a imagem final, a dupla precisão é recomendada. Para testes rápidos de padrão de feixe, precisão simples pode oferecer ganho significativo de velocidade.',
         type: 'select',
         defaultValue: 'true',
         category: 'recommended',
@@ -59,10 +59,10 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'use_gpus',
         section: 'simulator',
         label: 'Usar GPUs',
-        tooltip: 'Se habilitado, usa dispositivos GPU disponíveis para a simulação.',
+        tooltip: 'Instrui o OSKAR a utilizar GPUs disponíveis no sistema. O OSKAR foi projetado nativamente para aceleração por GPU. Para simulações massivas como as do BINGO/ABDUS, desligar esta opção tornará o tempo de execução proibitivo. Mantenha sempre como "Sim" se o hardware suportar CUDA ou OpenCL.',
         type: 'select',
         defaultValue: 'true',
-        category: 'recommended',
+        category: 'essential',
         options: [
             { value: 'true', label: 'Sim' },
             { value: 'false', label: 'Não' }
@@ -72,7 +72,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'cuda_device_ids',
         section: 'simulator',
         label: 'IDs de dispositivos CUDA',
-        tooltip: 'Lista separada por vírgulas de IDs de GPUs, ou "all" para usar todos os dispositivos.',
+        tooltip: 'Especifica quais GPUs utilizar em sistemas com múltiplos dispositivos. Use "all" para todas as GPUs disponíveis, ou uma lista de IDs numéricos separados por vírgula (ex: "0,1"). Em servidores compartilhados, você pode querer restringir a uma GPU específica para deixar as outras livres para outros processos.',
         type: 'text',
         defaultValue: 'all',
         category: 'advanced'
@@ -81,7 +81,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'num_devices',
         section: 'simulator',
         label: 'Número de dispositivos',
-        tooltip: 'Número de dispositivos de computação (CPU cores ou GPUs). "auto" detecta automaticamente.',
+        tooltip: 'Número de dispositivos de computação (threads CPU ou GPUs) a serem utilizados. Defina como "auto" para que o OSKAR decida com base no hardware detectado. Se rodando apenas em CPU, não defina um valor maior que o número de núcleos físicos para evitar overhead de troca de contexto.',
         type: 'text',
         defaultValue: 'auto',
         category: 'advanced'
@@ -90,7 +90,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'max_sources_per_chunk',
         section: 'simulator',
         label: 'Fontes por bloco',
-        tooltip: 'Máximo de fontes processadas por bloco. Reduza se a GPU ficar sem memória.',
+        tooltip: 'Parâmetro crítico de gerenciamento de memória da GPU. Define o número máximo de fontes do céu processadas simultaneamente na memória da GPU. O OSKAR divide o modelo de céu em "chunks" (pedaços). Se você tem 1 milhão de fontes e define como 16384, o simulador processará em vários passos sequenciais. Se ocorrerem erros de Out of Memory (OOM) na GPU, reduza este valor — isso diminui a carga instantânea na VRAM ao custo de um leve aumento no tempo total.',
         type: 'number',
         defaultValue: 16384,
         category: 'advanced'
@@ -99,9 +99,9 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'keep_log_file',
         section: 'simulator',
         label: 'Manter log',
-        tooltip: 'Salva um arquivo de log no disco com informações da simulação.',
+        tooltip: 'Define se o arquivo de log gerado durante a execução deve ser mantido no disco após o término. Se "Não", o log é descartado, mas informações críticas ainda são embutidas nos metadados dos arquivos de saída. Para fins de auditoria e debug no projeto BINGO, recomenda-se manter como "Sim".',
         type: 'select',
-        defaultValue: 'false',
+        defaultValue: 'true',
         category: 'advanced',
         options: [
             { value: 'true', label: 'Sim' },
@@ -112,9 +112,9 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'write_status_to_log_file',
         section: 'simulator',
         label: 'Status no log',
-        tooltip: 'Se habilitado, escreve mensagens de progresso no arquivo de log.',
+        tooltip: 'Se ativado, o simulador escreve atualizações de progresso (porcentagem concluída, passo atual) no arquivo de log. Útil para monitorar simulações de longa duração em servidores remotos onde não se tem acesso visual ao terminal (stdout).',
         type: 'select',
-        defaultValue: 'false',
+        defaultValue: 'true',
         category: 'advanced',
         options: [
             { value: 'true', label: 'Sim' },
@@ -129,119 +129,137 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'oskar_sky_model/file',
         section: 'sky',
         label: 'Arquivo do modelo de céu',
-        tooltip: 'Caminho para o arquivo do modelo de céu (.osm ou .txt). ' +
-                 'Cada linha define uma fonte com posição (RA, Dec), fluxo e outros parâmetros.',
+        tooltip: 'Caminho para arquivo(s) de catálogo de fontes no formato OSKAR (.osm ou texto). Múltiplos arquivos podem ser especificados separados por ponto-e-vírgula (;). Cada arquivo pode conter fontes pontuais e/ou Gaussianas com colunas RA, Dec, Stokes I, Q, U, V, frequência de referência, índice espectral, medida de rotação e parâmetros de extensão Gaussiana.',
         type: 'text',
         defaultValue: '',
         category: 'essential',
-        required: true,
-        isFilePath: true,
-        fileAccept: '.osm,.txt,.sky'
+        isFilePath: true
     },
     {
         key: 'fits_image/file',
         section: 'sky',
         label: 'Arquivo FITS (imagem)',
-        tooltip: 'Caminho para arquivo(s) FITS para usar como modelo de céu.',
+        tooltip: 'Caminho para uma imagem FITS 2D a ser usada como modelo de céu. O OSKAR trata cada pixel da imagem como uma fonte pontual independente. Para imagens de alta resolução, isso pode resultar em milhões de "fontes", aumentando significativamente o tempo de simulação. Útil para mapas de rádio de surveys (NVSS, SUMSS, GLEAM) ou modelos de emissão Galáctica.',
         type: 'text',
         defaultValue: '',
         category: 'advanced',
-        isFilePath: true,
-        fileAccept: '.fits,.fit'
+        isFilePath: true
     },
     {
         key: 'fits_image/default_map_units',
         section: 'sky',
         label: 'Unidade padrão do mapa FITS',
-        tooltip: 'Unidade física dos pixels do mapa FITS, se não especificada no arquivo.',
+        tooltip: 'Unidade dos valores dos pixels na imagem FITS. Opções: "Jy/pixel" (Jansky por pixel), "Jy/beam" (Jansky por beam), "K" (Kelvin — temperatura de brilho), "mK" (mili-Kelvin). Para consistência com literatura cosmológica do BINGO, use "K" ou "mK".',
         type: 'select',
-        defaultValue: 'Jy/beam',
+        defaultValue: 'Jy/pixel',
         category: 'advanced',
         options: [
-            { value: 'Jy/beam', label: 'Jy/beam' },
             { value: 'Jy/pixel', label: 'Jy/pixel' },
-            { value: 'K', label: 'K (Kelvin)' }
+            { value: 'Jy/beam', label: 'Jy/beam' },
+            { value: 'K', label: 'K (Kelvin)' },
+            { value: 'mK', label: 'mK (mili-Kelvin)' }
         ]
     },
     {
         key: 'fits_image/spectral_index',
         section: 'sky',
         label: 'Índice espectral (FITS)',
-        tooltip: 'Índice espectral atribuído a cada pixel do mapa FITS.',
+        tooltip: 'Índice espectral global aplicado à imagem FITS para escalonamento em frequência. O fluxo em cada frequência ν é escalado como S(ν) = S(ν_ref) × (ν/ν_ref)^α, onde α é o índice espectral. Para emissão sincrotron Galáctica, valores típicos são -0.7 a -1.0.',
         type: 'number',
-        defaultValue: 0.0,
+        defaultValue: -0.7,
         category: 'advanced'
     },
     {
         key: 'fits_image/min_peak_fraction',
         section: 'sky',
         label: 'Fração mín. do pico (FITS)',
-        tooltip: 'Valor mínimo de pixel como fração do pico. 0 ou negativo desativa o filtro.',
+        tooltip: 'Fração mínima do pico para filtrar pixels insignificantes na imagem FITS. Pixels com valor abaixo desta fração do pico máximo são descartados. Use 0.0 para desativar o filtro. CUIDADO: valores altos podem remover sinal cosmológico difuso!',
         type: 'number',
-        defaultValue: 0.02,
+        defaultValue: 0.0,
         category: 'advanced'
     },
     {
         key: 'healpix_fits/file',
         section: 'sky',
         label: 'Arquivo HEALPix FITS',
-        tooltip: 'Caminho para arquivo(s) HEALPix FITS (esquema RING apenas).',
+        tooltip: 'Caminho para arquivo FITS HEALPix contendo o modelo de céu. Formato preferencial para simulações do BINGO/ABDUS. O arquivo deve usar o esquema de ordenação RING (o OSKAR NÃO suporta NESTED — converta previamente com healpy.reorder(mapa, n2r=True)). Pode conter de 1 a 4 colunas para os parâmetros de Stokes (I, Q, U, V).',
         type: 'text',
         defaultValue: '',
-        category: 'advanced',
-        isFilePath: true,
-        fileAccept: '.fits,.fit'
-    },
-    {
-        key: 'healpix_fits/default_map_units',
-        section: 'sky',
-        label: 'Unidade padrão do HEALPix',
-        tooltip: 'Unidade dos pixels no mapa HEALPix, se não especificada no arquivo.',
-        type: 'select',
-        defaultValue: 'K',
-        category: 'advanced',
-        options: [
-            { value: 'K', label: 'K (Kelvin)' },
-            { value: 'Jy/pixel', label: 'Jy/pixel' },
-            { value: 'Jy/beam', label: 'Jy/beam' }
-        ]
-    },
-    {
-        key: 'healpix_fits/spectral_index',
-        section: 'sky',
-        label: 'Índice espectral (HEALPix)',
-        tooltip: 'Índice espectral de cada pixel HEALPix.',
-        type: 'number',
-        defaultValue: -0.7,
-        category: 'advanced'
+        category: 'essential',
+        isFilePath: true
     },
     {
         key: 'healpix_fits/coord_sys',
         section: 'sky',
         label: 'Sistema de coordenadas (HEALPix)',
-        tooltip: 'Sistema de coordenadas esféricas para o HEALPix.',
+        tooltip: 'Sistema de coordenadas do mapa HEALPix. "Equatorial" (ou "C") = Celeste/Equatorial J2000; "Galactic" (ou "G") = Galáctico. O OSKAR opera internamente em coordenadas Equatoriais. Se o mapa for Galáctico, o OSKAR realizará automaticamente a rotação necessária, mas isso adiciona um overhead computacional. Recomenda-se converter mapas para Equatorial previamente.',
         type: 'select',
-        defaultValue: 'G',
-        category: 'advanced',
+        defaultValue: 'Equatorial',
+        category: 'recommended',
         options: [
-            { value: 'G', label: 'Galáctico (G)' },
-            { value: 'C', label: 'Celeste/Equatorial (C)' }
+            { value: 'Equatorial', label: 'Equatorial (C)' },
+            { value: 'Galactic', label: 'Galáctico (G)' }
+        ]
+    },
+    {
+        key: 'healpix_fits/default_map_units',
+        section: 'sky',
+        label: 'Unidade padrão do HEALPix',
+        tooltip: 'Unidade dos valores dos pixels no mapa HEALPix. Opções: "Jy/pixel" (Jansky por pixel), "K" (Kelvin — temperatura de brilho), "mK" (mili-Kelvin). Para simulações do BINGO focadas em mapeamento de intensidade de 21cm, trabalhe com "K" ou "mK" para consistência com a literatura cosmológica.',
+        type: 'select',
+        defaultValue: 'Jy/pixel',
+        category: 'recommended',
+        options: [
+            { value: 'Jy/pixel', label: 'Jy/pixel' },
+            { value: 'K', label: 'K (Kelvin)' },
+            { value: 'mK', label: 'mK (mili-Kelvin)' }
         ]
     },
     {
         key: 'healpix_fits/freq_hz',
         section: 'sky',
         label: 'Frequência de referência HEALPix (Hz)',
-        tooltip: 'Frequência para conversão de temperatura de brilho para Jy/pixel.',
+        tooltip: 'Frequência de referência do mapa HEALPix, em Hz. Usada para escalonamento espectral quando o mapa é observado em múltiplas frequências. Defina explicitamente para permitir escalonamento correto.',
         type: 'number',
-        defaultValue: 408e6,
-        category: 'advanced'
+        defaultValue: '',
+        category: 'recommended'
+    },
+    {
+        key: 'healpix_fits/spectral_index',
+        section: 'sky',
+        label: 'Índice espectral (HEALPix)',
+        tooltip: 'Índice espectral para escalonamento de frequência do mapa HEALPix. O fluxo é escalado como S(ν) = S(ν_ref) × (ν/ν_ref)^α. Para emissão sincrotron Galáctica, valores típicos são -0.7 a -1.0.',
+        type: 'number',
+        defaultValue: -0.7,
+        category: 'recommended'
+    },
+    {
+        key: 'healpix_fits/min_peak_fraction',
+        section: 'sky',
+        label: 'Fração mín. do pico (HEALPix)',
+        tooltip: 'Fração mínima do valor de pico. Pixels HEALPix com valor abaixo desta fração do pico são descartados. ATENÇÃO para o BINGO: use valores muito baixos (< 0.001) ou zero para NÃO remover sinal cosmológico difuso de baixa intensidade. Valores altos podem eliminar o próprio sinal que se deseja detectar!',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'recommended'
+    },
+    {
+        key: 'apply_horizon_clip',
+        section: 'sky',
+        label: 'Recorte no horizonte',
+        tooltip: 'Remove automaticamente fontes abaixo do horizonte local do observador durante a simulação. Esta é uma das otimizações mais importantes — fontes abaixo do horizonte não contribuem para as visibilidades e apenas desperdiçam tempo de computação. Mantenha como "Sim" em praticamente todas as simulações.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
     },
     {
         key: 'spectral_index/override',
         section: 'sky',
         label: 'Sobrescrever índice espectral',
-        tooltip: 'Se habilitado, sobrescreve todos os índices espectrais das fontes.',
+        tooltip: 'Se "Sim", sobrescreve os índices espectrais individuais de cada fonte com uma distribuição aleatória definida pelos parâmetros mean e std_dev abaixo. Útil para testes estatísticos.',
         type: 'select',
         defaultValue: 'false',
         category: 'advanced',
@@ -251,46 +269,55 @@ const OSKAR_INI_PARAMS = Object.freeze([
         ]
     },
     {
-        key: 'spectral_index/ref_frequency_hz',
-        section: 'sky',
-        label: 'Freq. de referência do índice (Hz)',
-        tooltip: 'Frequência de referência para todos os índices espectrais no modelo final.',
-        type: 'number',
-        defaultValue: 0.0,
-        category: 'advanced'
-    },
-    {
         key: 'spectral_index/mean',
         section: 'sky',
         label: 'Média do índice espectral',
-        tooltip: 'Média dos índices espectrais no modelo de céu final.',
+        tooltip: 'Valor médio do índice espectral para a distribuição aleatória (usado quando override = true).',
         type: 'number',
-        defaultValue: 0.0,
+        defaultValue: -0.7,
         category: 'advanced'
     },
     {
         key: 'spectral_index/std_dev',
         section: 'sky',
         label: 'Desvio padrão do índice espectral',
-        tooltip: 'Desvio padrão dos índices espectrais no modelo de céu final.',
+        tooltip: 'Desvio padrão do índice espectral para a distribuição aleatória (usado quando override = true).',
         type: 'number',
         defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'spectral_index/ref_frequency_hz',
+        section: 'sky',
+        label: 'Freq. de referência do índice (Hz)',
+        tooltip: 'Frequência de referência para o escalonamento espectral global, em Hz (usado quando override = true).',
+        type: 'number',
+        defaultValue: '',
+        category: 'advanced'
+    },
+    {
+        key: 'spectral_index/seed',
+        section: 'sky',
+        label: 'Semente do índice espectral',
+        tooltip: 'Semente do gerador de números aleatórios para reprodutibilidade dos índices espectrais gerados aleatoriamente.',
+        type: 'number',
+        defaultValue: 1,
         category: 'advanced'
     },
     {
         key: 'common_flux_filter/flux_min',
         section: 'sky',
         label: 'Fluxo mínimo (Jy)',
-        tooltip: 'Fluxo mínimo permitido pelo filtro, em Jy. "min" desativa.',
-        type: 'text',
-        defaultValue: 'min',
+        tooltip: 'Fluxo mínimo (em Jy) para filtrar fontes. Fontes com fluxo abaixo deste limiar são descartadas. Útil para acelerar simulações removendo fontes muito fracas que não contribuem significativamente.',
+        type: 'number',
+        defaultValue: 0.0,
         category: 'advanced'
     },
     {
         key: 'common_flux_filter/flux_max',
         section: 'sky',
         label: 'Fluxo máximo (Jy)',
-        tooltip: 'Fluxo máximo permitido pelo filtro, em Jy. "max" desativa.',
+        tooltip: 'Fluxo máximo (em Jy) para filtrar fontes. Fontes com fluxo acima deste limiar são descartadas. Use "max" para não impor limite superior.',
         type: 'text',
         defaultValue: 'max',
         category: 'advanced'
@@ -299,20 +326,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'zero_failed_gaussians',
         section: 'sky',
         label: 'Zerar Gaussianas falhas',
-        tooltip: 'Se true, fontes com parâmetros Gaussianos inválidos são removidas em vez de modeladas como pontuais.',
-        type: 'select',
-        defaultValue: 'false',
-        category: 'advanced',
-        options: [
-            { value: 'true', label: 'Sim' },
-            { value: 'false', label: 'Não' }
-        ]
-    },
-    {
-        key: 'apply_horizon_clip',
-        section: 'sky',
-        label: 'Recorte no horizonte',
-        tooltip: 'Recorta fontes abaixo do horizonte. Útil para modelos de céu inteiro. Desative para modelos locais.',
+        tooltip: 'Se "Sim", zera a contribuição de fontes Gaussianas que falharam na avaliação (por exemplo, se o semi-eixo menor é maior que o maior). Previne resultados numéricos incorretos.',
         type: 'select',
         defaultValue: 'true',
         category: 'advanced',
@@ -333,14 +347,80 @@ const OSKAR_INI_PARAMS = Object.freeze([
     },
 
     // =========================================================================
+    // [sky] - Geradores procedurais
+    // =========================================================================
+    {
+        key: 'generator/grid/side_length',
+        section: 'sky',
+        label: 'Grade: lado (fontes)',
+        tooltip: 'Número de fontes por lado na grade (total = side_length²).',
+        type: 'number',
+        defaultValue: 0,
+        category: 'advanced'
+    },
+    {
+        key: 'generator/grid/fov_deg',
+        section: 'sky',
+        label: 'Grade: FOV (°)',
+        tooltip: 'Campo de visão coberto pela grade, em graus.',
+        type: 'number',
+        defaultValue: 10.0,
+        category: 'advanced'
+    },
+    {
+        key: 'generator/grid/mean_flux_jy',
+        section: 'sky',
+        label: 'Grade: fluxo médio (Jy)',
+        tooltip: 'Fluxo médio das fontes da grade, em Jy.',
+        type: 'number',
+        defaultValue: 1.0,
+        category: 'advanced'
+    },
+    {
+        key: 'generator/grid/std_flux_jy',
+        section: 'sky',
+        label: 'Grade: desvio do fluxo (Jy)',
+        tooltip: 'Desvio padrão do fluxo das fontes. 0 = todas iguais.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'generator/random_power_law/power',
+        section: 'sky',
+        label: 'Power-law: expoente',
+        tooltip: 'Expoente da distribuição de lei de potência dN/dS ~ S^γ.',
+        type: 'number',
+        defaultValue: -2.5,
+        category: 'advanced'
+    },
+    {
+        key: 'generator/healpix/nside',
+        section: 'sky',
+        label: 'HEALPix gerador: NSIDE',
+        tooltip: 'NSIDE do gerador HEALPix uniforme. NSIDE=64 gera 49152 fontes uniformemente distribuídas.',
+        type: 'number',
+        defaultValue: 0,
+        category: 'advanced'
+    },
+    {
+        key: 'generator/healpix/amplitude',
+        section: 'sky',
+        label: 'HEALPix gerador: amplitude (Jy)',
+        tooltip: 'Fluxo de cada fonte gerada, em Jy.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+
+    // =========================================================================
     // [observation]
     // =========================================================================
     {
         key: 'mode',
         section: 'observation',
         label: 'Modo de observação',
-        tooltip: '"Tracking" acompanha uma posição fixa no céu. ' +
-                 '"Drift Scan" mantém o telescópio fixo (modo típico do BINGO).',
+        tooltip: 'Modo de observação. "Tracking" (rastreio): o telescópio acompanha o centro de fase conforme a Terra rotaciona, mantendo a mesma região do céu centrada no campo de visão. "Drift Scan" (trânsito): o telescópio é fixo e as fontes derivam pelo campo de visão conforme a Terra rotaciona. Escolha depende do tipo de instrumento e da estratégia observacional.',
         type: 'select',
         defaultValue: 'Tracking',
         category: 'recommended',
@@ -353,7 +433,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'phase_centre_ra_deg',
         section: 'observation',
         label: 'Centro de fase - AR (graus)',
-        tooltip: 'Ascensão reta do centro de fase, em graus decimais.',
+        tooltip: 'Ascensão Reta (RA) do centro de fase, em graus decimais (0° a 360°). Define a posição central da observação no eixo de ascensão reta. Ex: Centro Galáctico ≈ 266°. Para converter de horas para graus: RA(°) = RA(h) × 15.',
         type: 'number',
         defaultValue: 0.0,
         category: 'essential',
@@ -363,29 +443,19 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'phase_centre_dec_deg',
         section: 'observation',
         label: 'Centro de fase - Dec (graus)',
-        tooltip: 'Declinação do centro de fase, em graus decimais. Valores: -90 a +90.',
+        tooltip: 'Declinação (Dec) do centro de fase, em graus decimais (-90° a +90°). Define a posição central da observação no eixo de declinação. Ex: Centro Galáctico ≈ -29.3°. Para o BINGO, o zênite está em Dec ≈ -7°.',
         type: 'number',
         defaultValue: -7.04,
         category: 'essential',
         required: true
     },
     {
-        key: 'pointing_file',
-        section: 'observation',
-        label: 'Arquivo de apontamento',
-        tooltip: 'Caminho para arquivo de apontamento de estação (opcional). Sobrescreve direção de feixe.',
-        type: 'text',
-        defaultValue: '',
-        category: 'advanced',
-        isFilePath: true
-    },
-    {
         key: 'start_frequency_hz',
         section: 'observation',
         label: 'Frequência inicial (Hz)',
-        tooltip: 'Frequência central do primeiro canal, em Hz. BINGO: 980 MHz a 1260 MHz.',
+        tooltip: 'Frequência no ponto médio do primeiro canal, em Hz. Define o início da faixa espectral observada. BINGO opera entre 980 MHz e 1260 MHz. O valor padrão de 1 GHz (1e9 Hz) é consistente com o tutorial e os exemplos de feixe.',
         type: 'number',
-        defaultValue: 980000000,
+        defaultValue: 1000000000,
         category: 'essential',
         required: true
     },
@@ -393,7 +463,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'num_channels',
         section: 'observation',
         label: 'Número de canais',
-        tooltip: 'Quantidade de canais de frequência. BINGO com 280 MHz e resolução 1 MHz → 280.',
+        tooltip: 'Quantidade de canais de frequência a simular. Cada canal é processado independentemente. BINGO com 280 MHz de largura de banda e resolução de 1 MHz → 280 canais. Para testes rápidos, use 1 canal.',
         type: 'number',
         defaultValue: 1,
         category: 'essential',
@@ -403,7 +473,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'frequency_inc_hz',
         section: 'observation',
         label: 'Incremento de frequência (Hz)',
-        tooltip: 'Separação entre canais consecutivos, em Hz.',
+        tooltip: 'Separação entre canais consecutivos de frequência, em Hz. Ex: para BINGO com resolução de 1 MHz, use 1000000. Para o exemplo do tutorial com 20 canais de 100 a 200 MHz, usa-se 5000000 (5 MHz).',
         type: 'number',
         defaultValue: 1000000,
         category: 'recommended'
@@ -412,7 +482,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'start_time_utc',
         section: 'observation',
         label: 'Hora de início (UTC)',
-        tooltip: 'Data/hora de início no formato "dd-MM-yyyy HH:mm:ss.SSS".',
+        tooltip: 'Data e hora de início da observação no formato "dd-MM-yyyy HH:mm:ss.SSS" em UTC. O OSKAR calcula a posição das fontes e a orientação da Terra a partir desta referência temporal. Ex: "01-01-2025 00:00:00.000".',
         type: 'text',
         defaultValue: '01-01-2025 00:00:00.000',
         category: 'essential',
@@ -421,10 +491,10 @@ const OSKAR_INI_PARAMS = Object.freeze([
     {
         key: 'length',
         section: 'observation',
-        label: 'Duração da observação (s)',
-        tooltip: 'Duração total em segundos. Ex: 3600 = 1 hora.',
-        type: 'number',
-        defaultValue: 3600,
+        label: 'Duração da observação (s ou HH:MM:SS)',
+        tooltip: 'Duração total da observação. Pode ser especificada em segundos (ex: 3600 = 1 hora) ou no formato "HH:MM:SS.S" (ex: "12000:00:00.0" para 12000 horas). Observações mais longas produzem melhor cobertura UV graças à rotação da Terra, resultando em imagens de melhor qualidade.',
+        type: 'text',
+        defaultValue: '3600',
         category: 'essential',
         required: true
     },
@@ -432,11 +502,21 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'num_time_steps',
         section: 'observation',
         label: 'Número de passos de tempo',
-        tooltip: 'Amostras temporais na observação. Mais passos = melhor cobertura UV.',
+        tooltip: 'Número de amostras temporais (snapshots) ao longo da duração total da observação. Mais passos = melhor amostragem da rotação da Terra = melhor cobertura UV. O intervalo entre snapshots é duração / num_time_steps. O exemplo do tutorial usa 256 passos para 12000 horas.',
         type: 'number',
         defaultValue: 24,
         category: 'essential',
         required: true
+    },
+    {
+        key: 'pointing_file',
+        section: 'observation',
+        label: 'Arquivo de apontamento',
+        tooltip: 'Caminho para arquivo de apontamento de estação (opcional). Permite definir direções de feixe diferentes para cada estação e/ou passo de tempo. Se especificado, sobrescreve o centro de fase definido acima para o cálculo do beamforming.',
+        type: 'text',
+        defaultValue: '',
+        category: 'advanced',
+        isFilePath: true
     },
 
     // =========================================================================
@@ -446,7 +526,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'input_directory',
         section: 'telescope',
         label: 'Diretório do telescópio',
-        tooltip: 'Caminho para o diretório com os arquivos de definição do telescópio OSKAR.',
+        tooltip: 'Caminho para o diretório contendo a hierarquia de arquivos de definição do telescópio OSKAR. Este diretório deve conter a estrutura: station/layout.txt (posições dos tiles), station/tile/layout.txt (posições dos elementos), position.txt (localização geodésica), e opcionalmente layout_wgs84.txt. Use a ferramenta LayoutGeneratorBINGO para gerar esta estrutura automaticamente.',
         type: 'text',
         defaultValue: '',
         category: 'essential',
@@ -458,7 +538,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'normalise_beams_at_phase_centre',
         section: 'telescope',
         label: 'Normalizar beams no centro de fase',
-        tooltip: 'Escala amplitude do beam de cada estação para 1.0 no centro de fase.',
+        tooltip: 'Se "Sim", escala a amplitude de cada station beam no centro de fase para 1.0 em cada snapshot de tempo. Isso facilita a interpretação dos resultados ao garantir que a resposta no centro do campo seja unitária. Recomendado para a maioria das simulações.',
         type: 'select',
         defaultValue: 'true',
         category: 'recommended',
@@ -471,9 +551,9 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'allow_station_beam_duplication',
         section: 'telescope',
         label: 'Duplicar beams de estações idênticas',
-        tooltip: 'Usa mapa de tipos de estação para duplicar beams. Pode acelerar significativamente.',
+        tooltip: 'Se "Sim", permite que estações com o mesmo layout reusem o cálculo do beam, economizando tempo. Seguro para arrays onde todas as estações são idênticas (como no BINGO).',
         type: 'select',
-        defaultValue: 'false',
+        defaultValue: 'true',
         category: 'advanced',
         options: [
             { value: 'true', label: 'Sim' },
@@ -484,13 +564,13 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'pol_mode',
         section: 'telescope',
         label: 'Modo de polarização',
-        tooltip: '"Scalar" simula apenas Stokes I (mais rápido). "Full" simula XX, XY, YX, YY.',
+        tooltip: 'Modo de polarização do telescópio. "Full" calcula todas as 4 correlações de polarização (XX, XY, YX, YY), permitindo recuperar todos os parâmetros de Stokes (I, Q, U, V). "Scalar" calcula apenas a intensidade total (Stokes I), sendo mais rápido e usando menos memória. O exemplo de feixe do tutorial usa "Scalar" para foco na intensidade total.',
         type: 'select',
         defaultValue: 'Full',
         category: 'recommended',
         options: [
-            { value: 'Scalar', label: 'Scalar (uma polarização)' },
-            { value: 'Full', label: 'Full (polarização completa)' }
+            { value: 'Full', label: 'Full (polarização completa)' },
+            { value: 'Scalar', label: 'Scalar (uma polarização)' }
         ]
     },
     {
@@ -537,9 +617,9 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'aperture_array/element_pattern/enable_numerical',
         section: 'telescope',
         label: 'Usar padrão numérico de elemento',
-        tooltip: 'Usa arquivos de padrão numérico de elemento se disponíveis.',
+        tooltip: 'Se "Sim", usa padrões de radiação numéricos carregados de arquivo para os elementos de antena. Se "Não", usa o padrão analítico (dipolo ideal). O tutorial do BINGO desativa esta opção (false) para usar a resposta padrão. Ative apenas se tiver dados de medição real do padrão de radiação das cornetas.',
         type: 'select',
-        defaultValue: 'true',
+        defaultValue: 'false',
         category: 'advanced',
         options: [
             { value: 'true', label: 'Sim' },
@@ -620,18 +700,18 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'channel_bandwidth_hz',
         section: 'interferometer',
         label: 'Largura de banda do canal (Hz)',
-        tooltip: 'Largura de cada canal para simular bandwidth smearing.',
+        tooltip: 'Largura de banda efetiva de cada canal de frequência, em Hz. Define o nível de "bandwidth smearing" (borramento por largura de banda). Valor menor = menos borramento, porém o canal já é definido pelo frequency_inc_hz. Este parâmetro controla a largura de banda dentro de cada canal para fins de integração. O tutorial usa 1e6 (1 MHz).',
         type: 'number',
-        defaultValue: 0,
+        defaultValue: 1000000,
         category: 'recommended'
     },
     {
         key: 'time_average_sec',
         section: 'interferometer',
         label: 'Média temporal (s)',
-        tooltip: 'Duração de média temporal do correlacionador, em segundos.',
+        tooltip: 'Intervalo de média temporal em segundos aplicado às visibilidades dentro de cada step de tempo. Define o tempo de acumulação do correlacionador (τ_acc). Valores maiores reduzem o volume de dados mas causam "time smearing" (borramento temporal). O tutorial usa 10 segundos. Para o cálculo de ruído: σ = sqrt(SEFD² / (2 × Δν × τ_acc)).',
         type: 'number',
-        defaultValue: 0.0,
+        defaultValue: 10.0,
         category: 'recommended'
     },
     {
@@ -692,7 +772,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'oskar_vis_filename',
         section: 'interferometer',
         label: 'Arquivo de visibilidades (.vis)',
-        tooltip: 'Caminho do arquivo de saída OSKAR visibility (.vis).',
+        tooltip: 'Caminho do arquivo de saída OSKAR visibility (.vis). Formato binário proprietário, leve e otimizado para leitura sequencial. Consiste em um único arquivo. É a escolha preferencial quando o fluxo de trabalho inteiro (simulação → imagem) ocorre dentro do ecossistema OSKAR, evitando overhead de I/O.',
         type: 'text',
         defaultValue: 'output/bingo_sim.vis',
         category: 'essential',
@@ -703,7 +783,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'ms_filename',
         section: 'interferometer',
         label: 'Arquivo Measurement Set (.ms)',
-        tooltip: 'Caminho do Measurement Set de saída. Deixe em branco se não necessário.',
+        tooltip: 'Caminho do Measurement Set (.ms) de saída. Formato padrão da radioastronomia (usado pelo CASA). Não é um arquivo único, mas uma estrutura de diretórios contendo múltiplas tabelas binárias. Essencial se pretende exportar dados para calibração externa ou análise em outros softwares. Gera arquivos significativamente maiores. Deixe em branco se não necessário.',
         type: 'text',
         defaultValue: '',
         category: 'recommended',
@@ -713,7 +793,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         key: 'force_polarised_ms',
         section: 'interferometer',
         label: 'Forçar MS polarizado',
-        tooltip: 'Se sim, escreve o MS sempre em formato polarizado mesmo no modo Scalar.',
+        tooltip: 'Se "Sim", escreve o Measurement Set sempre em formato polarizado completo (4 correlações) mesmo quando o modo de polarização do telescópio é "Scalar". Útil para compatibilidade com softwares que esperam MS polarizado.',
         type: 'select',
         defaultValue: 'false',
         category: 'advanced',
@@ -735,49 +815,37 @@ const OSKAR_INI_PARAMS = Object.freeze([
             { value: 'false', label: 'Não' }
         ]
     },
-
-    // =========================================================================
-    // [noise]
-    // =========================================================================
     {
-        key: 'enable',
-        section: 'noise',
+        key: 'noise/enable',
+        section: 'interferometer',
         label: 'Habilitar ruído',
-        tooltip: 'Se habilitado, adiciona ruído térmico à simulação.',
+        tooltip: 'Se "Sim", adiciona ruído Gaussiano não-correlacionado às visibilidades simuladas, conforme a equação V = V₀ + ε. O ruído é extraído de uma distribuição Gaussiana de média zero, aplicado independentemente a cada baseline, integração de tempo, canal de frequência e polarização.',
         type: 'select',
         defaultValue: 'false',
-        category: 'advanced',
+        category: 'recommended',
         options: [
             { value: 'true', label: 'Sim' },
             { value: 'false', label: 'Não' }
         ]
     },
     {
-        key: 'seed',
-        section: 'noise',
+        key: 'noise/seed',
+        section: 'interferometer',
         label: 'Semente do ruído',
-        tooltip: 'Semente do gerador de números aleatórios para o ruído.',
+        tooltip: 'Semente do gerador de números aleatórios para o ruído. Permite reprodutibilidade dos resultados: a mesma semente gera exatamente o mesmo padrão de ruído. Use valores diferentes para realizações estatisticamente independentes.',
         type: 'number',
         defaultValue: 1,
         category: 'advanced'
     },
     {
-        key: 'rms/start',
-        section: 'noise',
-        label: 'RMS início (Jy)',
-        tooltip: 'Valor RMS de início da faixa de ruído por estação, em Jy.',
-        type: 'number',
-        defaultValue: 0,
-        category: 'advanced'
-    },
-    {
-        key: 'rms/end',
-        section: 'noise',
-        label: 'RMS fim (Jy)',
-        tooltip: 'Valor RMS de fim da faixa de ruído por estação, em Jy.',
-        type: 'number',
-        defaultValue: 0,
-        category: 'advanced'
+        key: 'noise/freq',
+        section: 'interferometer',
+        label: 'Ruído RMS por frequência',
+        tooltip: 'Especifica o ruído RMS por baseline como uma função da frequência. Deve ser fornecido um arquivo de texto com duas colunas: frequência (Hz) e RMS (Jy). O ruído é expresso como o nível de fluxo RMS de uma fonte não resolvida e não polarizada medida em uma única polarização do receptor. Pode ser calculado a partir do SEFD usando: σ = sqrt(SEFD² / (2 × Δν × τ_acc)).',
+        type: 'text',
+        defaultValue: '',
+        category: 'advanced',
+        isFilePath: true
     }
 ]);
 
@@ -790,8 +858,7 @@ const INI_SECTION_LABELS = Object.freeze({
     sky: 'Modelo de Céu',
     observation: 'Observação',
     telescope: 'Telescópio',
-    interferometer: 'Interferômetro',
-    noise: 'Ruído'
+    interferometer: 'Interferômetro'
 });
 
 /**
@@ -1197,7 +1264,13 @@ class OskarIniGenerator {
 
         // Duração e passos de tempo devem ser positivos
         if (param.key === 'length' && value !== '') {
-            if (Number(value) <= 0) return 'A duração deve ser positiva.';
+            // Aceita segundos numéricos ou formato HH:MM:SS.S
+            if (!/^\d+(\.\d+)?$/.test(value) && !/^\d+:\d{1,2}:\d{1,2}(\.\d+)?$/.test(value)) {
+                return 'A duração deve ser em segundos (ex: 3600) ou formato HH:MM:SS.S.';
+            }
+            if (/^\d+(\.\d+)?$/.test(value) && Number(value) <= 0) {
+                return 'A duração deve ser positiva.';
+            }
         }
         if (param.key === 'num_time_steps' && value !== '') {
             if (Number(value) < 1) return 'Deve haver pelo menos 1 passo de tempo.';
@@ -1235,7 +1308,7 @@ class OskarIniGenerator {
         // Frequência padrão do BINGO
         const freqInput = this.inputElements['observation.start_frequency_hz'];
         if (freqInput && !freqInput.value) {
-            freqInput.value = 980000000;
+            freqInput.value = 1000000000;
         }
 
         this.updatePreview();
@@ -1460,7 +1533,7 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'fov_deg',
         section: 'image',
         label: 'Campo de visão (°)',
-        tooltip: 'Campo de visão total da imagem em graus.',
+        tooltip: 'Campo de visão total da imagem de saída, em graus. Define o tamanho angular do mapa reconstruído. O tutorial usa 7.5° para a observação do Centro Galáctico e 180° para o beam pattern. Campos maiores requerem mais pixels para manter a resolução.',
         type: 'number',
         defaultValue: 2.0,
         category: 'essential',
@@ -1479,7 +1552,7 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'size',
         section: 'image',
         label: 'Tamanho da imagem (pixels)',
-        tooltip: 'Largura da imagem em pixels (deve ser par). Ex: 256 gera imagem 256×256.',
+        tooltip: 'Dimensão lateral da imagem em pixels (a imagem será size × size). Valores maiores aumentam a resolução angular mas também o tempo de processamento e tamanho do arquivo FITS. O tutorial usa 2048 pixels. O tamanho do pixel é automaticamente calculado como fov_deg / size.',
         type: 'number',
         defaultValue: 256,
         category: 'essential',
@@ -1489,25 +1562,25 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'image_type',
         section: 'image',
         label: 'Tipo de imagem',
-        tooltip: 'Tipo de imagem a gerar. I, Q, U, V são parâmetros de Stokes. PSF gera a função de espalhamento pontual.',
+        tooltip: 'Tipo de imagem a gerar. "Linear (I,Q,U,V)" gera mapas de parâmetros de Stokes. "Stokes I" gera apenas a intensidade total. "PSF" gera o Point Spread Function (feixe sintetizado) sem sinal astronômico.',
         type: 'select',
-        defaultValue: 'I',
-        category: 'essential',
-        required: true,
+        defaultValue: 'Linear (I,Q,U,V)',
+        category: 'recommended',
         options: [
+            { value: 'Linear (I,Q,U,V)', label: 'Linear (I,Q,U,V)' },
+            { value: 'XX', label: 'XX' },
+            { value: 'XY', label: 'XY' },
+            { value: 'YX', label: 'YX' },
+            { value: 'YY', label: 'YY' },
             { value: 'I', label: 'Stokes I' },
-            { value: 'Q', label: 'Stokes Q' },
-            { value: 'U', label: 'Stokes U' },
-            { value: 'V', label: 'Stokes V' },
-            { value: 'PSF', label: 'PSF' },
-            { value: 'LINEAR', label: 'Linear (XX, XY, YX, YY)' }
+            { value: 'PSF', label: 'PSF' }
         ]
     },
     {
         key: 'channel_snapshots',
         section: 'image',
         label: 'Snapshots por canal',
-        tooltip: 'Se true, produz cubo de imagens com snapshot por canal. Se false, usa síntese de frequência.',
+        tooltip: 'Se "Sim", gera uma imagem separada para cada canal de frequência (cube). Se "Não", todas as frequências são empilhadas em uma única imagem.',
         type: 'select',
         defaultValue: 'false',
         category: 'recommended',
@@ -1520,36 +1593,36 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'freq_min_hz',
         section: 'image',
         label: 'Frequência mínima (Hz)',
-        tooltip: 'Frequência mínima a incluir na imagem, em Hz. 0.0 = sem filtro.',
+        tooltip: 'Frequência mínima (Hz) dos dados a incluir na imagem. Dados abaixo desta frequência são ignorados. Deixe em branco para usar todos os dados.',
         type: 'number',
-        defaultValue: 0.0,
+        defaultValue: '',
         category: 'advanced'
     },
     {
         key: 'freq_max_hz',
         section: 'image',
         label: 'Frequência máxima (Hz)',
-        tooltip: 'Frequência máxima a incluir na imagem. "max" = sem limite superior.',
-        type: 'text',
-        defaultValue: 'max',
+        tooltip: 'Frequência máxima (Hz) dos dados a incluir na imagem. Deixe em branco para usar todos os dados.',
+        type: 'number',
+        defaultValue: '',
         category: 'advanced'
     },
     {
         key: 'time_min_utc',
         section: 'image',
         label: 'Tempo mínimo (UTC)',
-        tooltip: 'Tempo mínimo dos dados de visibilidade a incluir. Formato MJD ou dd-MM-yyyy HH:mm:ss.SSS.',
+        tooltip: 'Hora UTC mínima dos dados a incluir. Deixe em branco para usar todos os tempos.',
         type: 'text',
-        defaultValue: '0.0',
+        defaultValue: '',
         category: 'advanced'
     },
     {
         key: 'time_max_utc',
         section: 'image',
         label: 'Tempo máximo (UTC)',
-        tooltip: 'Tempo máximo dos dados de visibilidade a incluir. Formato MJD ou dd-MM-yyyy HH:mm:ss.SSS.',
+        tooltip: 'Hora UTC máxima dos dados a incluir. Deixe em branco para usar todos os tempos.',
         type: 'text',
-        defaultValue: '0.0',
+        defaultValue: '',
         category: 'advanced'
     },
     {
@@ -1574,7 +1647,7 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'algorithm',
         section: 'image',
         label: 'Algoritmo de transformada',
-        tooltip: 'Tipo de transformada para gerar a imagem.',
+        tooltip: 'Algoritmo de imageamento. "FFT" usa a Transformada Rápida de Fourier (mais rápido). "DFT 2D" usa a Transformada Discreta de Fourier direta (mais lento, mas exato). "DFT 3D" é para imageamento 3D (wide-field). "W-projection" corrige o efeito w-term para campos amplos.',
         type: 'select',
         defaultValue: 'FFT',
         category: 'recommended',
@@ -1747,7 +1820,7 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'input_vis_data',
         section: 'image',
         label: 'Arquivo de visibilidades de entrada',
-        tooltip: 'Caminho para o arquivo de visibilidades OSKAR (.vis) ou Measurement Set (.ms).',
+        tooltip: 'Caminho para o arquivo de visibilidades de entrada (.vis ou .ms) gerado pelo oskar_sim_interferometer. Este é o dado que será transformado em imagem do céu.',
         type: 'text',
         defaultValue: '',
         category: 'essential',
@@ -1781,7 +1854,7 @@ const OSKAR_IMAGER_PARAMS = Object.freeze([
         key: 'root_path',
         section: 'image',
         label: 'Caminho raiz de saída',
-        tooltip: 'Nome base do arquivo FITS de saída. Sufixo será adicionado automaticamente (_I.fits, etc.).',
+        tooltip: 'Caminho base para os arquivos de imagem de saída (FITS). O OSKAR adicionará sufixos automaticamente ao nome (ex: _I.fits, _Q.fits para os diferentes parâmetros de Stokes).',
         type: 'text',
         defaultValue: '',
         category: 'essential',
@@ -2296,7 +2369,7 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         label: 'Frequência inicial (Hz)',
         tooltip: 'Frequência no ponto médio do primeiro canal, em Hz.',
         type: 'number',
-        defaultValue: '',
+        defaultValue: 1000000000,
         category: 'essential',
         required: true
     },
@@ -2580,9 +2653,9 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         key: 'all_stations',
         section: 'beam_pattern',
         label: 'Todas as stations',
-        tooltip: 'Se habilitado, produz beams para todas as stations do modelo de telescópio.',
+        tooltip: 'Se "Sim", calcula o beam pattern para todas as estações do array e combina os resultados. Se "Não", calcula apenas para a estação especificada por station_id.',
         type: 'select',
-        defaultValue: 'false',
+        defaultValue: 'true',
         category: 'essential',
         options: [
             { value: 'true', label: 'Sim (todas)' },
@@ -2641,7 +2714,7 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         key: 'beam_image/size',
         section: 'beam_pattern',
         label: 'Dimensões da imagem (px)',
-        tooltip: 'Dimensões da imagem. Valor único = quadrado (ex: 256 → 256×256). Pode ser "256,128" para largura×altura.',
+        tooltip: 'Dimensão lateral da imagem do beam pattern em pixels (size × size). O tutorial usa 2048.',
         type: 'text',
         defaultValue: '256',
         category: 'essential'
@@ -2650,9 +2723,9 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         key: 'beam_image/fov_deg',
         section: 'beam_pattern',
         label: 'Campo de visão (°)',
-        tooltip: 'FOV total em graus (máx 180). Valor único = igual em ambas dimensões. Pode ser "2.0,1.0".',
+        tooltip: 'Campo de visão total da imagem do beam, em graus. O tutorial usa 180° para visualizar o hemisfério completo (incluindo lóbulos laterais). Use valores menores para focar no lóbulo principal.',
         type: 'text',
-        defaultValue: '2.0',
+        defaultValue: '180.0',
         category: 'essential'
     },
     {
@@ -2678,7 +2751,7 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         key: 'root_path',
         section: 'beam_pattern',
         label: 'Caminho raiz de saída',
-        tooltip: 'Nome raiz dos arquivos de saída. Sufixos e extensões serão adicionados automaticamente.',
+        tooltip: 'Caminho base para os arquivos de saída do beam pattern. O OSKAR adicionará sufixos descritivos automaticamente (ex: _TIME_SEP_CHAN_SEP_CROSS_POWER_AMP_I_I.fits).',
         type: 'text',
         defaultValue: '',
         category: 'essential',
@@ -2813,7 +2886,7 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         key: 'station_outputs/fits_image/auto_power_real',
         section: 'beam_pattern',
         label: 'FITS: parte real auto-potência',
-        tooltip: 'Se true, salva a parte real do beam auto-correlação em FITS.',
+        tooltip: 'Se "Sim", gera o mapa FITS da parte real da Auto Power (potência auto-correlação) para cada estação.',
         type: 'select',
         defaultValue: 'false',
         category: 'advanced',
@@ -2867,10 +2940,10 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         key: 'telescope_outputs/fits_image/cross_power_amp',
         section: 'beam_pattern',
         label: 'Telescópio FITS: cross-power amplitude',
-        tooltip: 'Se true, salva a amplitude do cross-power beam médio em FITS.',
+        tooltip: 'Se "Sim", gera o mapa FITS da amplitude da Cross Power (potência cruzada). Este mapa representa a resposta média do arranjo combinando todas as estações. É o produto principal para análise do beam — mostra o lóbulo principal e a estrutura de lóbulos laterais (sidelobes).',
         type: 'select',
-        defaultValue: 'false',
-        category: 'advanced',
+        defaultValue: 'true',
+        category: 'essential',
         options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
     },
     {

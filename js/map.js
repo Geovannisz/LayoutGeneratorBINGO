@@ -60,15 +60,15 @@ class InteractiveMap {
         this.isDraggingMarker = false; // True se um marcador de estação estiver sendo arrastado
 
         // Definição dos Ícones Reutilizáveis para marcadores de estação
-        const defaultShadowUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png';
+        const defaultShadowUrl = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png';
         const defaultIconSize = [25, 41];
         const defaultIconAnchor = [12, 41];
         const defaultPopupAnchor = [1, -34];
         const defaultShadowSize = [41, 41];
 
         this.blueIcon = L.icon({
-            iconUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
-            iconRetinaUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png',
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+            iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
             shadowUrl: defaultShadowUrl,
             iconSize: defaultIconSize, iconAnchor: defaultIconAnchor, popupAnchor: defaultPopupAnchor, shadowSize: defaultShadowSize
         });

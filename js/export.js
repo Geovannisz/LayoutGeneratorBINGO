@@ -90,7 +90,8 @@ class OskarLayoutExporter {
             'export-station-layout',
             'export-tile-layout',
             'export-layout-ecef',
-            'export-layout-enu'
+            'export-layout-enu',
+            'export-layout-wgs84-alt'
         ];
         textareaIds.forEach(id => this._addSingleCopyButtonToTextarea(id));
     }
@@ -215,7 +216,7 @@ class OskarLayoutExporter {
         }
 
         // Chama os métodos para atualizar cada campo de exportação.
-        this.updateLayoutWgs84Field();
+        this.updateLayoutWgs84AltField();
         // this.updateBingoPositionField(); // Já chamado no construtor, é fixo.
         this.updateStationLayoutField();
         // this.updateTileLayoutField(); // Já chamado no construtor e generateSingleTileLayout, é fixo.
@@ -228,23 +229,23 @@ class OskarLayoutExporter {
     // --- Métodos específicos para cada arquivo de exportação ---
 
     /**
-     * Atualiza o textarea para ../layout_wgs84.txt (Coordenadas WGS84 das estações).
+     * Atualiza o textarea para layout_wgs84.txt no painel de formato de coordenadas.
      * Usa dados de `this.selectedStationsCoords` (do mapa).
      */
-    updateLayoutWgs84Field() {
-        const textarea = document.getElementById('export-layout-wgs84');
+    updateLayoutWgs84AltField() {
+        const textarea = document.getElementById('export-layout-wgs84-alt');
         if (!textarea) return;
 
         if (!this.selectedStationsCoords || this.selectedStationsCoords.length === 0) {
             textarea.value = 'Nenhuma estação selecionada no mapa.\nClique no mapa ou escolha um arranjo pré-definido.';
             return;
         }
-        // Formato: latitude,longitude,altitude (separados por vírgula)
+        // Formato OSKAR layout_wgs84.txt: longitude,latitude,altitude (separados por vírgula)
         textarea.value = this.selectedStationsCoords.map(station => {
             const lat = station.lat || 0;
             const lon = station.lon || 0;
             const alt = station.alt || 0;
-            return `${lat.toFixed(7)},${lon.toFixed(7)},${alt.toFixed(1)}`;
+            return `${lon.toFixed(7)},${lat.toFixed(7)},${alt.toFixed(1)}`;
         }).join('\n');
     }
 
@@ -255,8 +256,8 @@ class OskarLayoutExporter {
     updateBingoPositionField() {
         const textarea = document.getElementById('export-position');
         if (!textarea) return;
-        // Formato: latitude,longitude,altitude
-        textarea.value = `${BINGO_CENTRAL_LATITUDE.toFixed(7)},${BINGO_CENTRAL_LONGITUDE.toFixed(7)},${BINGO_CENTRAL_ALTITUDE.toFixed(1)}`;
+        // Formato OSKAR position.txt: longitude,latitude,altitude
+        textarea.value = `${BINGO_CENTRAL_LONGITUDE.toFixed(7)},${BINGO_CENTRAL_LATITUDE.toFixed(7)},${BINGO_CENTRAL_ALTITUDE.toFixed(1)}`;
     }
 
     /**
@@ -427,12 +428,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Seletor de formato de coordenadas (ECEF / ENU) ---
+    // --- Seletor de formato de coordenadas (WGS84 / ECEF / ENU) ---
     const coordRadios = document.querySelectorAll('input[name="coord-format"]');
+    const wgs84Panel = document.getElementById('coord-format-wgs84');
     const ecefPanel = document.getElementById('coord-format-ecef');
     const enuPanel = document.getElementById('coord-format-enu');
     coordRadios.forEach(radio => {
         radio.addEventListener('change', () => {
+            if (wgs84Panel) wgs84Panel.style.display = radio.value === 'wgs84' ? '' : 'none';
             if (ecefPanel) ecefPanel.style.display = radio.value === 'ecef' ? '' : 'none';
             if (enuPanel) enuPanel.style.display = radio.value === 'enu' ? '' : 'none';
         });
@@ -457,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const zip = new JSZip();
                 // Obtém o conteúdo atual dos textareas.
-                const contentWGS84 = document.getElementById('export-layout-wgs84').value;
+                const contentWGS84 = document.getElementById('export-layout-wgs84-alt').value;
                 const contentPosition = document.getElementById('export-position').value;
                 const contentStationLayout = document.getElementById('export-station-layout').value;
                 const contentTileLayout = document.getElementById('export-tile-layout').value;

@@ -1263,6 +1263,15 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     opacity: 0.6;
     padding: 20px;
 }
+.sky-sortable-th {
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+.sky-sortable-th:hover {
+    background-color: var(--primary-color);
+    color: #fff;
+}
 #sky-preview {
     flex: 1;
     min-height: 200px;
