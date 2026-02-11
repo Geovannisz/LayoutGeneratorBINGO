@@ -992,52 +992,38 @@ class OskarIniGenerator {
 
         row.appendChild(label);
 
-        // Para campos de arquivo/diretório, cria um wrapper com botão de browse
+        // Para campos de arquivo/diretório, cria um wrapper com botão para digitar caminho
         if (param.isFilePath) {
             const inputWrapper = document.createElement('div');
             inputWrapper.className = 'ini-file-input-wrapper';
+            input.placeholder = param.isDirectory
+                ? 'Ex: /home/user/telescope'
+                : 'Ex: /home/user/data/output.vis';
             inputWrapper.appendChild(input);
 
             const browseBtn = document.createElement('button');
             browseBtn.type = 'button';
             browseBtn.className = 'ini-browse-btn';
-            browseBtn.title = param.isDirectory
-                ? 'Selecionar pasta do computador'
-                : 'Selecionar arquivo do computador';
+            browseBtn.title = 'Inserir caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
             browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
 
-            // Usa input de arquivo regular (sem webkitdirectory) para evitar popup
-            // de confirmação do navegador. O caminho completo é limitado por segurança
-            // do navegador — o campo é editável para que o usuário cole o caminho real.
-            const hiddenFileInput = document.createElement('input');
-            hiddenFileInput.type = 'file';
-            hiddenFileInput.style.display = 'none';
-            if (param.fileAccept) {
-                hiddenFileInput.accept = param.fileAccept;
-            }
-
+            // Navegadores não permitem acesso ao caminho completo por segurança.
+            // Abre um prompt para o usuário colar o caminho completo do seu sistema.
             browseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                hiddenFileInput.click();
-            });
-
-            hiddenFileInput.addEventListener('change', (ev) => {
-                if (ev.target.files && ev.target.files.length > 0) {
-                    const file = ev.target.files[0];
-                    // Tenta extrair o caminho completo via webkitRelativePath
-                    // Navegadores limitam acesso ao caminho completo por segurança
-                    // Usamos o nome do arquivo e o caminho relativo quando disponível
-                    let filePath = file.name;
-                    if (file.webkitRelativePath) {
-                        filePath = file.webkitRelativePath;
-                    }
-                    input.value = filePath;
+                const label = param.isDirectory ? 'diretório' : 'arquivo';
+                const currentVal = input.value || '';
+                const path = prompt(
+                    `Cole o caminho completo do ${label} no seu computador:`,
+                    currentVal
+                );
+                if (path !== null && path.trim() !== '') {
+                    input.value = path.trim();
                     input.dispatchEvent(new Event('input'));
                 }
             });
 
             inputWrapper.appendChild(browseBtn);
-            inputWrapper.appendChild(hiddenFileInput);
             row.appendChild(inputWrapper);
         } else {
             row.appendChild(input);
@@ -1832,9 +1818,32 @@ class OskarImagerGenerator {
     _bindButtons() {
         const copyBtn = document.getElementById('imager-copy-btn');
         const downloadBtn = document.getElementById('imager-download-btn');
+        const useInterfBtn = document.getElementById('imager-use-interf-output-btn');
 
         if (copyBtn) copyBtn.addEventListener('click', (e) => { e.preventDefault(); this.copyIni(); });
         if (downloadBtn) downloadBtn.addEventListener('click', (e) => { e.preventDefault(); this.downloadIni(); });
+        if (useInterfBtn) useInterfBtn.addEventListener('click', (e) => { e.preventDefault(); this.useInterferometerOutput(); });
+    }
+
+    /**
+     * Preenche o campo de entrada de visibilidades com o caminho de saída do interferômetro.
+     */
+    useInterferometerOutput() {
+        const visInput = this.inputElements['image.input_vis_data'];
+        if (!visInput) return;
+
+        // Tenta obter o caminho de saída definido no interferômetro
+        let visPath = '';
+        if (window.oskarIniGenerator && window.oskarIniGenerator.inputElements['interferometer.oskar_vis_filename']) {
+            visPath = window.oskarIniGenerator.inputElements['interferometer.oskar_vis_filename'].value || '';
+        }
+        if (!visPath) {
+            alert('Nenhum caminho de saída .vis foi definido no bloco do interferômetro. Defina-o primeiro.');
+            return;
+        }
+        visInput.value = visPath;
+        visInput.dispatchEvent(new Event('input'));
+        console.log('Campo de entrada do imager preenchido com saída do interferômetro:', visPath);
     }
 
     /**
@@ -1969,34 +1978,32 @@ class OskarImagerGenerator {
         if (param.isFilePath) {
             const inputWrapper = document.createElement('div');
             inputWrapper.className = 'ini-file-input-wrapper';
+            input.placeholder = param.isDirectory
+                ? 'Ex: /home/user/telescope'
+                : 'Ex: /home/user/data/output.vis';
             inputWrapper.appendChild(input);
 
             const browseBtn = document.createElement('button');
             browseBtn.type = 'button';
             browseBtn.className = 'ini-browse-btn';
-            browseBtn.title = 'Selecionar arquivo do computador';
+            browseBtn.title = 'Inserir caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
             browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
-
-            const hiddenFileInput = document.createElement('input');
-            hiddenFileInput.type = 'file';
-            hiddenFileInput.style.display = 'none';
-            if (param.fileAccept) hiddenFileInput.accept = param.fileAccept;
 
             browseBtn.addEventListener('click', (e) => {
                 e.preventDefault();
-                hiddenFileInput.click();
-            });
-
-            hiddenFileInput.addEventListener('change', (ev) => {
-                if (ev.target.files && ev.target.files.length > 0) {
-                    const file = ev.target.files[0];
-                    input.value = file.webkitRelativePath || file.name;
+                const label = param.isDirectory ? 'diretório' : 'arquivo';
+                const currentVal = input.value || '';
+                const path = prompt(
+                    `Cole o caminho completo do ${label} no seu computador:`,
+                    currentVal
+                );
+                if (path !== null && path.trim() !== '') {
+                    input.value = path.trim();
                     input.dispatchEvent(new Event('input'));
                 }
             });
 
             inputWrapper.appendChild(browseBtn);
-            inputWrapper.appendChild(hiddenFileInput);
             row.appendChild(inputWrapper);
         } else {
             row.appendChild(input);
@@ -2142,6 +2149,1147 @@ class OskarImagerGenerator {
 }
 
 // =============================================================================
+// OSKAR Sim Beam Pattern - Parâmetros e Gerador
+// =============================================================================
+
+/**
+ * Definição dos parâmetros do oskar_sim_beam_pattern.
+ * @constant {Array<Object>}
+ */
+const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
+    // =========================================================================
+    // [simulator]
+    // =========================================================================
+    {
+        key: 'double_precision',
+        section: 'simulator',
+        label: 'Precisão dupla',
+        tooltip: 'Ativa cálculos em precisão dupla (64 bits). Mais exato, porém mais lento na GPU.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim (mais preciso)' },
+            { value: 'false', label: 'Não (mais rápido)' }
+        ]
+    },
+    {
+        key: 'use_gpus',
+        section: 'simulator',
+        label: 'Usar GPUs',
+        tooltip: 'Se habilitado, usa dispositivos GPU disponíveis para a simulação.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'cuda_device_ids',
+        section: 'simulator',
+        label: 'IDs de dispositivos CUDA',
+        tooltip: 'Lista separada por vírgulas de IDs de GPUs, ou "all" para usar todos os dispositivos.',
+        type: 'text',
+        defaultValue: 'all',
+        category: 'advanced'
+    },
+    {
+        key: 'num_devices',
+        section: 'simulator',
+        label: 'Número de dispositivos',
+        tooltip: 'Número de dispositivos de computação. "auto" usa todos disponíveis. Não ultrapasse o número de cores da CPU.',
+        type: 'text',
+        defaultValue: 'auto',
+        category: 'advanced'
+    },
+    {
+        key: 'max_sources_per_chunk',
+        section: 'simulator',
+        label: 'Máx. fontes por chunk',
+        tooltip: 'Número máximo de fontes/pixels processados por vez em cada dispositivo. Reduza se a GPU ficar sem memória.',
+        type: 'number',
+        defaultValue: 16384,
+        category: 'advanced'
+    },
+    {
+        key: 'keep_log_file',
+        section: 'simulator',
+        label: 'Manter arquivo de log',
+        tooltip: 'Se habilitado, mantém o arquivo de log em disco após a simulação.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'write_status_to_log_file',
+        section: 'simulator',
+        label: 'Gravar status no log',
+        tooltip: 'Se habilitado, mensagens de progresso são gravadas no arquivo de log.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+
+    // =========================================================================
+    // [observation]
+    // =========================================================================
+    {
+        key: 'mode',
+        section: 'observation',
+        label: 'Modo de observação',
+        tooltip: 'Modo: Tracking (acompanhamento) ou Drift Scan (varredura por deriva).',
+        type: 'select',
+        defaultValue: 'Tracking',
+        category: 'essential',
+        options: [
+            { value: 'Tracking', label: 'Tracking' },
+            { value: 'Drift Scan', label: 'Drift Scan' }
+        ]
+    },
+    {
+        key: 'phase_centre_ra_deg',
+        section: 'observation',
+        label: 'Ascensão Reta do centro de fase (°)',
+        tooltip: 'Ascensão Reta do apontamento (centro de fase), em graus.',
+        type: 'number',
+        defaultValue: 0,
+        category: 'essential'
+    },
+    {
+        key: 'phase_centre_dec_deg',
+        section: 'observation',
+        label: 'Declinação do centro de fase (°)',
+        tooltip: 'Declinação do apontamento (centro de fase), em graus.',
+        type: 'number',
+        defaultValue: 0,
+        category: 'essential'
+    },
+    {
+        key: 'pointing_file',
+        section: 'observation',
+        label: 'Arquivo de apontamento',
+        tooltip: 'Caminho para arquivo opcional de apontamento de stations, que pode sobrescrever a direção do feixe.',
+        type: 'text',
+        defaultValue: '',
+        category: 'advanced',
+        isFilePath: true
+    },
+    {
+        key: 'start_frequency_hz',
+        section: 'observation',
+        label: 'Frequência inicial (Hz)',
+        tooltip: 'Frequência no ponto médio do primeiro canal, em Hz.',
+        type: 'number',
+        defaultValue: '',
+        category: 'essential',
+        required: true
+    },
+    {
+        key: 'num_channels',
+        section: 'observation',
+        label: 'Número de canais',
+        tooltip: 'Número de canais de frequência a utilizar.',
+        type: 'number',
+        defaultValue: 1,
+        category: 'essential'
+    },
+    {
+        key: 'frequency_inc_hz',
+        section: 'observation',
+        label: 'Incremento de frequência (Hz)',
+        tooltip: 'Incremento de frequência entre canais sucessivos, em Hz.',
+        type: 'number',
+        defaultValue: 0,
+        category: 'recommended'
+    },
+    {
+        key: 'start_time_utc',
+        section: 'observation',
+        label: 'Hora de início (UTC)',
+        tooltip: 'Data/hora de início da observação. Pode ser MJD ou formato: yyyy-M-d h:m:s.z',
+        type: 'text',
+        defaultValue: '',
+        category: 'essential',
+        required: true
+    },
+    {
+        key: 'length',
+        section: 'observation',
+        label: 'Duração da observação',
+        tooltip: 'Duração em segundos, ou no formato h:m:s.z',
+        type: 'text',
+        defaultValue: '',
+        category: 'essential',
+        required: true
+    },
+    {
+        key: 'num_time_steps',
+        section: 'observation',
+        label: 'Número de passos de tempo',
+        tooltip: 'Número de snapshots do beam pattern durante a observação.',
+        type: 'number',
+        defaultValue: 1,
+        category: 'essential'
+    },
+
+    // =========================================================================
+    // [telescope]
+    // =========================================================================
+    {
+        key: 'input_directory',
+        section: 'telescope',
+        label: 'Diretório do telescópio',
+        tooltip: 'Caminho para o diretório com os dados de configuração do telescópio OSKAR.',
+        type: 'text',
+        defaultValue: '',
+        category: 'essential',
+        required: true,
+        isFilePath: true,
+        isDirectory: true
+    },
+    {
+        key: 'normalise_beams_at_phase_centre',
+        section: 'telescope',
+        label: 'Normalizar feixes no centro de fase',
+        tooltip: 'Se true, escala a amplitude de cada station beam no centro de fase para 1.0 em cada snapshot.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'allow_station_beam_duplication',
+        section: 'telescope',
+        label: 'Permitir duplicação de beams',
+        tooltip: 'Se habilitado, duplica beams de configurações de stations comuns. Reduz tempo mas pode causar erros com baselines longas.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'pol_mode',
+        section: 'telescope',
+        label: 'Modo de polarização',
+        tooltip: 'Full: simula ambas polarizações. Scalar: apenas Stokes I (mais rápido).',
+        type: 'select',
+        defaultValue: 'Full',
+        category: 'recommended',
+        options: [
+            { value: 'Full', label: 'Full (completo)' },
+            { value: 'Scalar', label: 'Scalar (apenas Stokes I)' }
+        ]
+    },
+    {
+        key: 'station_type',
+        section: 'telescope',
+        label: 'Tipo de station',
+        tooltip: 'Tipo de cada station: Aperture Array (padrão), Gaussian beam (teste), ou Isotropic (sem efeito de beam).',
+        type: 'select',
+        defaultValue: 'A',
+        category: 'recommended',
+        options: [
+            { value: 'A', label: 'Aperture Array (A)' },
+            { value: 'G', label: 'Gaussian Beam (G)' },
+            { value: 'I', label: 'Isotropic Beam (I)' }
+        ]
+    },
+    {
+        key: 'aperture_array/array_pattern/enable',
+        section: 'telescope',
+        label: 'Habilitar array pattern',
+        tooltip: 'Se true, avalia a contribuição do array pattern (beamforming das antenas) no beam da station.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'aperture_array/array_pattern/normalise',
+        section: 'telescope',
+        label: 'Normalizar array pattern',
+        tooltip: 'Se true, divide a amplitude do station beam pelo número de antenas na station.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'aperture_array/element_pattern/enable_numerical',
+        section: 'telescope',
+        label: 'Habilitar padrão numérico de elemento',
+        tooltip: 'Se true, usa arquivos de padrão numérico quando disponíveis. Caso contrário, usa o tipo funcional.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'aperture_array/element_pattern/functional_type',
+        section: 'telescope',
+        label: 'Tipo funcional do elemento',
+        tooltip: 'Tipo de padrão funcional aplicado aos elementos (se não usando padrão numérico).',
+        type: 'select',
+        defaultValue: 'Dipole',
+        category: 'advanced',
+        options: [
+            { value: 'Dipole', label: 'Dipolo' },
+            { value: 'Geometric dipole', label: 'Dipolo geométrico' }
+        ]
+    },
+    {
+        key: 'aperture_array/element_pattern/dipole_length',
+        section: 'telescope',
+        label: 'Comprimento do dipolo',
+        tooltip: 'Comprimento do dipolo (valor padrão 0.5 comprimentos de onda).',
+        type: 'number',
+        defaultValue: 0.5,
+        category: 'advanced'
+    },
+    {
+        key: 'aperture_array/element_pattern/dipole_length_units',
+        section: 'telescope',
+        label: 'Unidades do comprimento do dipolo',
+        tooltip: 'Unidades para o comprimento do dipolo: metros ou comprimentos de onda.',
+        type: 'select',
+        defaultValue: 'Wavelengths',
+        category: 'advanced',
+        options: [
+            { value: 'Wavelengths', label: 'Comprimentos de onda' },
+            { value: 'Metres', label: 'Metros' }
+        ]
+    },
+    {
+        key: 'aperture_array/element_pattern/taper/type',
+        section: 'telescope',
+        label: 'Tipo de tapering do elemento',
+        tooltip: 'Tipo de função de tapering aplicada ao padrão do elemento.',
+        type: 'select',
+        defaultValue: 'None',
+        category: 'advanced',
+        options: [
+            { value: 'None', label: 'Nenhum' },
+            { value: 'Cosine', label: 'Cosseno' },
+            { value: 'Gaussian', label: 'Gaussiana' }
+        ]
+    },
+    {
+        key: 'aperture_array/element_pattern/taper/cosine_power',
+        section: 'telescope',
+        label: 'Potência do taper cosseno',
+        tooltip: 'Potência da função cos(θ) se tapering tipo cosseno estiver selecionado.',
+        type: 'number',
+        defaultValue: 1.0,
+        category: 'advanced'
+    },
+    {
+        key: 'aperture_array/element_pattern/taper/gaussian_fwhm_deg',
+        section: 'telescope',
+        label: 'FWHM do taper gaussiano (°)',
+        tooltip: 'Largura a meia altura (FWHM) do tapering gaussiano, em graus.',
+        type: 'number',
+        defaultValue: 45.0,
+        category: 'advanced'
+    },
+    {
+        key: 'gaussian_beam/fwhm_deg',
+        section: 'telescope',
+        label: 'FWHM do Gaussian beam (°)',
+        tooltip: 'Para stations com beam gaussiano simples: FWHM na frequência de referência, em graus.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'gaussian_beam/ref_freq_hz',
+        section: 'telescope',
+        label: 'Freq. de referência do Gaussian beam (Hz)',
+        tooltip: 'Frequência de referência do FWHM especificado, em Hz.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'ionosphere_screen_type',
+        section: 'telescope',
+        label: 'Tipo de tela ionosférica',
+        tooltip: 'Tipo de phase screen ionosférica a utilizar.',
+        type: 'select',
+        defaultValue: 'None',
+        category: 'advanced',
+        options: [
+            { value: 'None', label: 'Nenhum' },
+            { value: 'External', label: 'Externo (FITS)' }
+        ]
+    },
+    {
+        key: 'external_tec_screen/input_fits_file',
+        section: 'telescope',
+        label: 'Arquivo FITS da tela TEC',
+        tooltip: 'Caminho para arquivo FITS (ARatmospy) para a tela TEC.',
+        type: 'text',
+        defaultValue: '',
+        category: 'advanced',
+        isFilePath: true
+    },
+    {
+        key: 'external_tec_screen/screen_height_km',
+        section: 'telescope',
+        label: 'Altura da tela ionosférica (km)',
+        tooltip: 'Altura da tela ionosférica, em quilômetros.',
+        type: 'number',
+        defaultValue: 300,
+        category: 'advanced'
+    },
+
+    // =========================================================================
+    // [beam_pattern]
+    // =========================================================================
+    {
+        key: 'all_stations',
+        section: 'beam_pattern',
+        label: 'Todas as stations',
+        tooltip: 'Se habilitado, produz beams para todas as stations do modelo de telescópio.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'essential',
+        options: [
+            { value: 'true', label: 'Sim (todas)' },
+            { value: 'false', label: 'Não (selecionadas)' }
+        ]
+    },
+    {
+        key: 'station_ids',
+        section: 'beam_pattern',
+        label: 'IDs de stations',
+        tooltip: 'IDs (base-zero) das stations para gerar beam patterns. Separados por vírgula (CSV).',
+        type: 'text',
+        defaultValue: '0',
+        category: 'essential'
+    },
+    {
+        key: 'coordinate_frame',
+        section: 'beam_pattern',
+        label: 'Sistema de coordenadas',
+        tooltip: 'Sistema de coordenadas para avaliar o beam pattern. Horizon cobre o céu inteiro.',
+        type: 'select',
+        defaultValue: 'Equatorial',
+        category: 'recommended',
+        options: [
+            { value: 'Equatorial', label: 'Equatorial' },
+            { value: 'Horizon', label: 'Horizon' }
+        ]
+    },
+    {
+        key: 'coordinate_type',
+        section: 'beam_pattern',
+        label: 'Tipo de coordenadas',
+        tooltip: 'Beam image: imagem no plano tangente centrada no phase centre. Sky model: avalia apenas nas coordenadas fornecidas.',
+        type: 'select',
+        defaultValue: 'Beam image',
+        category: 'recommended',
+        options: [
+            { value: 'Beam image', label: 'Beam image (plano tangente)' },
+            { value: 'Sky model', label: 'Sky model (coordenadas fornecidas)' }
+        ]
+    },
+    {
+        key: 'beam_image/specify_cellsize',
+        section: 'beam_pattern',
+        label: 'Especificar cellsize',
+        tooltip: 'Se habilitado, especifica cellsize; caso contrário, especifica campo de visão (FOV).',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim (cellsize)' },
+            { value: 'false', label: 'Não (FOV)' }
+        ]
+    },
+    {
+        key: 'beam_image/size',
+        section: 'beam_pattern',
+        label: 'Dimensões da imagem (px)',
+        tooltip: 'Dimensões da imagem. Valor único = quadrado (ex: 256 → 256×256). Pode ser "256,128" para largura×altura.',
+        type: 'text',
+        defaultValue: '256',
+        category: 'essential'
+    },
+    {
+        key: 'beam_image/fov_deg',
+        section: 'beam_pattern',
+        label: 'Campo de visão (°)',
+        tooltip: 'FOV total em graus (máx 180). Valor único = igual em ambas dimensões. Pode ser "2.0,1.0".',
+        type: 'text',
+        defaultValue: '2.0',
+        category: 'essential'
+    },
+    {
+        key: 'beam_image/cellsize_arcsec',
+        section: 'beam_pattern',
+        label: 'Cellsize (arcsec)',
+        tooltip: 'Tamanho do pixel em arco-segundos (usado se "Especificar cellsize" = Sim).',
+        type: 'number',
+        defaultValue: 1.0,
+        category: 'recommended'
+    },
+    {
+        key: 'sky_model/file',
+        section: 'beam_pattern',
+        label: 'Arquivo do modelo de céu',
+        tooltip: 'Caminho para arquivo de sky model de entrada (para avaliar beam em coordenadas específicas).',
+        type: 'text',
+        defaultValue: '',
+        category: 'advanced',
+        isFilePath: true
+    },
+    {
+        key: 'root_path',
+        section: 'beam_pattern',
+        label: 'Caminho raiz de saída',
+        tooltip: 'Nome raiz dos arquivos de saída. Sufixos e extensões serão adicionados automaticamente.',
+        type: 'text',
+        defaultValue: '',
+        category: 'essential',
+        required: true,
+        isFilePath: true
+    },
+    {
+        key: 'output/separate_time_and_channel',
+        section: 'beam_pattern',
+        label: 'Separar tempo e canal',
+        tooltip: 'Se true, gera arquivos de saída sem fazer média sobre tempo ou canal.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'output/average_time_and_channel',
+        section: 'beam_pattern',
+        label: 'Média de tempo e canal',
+        tooltip: 'Se true, gera arquivos com média sobre tempo e canal.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'output/average_single_axis',
+        section: 'beam_pattern',
+        label: 'Média em eixo único',
+        tooltip: 'Se definido, faz média sobre o eixo selecionado.',
+        type: 'select',
+        defaultValue: 'None',
+        category: 'advanced',
+        options: [
+            { value: 'None', label: 'Nenhum' },
+            { value: 'Time', label: 'Tempo' },
+            { value: 'Channel', label: 'Canal' }
+        ]
+    },
+
+    // Station outputs - text
+    {
+        key: 'station_outputs/text_file/raw_complex',
+        section: 'beam_pattern',
+        label: 'Texto: complexo bruto',
+        tooltip: 'Se true, salva o padrão complexo bruto em arquivos de texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/text_file/amp',
+        section: 'beam_pattern',
+        label: 'Texto: amplitude',
+        tooltip: 'Se true, salva a amplitude (voltagem) em arquivos de texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/text_file/phase',
+        section: 'beam_pattern',
+        label: 'Texto: fase',
+        tooltip: 'Se true, salva o padrão de fase em arquivos de texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/text_file/auto_power',
+        section: 'beam_pattern',
+        label: 'Texto: auto-potência',
+        tooltip: 'Se true, salva o beam de auto-correlação (intensidade total) em texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+
+    // Station outputs - FITS
+    {
+        key: 'station_outputs/fits_image/amp',
+        section: 'beam_pattern',
+        label: 'FITS: amplitude',
+        tooltip: 'Se true, salva a amplitude em imagens FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/fits_image/phase',
+        section: 'beam_pattern',
+        label: 'FITS: fase',
+        tooltip: 'Se true, salva a fase em imagens FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/fits_image/auto_power',
+        section: 'beam_pattern',
+        label: 'FITS: auto-potência',
+        tooltip: 'Se true, salva o beam de auto-correlação em imagens FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'recommended',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/fits_image/auto_power_phase',
+        section: 'beam_pattern',
+        label: 'FITS: fase auto-potência',
+        tooltip: 'Se true, salva a fase da auto-correlação em imagens FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/fits_image/auto_power_real',
+        section: 'beam_pattern',
+        label: 'FITS: parte real auto-potência',
+        tooltip: 'Se true, salva a parte real do beam auto-correlação em FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'station_outputs/fits_image/auto_power_imag',
+        section: 'beam_pattern',
+        label: 'FITS: parte imaginária auto-potência',
+        tooltip: 'Se true, salva a parte imaginária do beam auto-correlação em FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+
+    // Telescope outputs - text
+    {
+        key: 'telescope_outputs/text_file/cross_power_raw_complex',
+        section: 'beam_pattern',
+        label: 'Telescópio texto: cross-power complexo',
+        tooltip: 'Se true, salva a resposta bruta do cross-power beam médio de todas as stations em texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'telescope_outputs/text_file/cross_power_amp',
+        section: 'beam_pattern',
+        label: 'Telescópio texto: cross-power amplitude',
+        tooltip: 'Se true, salva a amplitude do cross-power beam médio em texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'telescope_outputs/text_file/cross_power_phase',
+        section: 'beam_pattern',
+        label: 'Telescópio texto: cross-power fase',
+        tooltip: 'Se true, salva a fase do cross-power beam médio em texto.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+
+    // Telescope outputs - FITS
+    {
+        key: 'telescope_outputs/fits_image/cross_power_amp',
+        section: 'beam_pattern',
+        label: 'Telescópio FITS: cross-power amplitude',
+        tooltip: 'Se true, salva a amplitude do cross-power beam médio em FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'telescope_outputs/fits_image/cross_power_phase',
+        section: 'beam_pattern',
+        label: 'Telescópio FITS: cross-power fase',
+        tooltip: 'Se true, salva a fase do cross-power beam médio em FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'telescope_outputs/fits_image/cross_power_real',
+        section: 'beam_pattern',
+        label: 'Telescópio FITS: cross-power real',
+        tooltip: 'Se true, salva a parte real do cross-power beam médio em FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'telescope_outputs/fits_image/cross_power_imag',
+        section: 'beam_pattern',
+        label: 'Telescópio FITS: cross-power imaginário',
+        tooltip: 'Se true, salva a parte imaginária do cross-power beam médio em FITS.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+
+    // Test source
+    {
+        key: 'test_source/stokes_i',
+        section: 'beam_pattern',
+        label: 'Fonte de teste Stokes I',
+        tooltip: 'Se true, usa uma fonte de teste Stokes I.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'test_source/custom',
+        section: 'beam_pattern',
+        label: 'Fonte de teste customizada',
+        tooltip: 'Se true, usa uma fonte de teste customizada com os valores Stokes abaixo.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [{ value: 'true', label: 'Sim' }, { value: 'false', label: 'Não' }]
+    },
+    {
+        key: 'test_source/custom_stokes_i',
+        section: 'beam_pattern',
+        label: 'Stokes I (fonte custom)',
+        tooltip: 'Valor Stokes I para a fonte de teste customizada.',
+        type: 'number',
+        defaultValue: 1.0,
+        category: 'advanced'
+    },
+    {
+        key: 'test_source/custom_stokes_q',
+        section: 'beam_pattern',
+        label: 'Stokes Q (fonte custom)',
+        tooltip: 'Valor Stokes Q para a fonte de teste customizada.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'test_source/custom_stokes_u',
+        section: 'beam_pattern',
+        label: 'Stokes U (fonte custom)',
+        tooltip: 'Valor Stokes U para a fonte de teste customizada.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'test_source/custom_stokes_v',
+        section: 'beam_pattern',
+        label: 'Stokes V (fonte custom)',
+        tooltip: 'Valor Stokes V para a fonte de teste customizada.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    }
+]);
+
+/**
+ * Rótulos de seções para o oskar_sim_beam_pattern.
+ * @constant {Object<string, string>}
+ */
+const BEAM_PATTERN_SECTION_LABELS = Object.freeze({
+    simulator: 'Simulador',
+    observation: 'Observação',
+    telescope: 'Telescópio',
+    beam_pattern: 'Beam Pattern'
+});
+
+/**
+ * Classe geradora do arquivo .ini do oskar_sim_beam_pattern.
+ */
+class OskarBeamPatternGenerator {
+    constructor() {
+        /** @type {Object<string, HTMLElement>} */
+        this.inputElements = {};
+
+        this.paramsContainer = document.getElementById('beam-pattern-ini-params-container');
+        this.previewTextarea = document.getElementById('beam-pattern-ini-preview');
+        this.validationContainer = document.getElementById('beam-pattern-ini-validation-messages');
+
+        this._bindButtons();
+        this.renderParameters();
+        this.updatePreview();
+
+        console.log('OskarBeamPatternGenerator inicializado com sucesso.');
+    }
+
+    _bindButtons() {
+        const copyBtn = document.getElementById('beam-pattern-ini-copy-btn');
+        const downloadBtn = document.getElementById('beam-pattern-ini-download-btn');
+
+        if (copyBtn) copyBtn.addEventListener('click', (e) => { e.preventDefault(); this.copyIni(); });
+        if (downloadBtn) downloadBtn.addEventListener('click', (e) => { e.preventDefault(); this.downloadIni(); });
+    }
+
+    renderParameters() {
+        if (!this.paramsContainer) {
+            console.warn('Container beam-pattern-ini-params-container não encontrado no DOM.');
+            return;
+        }
+        this.paramsContainer.innerHTML = '';
+        this.inputElements = {};
+
+        const sectionOrder = ['simulator', 'observation', 'telescope', 'beam_pattern'];
+
+        INI_CATEGORIES.forEach(cat => {
+            const params = OSKAR_BEAM_PATTERN_PARAMS.filter(p => p.category === cat.id);
+            if (params.length === 0) return;
+
+            const catWrapper = document.createElement('div');
+            catWrapper.className = `ini-category ini-category--${cat.id}`;
+
+            const catHeader = document.createElement('div');
+            catHeader.className = 'ini-category__header';
+            catHeader.innerHTML = `<i class="fas ${cat.icon}"></i> <span>${cat.label}</span>`;
+
+            const catBody = document.createElement('div');
+            catBody.className = 'ini-category__body';
+
+            if (cat.collapsible) {
+                catBody.style.display = 'none';
+                const toggleIcon = document.createElement('i');
+                toggleIcon.className = 'fas fa-chevron-down ini-category__toggle';
+                catHeader.appendChild(toggleIcon);
+                catHeader.style.cursor = 'pointer';
+                catHeader.addEventListener('click', () => {
+                    const isHidden = catBody.style.display === 'none';
+                    catBody.style.display = isHidden ? '' : 'none';
+                    toggleIcon.classList.toggle('fa-chevron-down', !isHidden);
+                    toggleIcon.classList.toggle('fa-chevron-up', isHidden);
+                });
+            }
+
+            const grouped = {};
+            params.forEach(p => {
+                if (!grouped[p.section]) grouped[p.section] = [];
+                grouped[p.section].push(p);
+            });
+
+            sectionOrder.forEach(sec => {
+                if (!grouped[sec]) return;
+                const sectionDiv = document.createElement('fieldset');
+                sectionDiv.className = 'ini-section';
+                const legend = document.createElement('legend');
+                legend.textContent = BEAM_PATTERN_SECTION_LABELS[sec] || sec;
+                sectionDiv.appendChild(legend);
+
+                grouped[sec].forEach(param => {
+                    sectionDiv.appendChild(this._createParamRow(param));
+                });
+
+                catBody.appendChild(sectionDiv);
+            });
+
+            catWrapper.appendChild(catHeader);
+            catWrapper.appendChild(catBody);
+            this.paramsContainer.appendChild(catWrapper);
+        });
+    }
+
+    _createParamRow(param) {
+        const row = document.createElement('div');
+        row.className = 'ini-param-row';
+        if (param.required) row.classList.add('ini-param-row--required');
+
+        const label = document.createElement('label');
+        const inputId = `bp-input-${param.section}-${param.key.replace(/[/.]/g, '_')}`;
+        label.setAttribute('for', inputId);
+        label.textContent = param.label;
+        if (param.required) {
+            const req = document.createElement('span');
+            req.className = 'ini-required-mark';
+            req.textContent = ' *';
+            label.appendChild(req);
+        }
+
+        const tooltipIcon = document.createElement('i');
+        tooltipIcon.className = 'fas fa-question-circle ini-tooltip-icon';
+        tooltipIcon.title = param.tooltip;
+        label.appendChild(tooltipIcon);
+
+        let input;
+        if (param.type === 'select' && param.options) {
+            input = document.createElement('select');
+            param.options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label;
+                if (String(opt.value) === String(param.defaultValue)) option.selected = true;
+                input.appendChild(option);
+            });
+        } else if (param.type === 'checkbox') {
+            input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = !!param.defaultValue;
+        } else {
+            input = document.createElement('input');
+            input.type = param.type === 'number' ? 'number' : 'text';
+            if (param.type === 'number') input.step = 'any';
+            input.value = param.defaultValue !== undefined ? param.defaultValue : '';
+        }
+
+        input.id = inputId;
+        input.className = 'ini-param-input';
+        input.dataset.iniKey = param.key;
+        input.dataset.iniSection = param.section;
+
+        input.addEventListener('change', () => this.updatePreview());
+        input.addEventListener('input', () => this.updatePreview());
+
+        const errorSpan = document.createElement('span');
+        errorSpan.className = 'ini-field-error';
+
+        const compositeKey = `${param.section}.${param.key}`;
+        this.inputElements[compositeKey] = input;
+
+        row.appendChild(label);
+
+        if (param.isFilePath) {
+            const inputWrapper = document.createElement('div');
+            inputWrapper.className = 'ini-file-input-wrapper';
+            input.placeholder = param.isDirectory
+                ? 'Ex: /home/user/telescope'
+                : 'Ex: /home/user/data/beam_output';
+            inputWrapper.appendChild(input);
+
+            const browseBtn = document.createElement('button');
+            browseBtn.type = 'button';
+            browseBtn.className = 'ini-browse-btn';
+            browseBtn.title = 'Inserir caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
+            browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
+
+            browseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const lbl = param.isDirectory ? 'diretório' : 'arquivo';
+                const currentVal = input.value || '';
+                const path = prompt(
+                    `Cole o caminho completo do ${lbl} no seu computador:`,
+                    currentVal
+                );
+                if (path !== null && path.trim() !== '') {
+                    input.value = path.trim();
+                    input.dispatchEvent(new Event('input'));
+                }
+            });
+
+            inputWrapper.appendChild(browseBtn);
+            row.appendChild(inputWrapper);
+        } else {
+            row.appendChild(input);
+        }
+
+        row.appendChild(errorSpan);
+        return row;
+    }
+
+    generateIni() {
+        const eol = getOsLineEnding();
+        const sections = {};
+
+        OSKAR_BEAM_PATTERN_PARAMS.forEach(param => {
+            const compositeKey = `${param.section}.${param.key}`;
+            const input = this.inputElements[compositeKey];
+            if (!input) return;
+
+            let value;
+            if (param.type === 'checkbox') {
+                value = input.checked ? 'true' : 'false';
+            } else {
+                value = input.value;
+            }
+
+            if (value === '' && !param.required) return;
+
+            if (!sections[param.section]) sections[param.section] = [];
+            sections[param.section].push({ key: param.key, value });
+        });
+
+        const sectionOrder = ['simulator', 'observation', 'telescope', 'beam_pattern'];
+        const lines = [];
+        lines.push('[General]');
+        lines.push('app=oskar_sim_beam_pattern');
+        lines.push('');
+
+        sectionOrder.forEach(sec => {
+            if (!sections[sec] || sections[sec].length === 0) return;
+            lines.push(`[${sec}]`);
+            sections[sec].forEach(entry => {
+                lines.push(`${entry.key}=${entry.value}`);
+            });
+            lines.push('');
+        });
+
+        return lines.join(eol);
+    }
+
+    updatePreview() {
+        if (!this.previewTextarea) return;
+        this.previewTextarea.value = this.generateIni();
+    }
+
+    validateFields() {
+        let allValid = true;
+        OSKAR_BEAM_PATTERN_PARAMS.forEach(param => {
+            const compositeKey = `${param.section}.${param.key}`;
+            const input = this.inputElements[compositeKey];
+            if (!input) return;
+
+            const row = input.closest('.ini-param-row');
+            const errorSpan = row ? row.querySelector('.ini-field-error') : null;
+            let errorMsg = '';
+
+            const value = (param.type === 'checkbox') ? input.checked : input.value;
+            if (param.required && (value === '' || value === null || value === undefined)) {
+                errorMsg = 'Campo obrigatório.';
+            }
+            if (!errorMsg && param.type === 'number' && value !== '') {
+                if (isNaN(Number(value))) errorMsg = 'Valor numérico inválido.';
+            }
+
+            if (errorMsg) {
+                allValid = false;
+                if (input.classList) input.classList.add('ini-input--error');
+            } else {
+                if (input.classList) input.classList.remove('ini-input--error');
+            }
+            if (errorSpan) errorSpan.textContent = errorMsg;
+        });
+
+        if (this.validationContainer) {
+            this.validationContainer.innerHTML = allValid
+                ? '<span class="ini-validation-ok"><i class="fas fa-check-circle"></i> Todos os campos estão válidos.</span>'
+                : '<span class="ini-validation-error"><i class="fas fa-exclamation-triangle"></i> Campos com erros.</span>';
+        }
+        return allValid;
+    }
+
+    downloadIni() {
+        if (!this.validateFields()) {
+            console.warn('Download cancelado: campos com erro.');
+            return;
+        }
+        const content = this.generateIni();
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'oskar_sim_beam_pattern.ini';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('Arquivo oskar_sim_beam_pattern.ini baixado com sucesso.');
+    }
+
+    copyIni() {
+        const content = this.generateIni();
+        const copyBtn = document.getElementById('beam-pattern-ini-copy-btn');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(content).then(() => {
+                this._showCopyFeedback(copyBtn, true);
+            }).catch(() => {
+                this._showCopyFeedback(copyBtn, false);
+            });
+        } else if (this.previewTextarea) {
+            this.previewTextarea.select();
+            document.execCommand('copy');
+            this._showCopyFeedback(copyBtn, true);
+        }
+    }
+
+    _showCopyFeedback(button, success) {
+        if (!button) return;
+        const icon = button.querySelector('i');
+        if (!icon) return;
+        const orig = 'fa-copy';
+        const feedback = success ? 'fa-check' : 'fa-times';
+        icon.classList.remove(orig);
+        icon.classList.add(feedback);
+        button.style.color = success ? 'var(--success-color)' : 'var(--secondary-color)';
+        setTimeout(() => {
+            icon.classList.remove(feedback);
+            icon.classList.add(orig);
+            button.style.color = '';
+        }, 1500);
+    }
+}
+
+// =============================================================================
 // Inicialização
 // =============================================================================
 
@@ -2166,5 +3314,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } else {
         window.oskarImagerGenerator.updatePreview();
+    }
+
+    if (!window.oskarBeamPatternGenerator) {
+        try {
+            window.oskarBeamPatternGenerator = new OskarBeamPatternGenerator();
+            console.log('Instância de OskarBeamPatternGenerator criada e configurada.');
+        } catch (error) {
+            console.error('Erro ao instanciar OskarBeamPatternGenerator:', error);
+        }
+    } else {
+        window.oskarBeamPatternGenerator.updatePreview();
     }
 });

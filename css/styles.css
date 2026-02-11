@@ -1136,7 +1136,9 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 .ini-collapsible-content.expanded {
     display: block;
 }
-#ini-preview {
+#ini-preview,
+#imager-preview,
+#beam-pattern-ini-preview {
     flex: 1;
     min-height: 400px;
     padding: 12px;

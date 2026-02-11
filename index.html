@@ -504,6 +504,11 @@
                 <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do <strong>oskar_imager</strong>. Configura a geração de imagens a partir dos dados de visibilidade simulados.</p>
                 <div class="ini-layout">
                     <div class="ini-params-area">
+                        <div class="ini-toolbar">
+                            <button id="imager-use-interf-output-btn" class="secondary small-btn" title="Usa o mesmo caminho do arquivo .vis definido no bloco do interferômetro como entrada para o imager.">
+                                <i class="fas fa-link"></i> Usar saída do Interferômetro
+                            </button>
+                        </div>
                         <div id="imager-params-container" class="ini-params-container">
                             <p class="placeholder-text">Carregando parâmetros do imager...</p>
                         </div>
@@ -515,6 +520,28 @@
                         <div class="ini-actions">
                             <button id="imager-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
                             <button id="imager-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar oskar_imager.ini</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- === BLOCO 3: OSKAR SIM BEAM PATTERN (.ini) === -->
+            <section class="ini-generator-section" style="margin-top: 30px;">
+                <h2><i class="fas fa-satellite-dish"></i> Gerador de Arquivo do Beam Pattern (.ini)</h2>
+                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do <strong>oskar_sim_beam_pattern</strong>. Simula o padrão de feixe (beam pattern) de stations do telescópio.</p>
+                <div class="ini-layout">
+                    <div class="ini-params-area">
+                        <div id="beam-pattern-ini-params-container" class="ini-params-container">
+                            <p class="placeholder-text">Carregando parâmetros do beam pattern...</p>
+                        </div>
+                        <div id="beam-pattern-ini-validation-messages" class="validation-messages"></div>
+                    </div>
+                    <div class="ini-preview-area">
+                        <h3>Preview do arquivo oskar_sim_beam_pattern.ini</h3>
+                        <textarea id="beam-pattern-ini-preview" readonly placeholder="O conteúdo do arquivo .ini do beam pattern aparecerá aqui..."></textarea>
+                        <div class="ini-actions">
+                            <button id="beam-pattern-ini-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button id="beam-pattern-ini-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar oskar_sim_beam_pattern.ini</button>
                         </div>
                     </div>
                 </div>
