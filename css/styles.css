@@ -641,6 +641,19 @@ button.small-btn {
 .download-zip-group input[type="text"] { padding: 9px; border: 1px solid var(--border-color); border-radius: 4px; font-size: 14px; background-color: var(--input-bg-color); color: var(--input-text-color); flex-grow: 1; min-width: 200px; max-width: 400px; }
 .export-container p small { display: block; text-align: center; margin-top: 15px; }
 
+/* Seletor de formato de coordenadas (ECEF / ENU) */
+.coord-format-section { grid-column: 1 / -1; }
+.coord-format-header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; font-weight: 500; }
+.coord-format-title { font-size: 14px; }
+.coord-help-icon { cursor: help; font-size: 16px; color: var(--primary-color); opacity: 0.8; }
+.coord-help-icon:hover { opacity: 1; }
+.coord-format-selector { display: flex; gap: 16px; margin-bottom: 10px; }
+.coord-radio-label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: 500; font-size: 13px; }
+.coord-radio-label input[type="radio"] { accent-color: var(--primary-color); }
+.coord-format-panel { position: relative; }
+.coord-format-panel label { display: block; margin-bottom: 5px; font-weight: 500; }
+.coord-format-panel textarea { width: 100%; height: 180px; padding: 10px; padding-right: 35px; border: 1px solid var(--border-color); border-radius: 4px; font-family: monospace; font-size: 12px; resize: vertical; background-color: var(--input-bg-color); color: var(--input-text-color); box-sizing: border-box; }
+
 /* Estilos comuns (formulários, botões, sliders) */
 .form-group { margin-bottom: 15px; }
 .form-group label { display: block; margin-bottom: 5px; font-weight: 500; }

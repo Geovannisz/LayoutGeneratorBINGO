@@ -427,6 +427,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- Seletor de formato de coordenadas (ECEF / ENU) ---
+    const coordRadios = document.querySelectorAll('input[name="coord-format"]');
+    const ecefPanel = document.getElementById('coord-format-ecef');
+    const enuPanel = document.getElementById('coord-format-enu');
+    coordRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (ecefPanel) ecefPanel.style.display = radio.value === 'ecef' ? '' : 'none';
+            if (enuPanel) enuPanel.style.display = radio.value === 'enu' ? '' : 'none';
+        });
+    });
+
     // --- Lógica para o Botão de Download ZIP ---
     const downloadBtn = document.getElementById('download-zip-btn');
     const filenameInput = document.getElementById('zip-filename-input');

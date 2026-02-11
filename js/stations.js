@@ -113,6 +113,9 @@ class StationManager {
         this.baselineInfo = document.getElementById(this.baselineInfoId);
         this.extraParamsContainer = document.getElementById(this.extraParamsContainerId);
 
+        // Timer para debounce da geração automática
+        this._autoGenTimer = null;
+
         if (!this.generateBtn && !this.layoutTypeSelect) {
             console.warn("StationManager: Elementos DOM de estações não encontrados. Módulo em modo stand-by.");
             return;
@@ -131,15 +134,34 @@ class StationManager {
             });
         }
         if (this.spacingRange) {
-            this.spacingRange.addEventListener('input', () => this._updateSpacingDisplay());
+            this.spacingRange.addEventListener('input', () => {
+                this._updateSpacingDisplay();
+                this._autoGenerate();
+            });
+        }
+        if (this.stationCountInput) {
+            this.stationCountInput.addEventListener('input', () => this._autoGenerate());
         }
         if (this.layoutTypeSelect) {
-            this.layoutTypeSelect.addEventListener('change', () => this._updateExtraParams());
+            this.layoutTypeSelect.addEventListener('change', () => {
+                this._updateExtraParams();
+                this._autoGenerate();
+            });
         }
 
         this._updateSpacingDisplay();
         this._updateExtraParams();
+        // Geração inicial automática
+        this.generateStations();
         console.log("StationManager: Módulo de estações inicializado.");
+    }
+
+    /**
+     * Gera estações automaticamente com debounce (150ms) ao alterar qualquer parâmetro.
+     */
+    _autoGenerate() {
+        clearTimeout(this._autoGenTimer);
+        this._autoGenTimer = setTimeout(() => this.generateStations(), 150);
     }
 
     /**
@@ -282,6 +304,15 @@ class StationManager {
             }
         }
         this.extraParamsContainer.innerHTML = html;
+
+        // Vincula listeners nos novos parâmetros dinâmicos para geração automática
+        const defs2 = paramDefs[layout] || [];
+        for (const p of defs2) {
+            const el = document.getElementById(p.id);
+            if (el) {
+                el.addEventListener(p.type === 'select' ? 'change' : 'input', () => this._autoGenerate());
+            }
+        }
     }
 
     /**

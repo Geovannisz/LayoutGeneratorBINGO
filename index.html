@@ -445,13 +445,33 @@
                     <label for="export-tile-layout">station/tile/layout.txt:</label>
                     <textarea id="export-tile-layout" readonly title="Coordenadas XY relativas das 64 antenas no tile"></textarea>
                 </div>
-                 <div class="export-field">
-                    <label for="export-layout-ecef">layout_ecef.txt:</label>
-                    <textarea id="export-layout-ecef" readonly title="Coordenadas ECEF (Earth-Centered Earth-Fixed) das estações"></textarea>
-                </div>
-                 <div class="export-field">
-                    <label for="export-layout-enu">layout_enu.txt:</label>
-                    <textarea id="export-layout-enu" readonly title="Coordenadas ENU (East-North-Up) relativas ao BINGO Central"></textarea>
+
+                <!-- Seletor de formato de coordenadas (ECEF vs ENU) -->
+                <div class="export-field coord-format-section">
+                    <div class="coord-format-header">
+                        <span class="coord-format-title">Formato alternativo de coordenadas:</span>
+                        <span class="coord-help-icon" title="WGS84 (acima) é o formato padrão (lat,lon,alt). Aqui você pode escolher um formato alternativo para incluir na exportação.">&#9432;</span>
+                    </div>
+                    <div class="coord-format-selector" role="radiogroup" aria-label="Formato de coordenadas">
+                        <label class="coord-radio-label">
+                            <input type="radio" name="coord-format" value="ecef" checked>
+                            <span>ECEF</span>
+                            <span class="coord-help-icon" title="ECEF (Earth-Centered Earth-Fixed): Coordenadas cartesianas geocêntricas (X,Y,Z em metros) com origem no centro da Terra. Usado pelo OSKAR para definir posições absolutas das estações no espaço 3D. Ideal quando se precisa de precisão absoluta na geometria do arranjo.">&#9432;</span>
+                        </label>
+                        <label class="coord-radio-label">
+                            <input type="radio" name="coord-format" value="enu">
+                            <span>ENU</span>
+                            <span class="coord-help-icon" title="ENU (East-North-Up): Coordenadas locais topocêntricas (Leste,Norte,Cima em metros) relativas ao centro do BINGO. Usado pelo OSKAR como sistema de referência local para layouts de estações. Ideal para visualizar e editar distâncias relativas entre estações.">&#9432;</span>
+                        </label>
+                    </div>
+                    <div id="coord-format-ecef" class="coord-format-panel">
+                        <label for="export-layout-ecef">layout_ecef.txt:</label>
+                        <textarea id="export-layout-ecef" readonly title="Coordenadas ECEF (Earth-Centered Earth-Fixed) das estações"></textarea>
+                    </div>
+                    <div id="coord-format-enu" class="coord-format-panel" style="display:none;">
+                        <label for="export-layout-enu">layout_enu.txt:</label>
+                        <textarea id="export-layout-enu" readonly title="Coordenadas ENU (East-North-Up) relativas ao BINGO Central"></textarea>
+                    </div>
                 </div>
             </div>
             <div class="download-zip-group">
