@@ -55,6 +55,11 @@ class SkyModelGenerator {
         /** @type {HTMLButtonElement|null} */
         this.copyBtn = document.getElementById('sky-copy-btn');
 
+        /** @type {string|null} Coluna de ordenação atual da tabela de fontes */
+        this._sortColumn = null;
+        /** @type {boolean} Direção de ordenação (true = ascendente) */
+        this._sortAsc = true;
+
         this._bindEvents();
         this.renderControls();
         this.updatePreview();
@@ -658,35 +663,70 @@ class SkyModelGenerator {
         if (!this.sourceTable) return;
 
         if (this.sources.length === 0) {
+            this._sortColumn = null;
             this.sourceTable.innerHTML = '<tr><td colspan="6" style="text-align:center;">Nenhuma fonte adicionada.</td></tr>';
             return;
         }
 
-        let html = `
-            <tr>
-                <th>#</th>
-                <th>RA (°)</th>
-                <th>Dec (°)</th>
-                <th>I (Jy)</th>
-                <th>Índ. Esp.</th>
-                <th>Ação</th>
-            </tr>
-        `;
+        // Cria índices ordenados sem modificar this.sources (preserva ordem original para exportação)
+        const sortedIndices = this.sources.map((_, i) => i);
+        if (this._sortColumn) {
+            const col = this._sortColumn;
+            const asc = this._sortAsc;
+            sortedIndices.sort((a, b) => {
+                const va = this.sources[a][col];
+                const vb = this.sources[b][col];
+                return asc ? (va - vb) : (vb - va);
+            });
+        }
 
-        this.sources.forEach((src, idx) => {
+        // Indicador de direção por coluna
+        const sortCols = [
+            { key: 'ra',            label: 'RA (°)' },
+            { key: 'dec',           label: 'Dec (°)' },
+            { key: 'flux',          label: 'I (Jy)' },
+            { key: 'spectralIndex', label: 'Índ. Esp.' }
+        ];
+
+        let html = '<tr><th>#</th>';
+        for (const col of sortCols) {
+            let arrow = '';
+            if (this._sortColumn === col.key) {
+                arrow = this._sortAsc ? ' ▲' : ' ▼';
+            }
+            html += `<th class="sky-sortable-th" data-sort-key="${col.key}">${col.label}${arrow}</th>`;
+        }
+        html += '<th>Ação</th></tr>';
+
+        for (const origIdx of sortedIndices) {
+            const src = this.sources[origIdx];
             html += `
                 <tr>
-                    <td>${idx + 1}</td>
+                    <td>${origIdx + 1}</td>
                     <td>${src.ra.toFixed(4)}</td>
                     <td>${src.dec.toFixed(4)}</td>
                     <td>${src.flux.toFixed(4)}</td>
                     <td>${src.spectralIndex.toFixed(2)}</td>
-                    <td><button class="sky-remove-btn" data-index="${idx}" title="Remover fonte">✕</button></td>
+                    <td><button class="sky-remove-btn" data-index="${origIdx}" title="Remover fonte">✕</button></td>
                 </tr>
             `;
-        });
+        }
 
         this.sourceTable.innerHTML = html;
+
+        // Liga eventos de ordenação nos cabeçalhos
+        this.sourceTable.querySelectorAll('.sky-sortable-th').forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.sortKey;
+                if (this._sortColumn === key) {
+                    this._sortAsc = !this._sortAsc;
+                } else {
+                    this._sortColumn = key;
+                    this._sortAsc = true;
+                }
+                this.updateSourceTable();
+            });
+        });
 
         // Liga eventos de remoção individual
         this.sourceTable.querySelectorAll('.sky-remove-btn').forEach(btn => {
