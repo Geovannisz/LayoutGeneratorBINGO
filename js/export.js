@@ -90,7 +90,8 @@ class OskarLayoutExporter {
             'export-station-layout',
             'export-tile-layout',
             'export-layout-ecef',
-            'export-layout-enu'
+            'export-layout-enu',
+            'export-layout-wgs84-alt'
         ];
         textareaIds.forEach(id => this._addSingleCopyButtonToTextarea(id));
     }
@@ -216,6 +217,7 @@ class OskarLayoutExporter {
 
         // Chama os métodos para atualizar cada campo de exportação.
         this.updateLayoutWgs84Field();
+        this.updateLayoutWgs84AltField();
         // this.updateBingoPositionField(); // Já chamado no construtor, é fixo.
         this.updateStationLayoutField();
         // this.updateTileLayoutField(); // Já chamado no construtor e generateSingleTileLayout, é fixo.
@@ -239,13 +241,27 @@ class OskarLayoutExporter {
             textarea.value = 'Nenhuma estação selecionada no mapa.\nClique no mapa ou escolha um arranjo pré-definido.';
             return;
         }
-        // Formato: latitude,longitude,altitude (separados por vírgula)
+        // Formato OSKAR layout_wgs84.txt: longitude,latitude,altitude (separados por vírgula)
         textarea.value = this.selectedStationsCoords.map(station => {
             const lat = station.lat || 0;
             const lon = station.lon || 0;
             const alt = station.alt || 0;
-            return `${lat.toFixed(7)},${lon.toFixed(7)},${alt.toFixed(1)}`;
+            return `${lon.toFixed(7)},${lat.toFixed(7)},${alt.toFixed(1)}`;
         }).join('\n');
+    }
+
+    /**
+     * Atualiza o textarea alternativo para layout_wgs84.txt no painel de formato de coordenadas.
+     * Reutiliza os mesmos dados de `this.selectedStationsCoords`.
+     */
+    updateLayoutWgs84AltField() {
+        const textarea = document.getElementById('export-layout-wgs84-alt');
+        if (!textarea) return;
+
+        const source = document.getElementById('export-layout-wgs84');
+        if (source) {
+            textarea.value = source.value;
+        }
     }
 
     /**
@@ -427,12 +443,14 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    // --- Seletor de formato de coordenadas (ECEF / ENU) ---
+    // --- Seletor de formato de coordenadas (WGS84 / ECEF / ENU) ---
     const coordRadios = document.querySelectorAll('input[name="coord-format"]');
+    const wgs84Panel = document.getElementById('coord-format-wgs84');
     const ecefPanel = document.getElementById('coord-format-ecef');
     const enuPanel = document.getElementById('coord-format-enu');
     coordRadios.forEach(radio => {
         radio.addEventListener('change', () => {
+            if (wgs84Panel) wgs84Panel.style.display = radio.value === 'wgs84' ? '' : 'none';
             if (ecefPanel) ecefPanel.style.display = radio.value === 'ecef' ? '' : 'none';
             if (enuPanel) enuPanel.style.display = radio.value === 'enu' ? '' : 'none';
         });

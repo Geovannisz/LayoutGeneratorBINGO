@@ -23,6 +23,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import math
+import argparse
 from collections import defaultdict
 import traceback
 from typing import Dict, Any, Callable, List
@@ -70,11 +71,11 @@ TILE_DIAGONAL_M = math.sqrt(TILE_WIDTH**2 + TILE_HEIGHT**2) # Diagonal para esca
 # --- Configurações de Entrada/Saída ---
 # Caminho para o arquivo CSV com posições dos outriggers (WGS84)
 # Formato esperado: ArrangementName,StationID,Latitude,Longitude,Altitude
-CSV_INPUT_FILE = 'data/posicoes_outriggers.csv'
+CSV_INPUT_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', 'posicoes_outriggers.csv')
 
 # Diretório base ONDE as pastas dos telescópios serão geradas
 # Ex: Se OUTPUT_BASE_DIR = '.../layouts', as saídas serão '.../layouts/circulo_padrao_50km_a', etc.
-OUTPUT_BASE_DIR = r'C:\Users\gefer\Desktop\Mestrado\Softwares\OSKAR\OSKAR-2.7-Example-Data\inputs\TELESCOPES\layouts'
+OUTPUT_BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'output', 'layouts')
 
 # --- Ponto de Referência (BINGO Central) ---
 # Coordenadas WGS84
@@ -129,13 +130,13 @@ def format_layout_content_xy(layout_array: np.ndarray) -> str:
     return content
 
 def format_layout_content_wgs84(wgs84_coords_list: List[List[float]]) -> str:
-    """Formata uma lista de coordenadas WGS84 [lat, lon, alt] para string."""
+    """Formata uma lista de coordenadas WGS84 [lat, lon, alt] para string no formato OSKAR: lon,lat,alt."""
     content = ""
     lat_lon_precision = 7
     alt_precision = 1
     for row in wgs84_coords_list:
         if len(row) == 3:
-            content += f"{row[0]:.{lat_lon_precision}f},{row[1]:.{lat_lon_precision}f},{row[2]:.{alt_precision}f}\n"
+            content += f"{row[1]:.{lat_lon_precision}f},{row[0]:.{lat_lon_precision}f},{row[2]:.{alt_precision}f}\n"
         else:
             content += "\n" # Linha vazia para entrada inválida
     return content
@@ -343,6 +344,7 @@ def create_oskar_structure_grouped(
     # Formata o layout da ESTAÇÃO (centros dos tiles) - Específico deste layout_config
     station_layout_content_str = format_layout_content_xy(station_centers_array)
     # Formata a posição do BINGO Central - Fixo para todos
+    # NOTA: position.txt usa formato lat,lon,alt (diferente de layout_wgs84.txt que usa lon,lat,alt)
     bingo_position_content = f"{BINGO_LATITUDE:.7f},{BINGO_LONGITUDE:.7f},{BINGO_ALTITUDE:.1f}\n"
 
     # --- 6. Criar Estrutura de Pastas e Arquivos por Arranjo CSV ---
@@ -599,19 +601,24 @@ print(f"Total de {len(LAYOUT_CONFIGURATIONS_TO_RUN)} configurações de layout d
 # ==================== Execução Principal ====================
 if __name__ == "__main__":
 
+    parser = argparse.ArgumentParser(description='Gerador de Estrutura de Telescópio OSKAR (BINGO)')
+    parser.add_argument('--csv', default=CSV_INPUT_FILE, help='Caminho para o CSV de entrada')
+    parser.add_argument('--output', default=OUTPUT_BASE_DIR, help='Diretório base de saída')
+    args = parser.parse_args()
+
     print("======================================================")
     print("   Gerador de Estrutura de Telescópio OSKAR (BINGO)   ")
     print("======================================================")
     print(f"Usando biblioteca de layouts: bingo_layouts.py")
     print(f"Dimensões de referência do Tile: {TILE_WIDTH:.2f}m x {TILE_HEIGHT:.2f}m")
-    print(f"Arquivo CSV de entrada: {CSV_INPUT_FILE}")
-    print(f"Diretório base de saída: {OUTPUT_BASE_DIR}")
+    print(f"Arquivo CSV de entrada: {args.csv}")
+    print(f"Diretório base de saída: {args.output}")
     print(f"Número de layouts a processar: {len(LAYOUT_CONFIGURATIONS_TO_RUN)}")
     print("------------------------------------------------------")
 
     # Verifica se arquivos/diretórios existem
-    if not os.path.isfile(CSV_INPUT_FILE):
-        print(f"Erro Fatal: Arquivo CSV não encontrado em: {CSV_INPUT_FILE}")
+    if not os.path.isfile(args.csv):
+        print(f"Erro Fatal: Arquivo CSV não encontrado em: {args.csv}")
         exit()
     # Diretório de saída será criado se não existir
 
@@ -627,8 +634,8 @@ if __name__ == "__main__":
     for i, layout_conf in enumerate(LAYOUT_CONFIGURATIONS_TO_RUN):
         print(f"\n===== Processando Layout {i+1}/{len(LAYOUT_CONFIGURATIONS_TO_RUN)} =====")
         create_oskar_structure_grouped(
-            csv_input_path=CSV_INPUT_FILE,
-            output_base_path=OUTPUT_BASE_DIR,
+            csv_input_path=args.csv,
+            output_base_path=args.output,
             layout_config=layout_conf,
             base_tile_layout=the_base_tile_layout
         )

@@ -178,11 +178,11 @@ class SkyModelGenerator {
         return `
             <div class="param-group">
                 <label for="sky-ra">RA (graus):</label>
-                <input type="number" id="sky-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-dec">Dec (graus):</label>
-                <input type="number" id="sky-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-flux">Fluxo Stokes I (Jy):</label>
@@ -227,11 +227,11 @@ class SkyModelGenerator {
             </div>
             <div class="param-group">
                 <label for="sky-grid-ra">RA central (graus):</label>
-                <input type="number" id="sky-grid-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-grid-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-grid-dec">Dec central (graus):</label>
-                <input type="number" id="sky-grid-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-grid-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-grid-flux">Fluxo por fonte (Jy):</label>
@@ -252,11 +252,11 @@ class SkyModelGenerator {
             </div>
             <div class="param-group">
                 <label for="sky-rand-ra">RA central (graus):</label>
-                <input type="number" id="sky-rand-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-rand-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-rand-dec">Dec central (graus):</label>
-                <input type="number" id="sky-rand-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-rand-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-rand-radius">Raio do campo (graus):</label>
@@ -293,11 +293,11 @@ class SkyModelGenerator {
             </div>
             <div class="param-group">
                 <label for="sky-pl-ra">RA central (graus):</label>
-                <input type="number" id="sky-pl-ra" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-pl-ra" value="0.0" step="0.001" min="0" max="360" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-pl-dec">Dec central (graus):</label>
-                <input type="number" id="sky-pl-dec" value="0.0" step="0.001" class="form-control">
+                <input type="number" id="sky-pl-dec" value="0.0" step="0.001" min="-90" max="90" class="form-control">
             </div>
             <div class="param-group">
                 <label for="sky-pl-radius">Raio do campo (graus):</label>
@@ -364,6 +364,22 @@ class SkyModelGenerator {
     }
 
     /**
+     * Valida os parâmetros de uma fonte celeste.
+     * @param {number} ra Ascensão reta em graus.
+     * @param {number} dec Declinação em graus.
+     * @param {number} flux Fluxo Stokes I em Jy.
+     * @returns {string[]} Lista de erros encontrados.
+     * @private
+     */
+    _validateSource(ra, dec, flux) {
+        const errors = [];
+        if (ra < 0 || ra >= 360) errors.push(`RA=${ra}° fora do intervalo [0°, 360°).`);
+        if (dec < -90 || dec > 90) errors.push(`Dec=${dec}° fora do intervalo [-90°, +90°].`);
+        if (flux < 0) errors.push(`Fluxo=${flux} Jy não pode ser negativo.`);
+        return errors;
+    }
+
+    /**
      * Adiciona uma única fonte ao modelo de céu.
      * @param {number} ra Ascensão reta em graus.
      * @param {number} dec Declinação em graus.
@@ -375,6 +391,13 @@ class SkyModelGenerator {
      * @param {number} [pa=0] Ângulo de posição em graus.
      */
     addSingleSource(ra, dec, flux, spectralIndex, refFreq, major = 0, minor = 0, pa = 0) {
+        const errors = this._validateSource(ra, dec, flux);
+        if (errors.length > 0) {
+            console.warn(`SkyModel: Fonte rejeitada — ${errors.join(' ')}`);
+            alert(`Fonte inválida:\n${errors.join('\n')}`);
+            return;
+        }
+
         this.sources.push({
             ra: ra,
             dec: dec,
@@ -478,8 +501,8 @@ class SkyModelGenerator {
             // Distribuição uniforme em disco circular
             const r = radius * Math.sqrt(Math.random());
             const theta = 2 * Math.PI * Math.random();
-            const ra = centerRA + r * Math.cos(theta);
-            const dec = centerDec + r * Math.sin(theta);
+            const ra = ((centerRA + r * Math.cos(theta)) % 360 + 360) % 360;
+            const dec = Math.max(-90, Math.min(90, centerDec + r * Math.sin(theta)));
             const flux = fluxMin + Math.random() * (fluxMax - fluxMin);
             const spix = spixMin + Math.random() * (spixMax - spixMin);
 
@@ -545,8 +568,8 @@ class SkyModelGenerator {
             // Posição aleatória no campo
             const r = radius * Math.sqrt(Math.random());
             const theta = 2 * Math.PI * Math.random();
-            const ra = centerRA + r * Math.cos(theta);
-            const dec = centerDec + r * Math.sin(theta);
+            const ra = ((centerRA + r * Math.cos(theta)) % 360 + 360) % 360;
+            const dec = Math.max(-90, Math.min(90, centerDec + r * Math.sin(theta)));
 
             this.sources.push({
                 ra: ra,

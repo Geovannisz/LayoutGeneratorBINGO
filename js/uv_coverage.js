@@ -247,7 +247,8 @@ class UVCoverageSimulator {
             for (let j = i + 1; j < nStations; j++) {
                 const Bx = stations[j].x - stations[i].x;
                 const By = stations[j].y - stations[i].y;
-                const bLen = Math.sqrt(Bx * Bx + By * By);
+                const Bz = (stations[j].z || 0) - (stations[i].z || 0);
+                const bLen = Math.sqrt(Bx * Bx + By * By + Bz * Bz);
                 if (bLen > maxBaseline) maxBaseline = bLen;
 
                 for (let t = 0; t < hourAngles.length; t++) {
@@ -256,7 +257,7 @@ class UVCoverageSimulator {
                     const cosH = Math.cos(H);
 
                     const u = Bx * sinH + By * cosH;
-                    const v = -Bx * sinDec * cosH + By * sinDec * sinH;
+                    const v = -Bx * sinDec * cosH + By * sinDec * sinH + Bz * cosDec;
 
                     const uLambda = u / lambda;
                     const vLambda = v / lambda;
@@ -288,12 +289,13 @@ class UVCoverageSimulator {
         const nOutputPoints = nBaselines * nTimesteps * 2; // ×2 for conjugate
 
         // Prepare baseline pairs and hour angles
-        const baselinePairs = new Float32Array(nBaselines * 2); // Bx, By per pair
+        const baselinePairs = new Float32Array(nBaselines * 3); // Bx, By, Bz per pair
         let bIdx = 0;
         for (let i = 0; i < nStations; i++) {
             for (let j = i + 1; j < nStations; j++) {
                 baselinePairs[bIdx++] = stations[j].x - stations[i].x;
                 baselinePairs[bIdx++] = stations[j].y - stations[i].y;
+                baselinePairs[bIdx++] = (stations[j].z || 0) - (stations[i].z || 0);
             }
         }
 
@@ -359,16 +361,17 @@ class UVCoverageSimulator {
                 let bIdx = idx / nTimesteps;
                 let tIdx = idx % nTimesteps;
 
-                let Bx = baselines[bIdx * 2u];
-                let By = baselines[bIdx * 2u + 1u];
-                let bLen = sqrt(Bx * Bx + By * By);
+                let Bx = baselines[bIdx * 3u];
+                let By = baselines[bIdx * 3u + 1u];
+                let Bz = baselines[bIdx * 3u + 2u];
+                let bLen = sqrt(Bx * Bx + By * By + Bz * Bz);
 
                 let H = hourAngles[tIdx];
                 let sinH = sin(H);
                 let cosH = cos(H);
 
                 let u = Bx * sinH + By * cosH;
-                let v = -Bx * uniforms.sinDec * cosH + By * uniforms.sinDec * sinH;
+                let v = -Bx * uniforms.sinDec * cosH + By * uniforms.sinDec * sinH + Bz * uniforms.cosDec;
 
                 let uLam = u / uniforms.lambda;
                 let vLam = v / uniforms.lambda;

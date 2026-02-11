@@ -385,7 +385,7 @@ const OSKAR_INI_PARAMS = Object.freeze([
         label: 'Frequência inicial (Hz)',
         tooltip: 'Frequência central do primeiro canal, em Hz. BINGO: 980 MHz a 1260 MHz.',
         type: 'number',
-        defaultValue: 980000000,
+        defaultValue: 1000000000,
         category: 'essential',
         required: true
     },
@@ -1235,7 +1235,7 @@ class OskarIniGenerator {
         // Frequência padrão do BINGO
         const freqInput = this.inputElements['observation.start_frequency_hz'];
         if (freqInput && !freqInput.value) {
-            freqInput.value = 980000000;
+            freqInput.value = 1000000000;
         }
 
         this.updatePreview();
@@ -2296,7 +2296,7 @@ const OSKAR_BEAM_PATTERN_PARAMS = Object.freeze([
         label: 'Frequência inicial (Hz)',
         tooltip: 'Frequência no ponto médio do primeiro canal, em Hz.',
         type: 'number',
-        defaultValue: '',
+        defaultValue: 1000000000,
         category: 'essential',
         required: true
     },
