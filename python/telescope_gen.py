@@ -344,8 +344,8 @@ def create_oskar_structure_grouped(
     # Formata o layout da ESTAÇÃO (centros dos tiles) - Específico deste layout_config
     station_layout_content_str = format_layout_content_xy(station_centers_array)
     # Formata a posição do BINGO Central - Fixo para todos
-    # NOTA: position.txt usa formato lat,lon,alt (diferente de layout_wgs84.txt que usa lon,lat,alt)
-    bingo_position_content = f"{BINGO_LATITUDE:.7f},{BINGO_LONGITUDE:.7f},{BINGO_ALTITUDE:.1f}\n"
+    # NOTA: position.txt usa formato lon,lat,alt (mesmo formato de layout_wgs84.txt)
+    bingo_position_content = f"{BINGO_LONGITUDE:.7f},{BINGO_LATITUDE:.7f},{BINGO_ALTITUDE:.1f}\n"
 
     # --- 6. Criar Estrutura de Pastas e Arquivos por Arranjo CSV ---
     print(f"Criando estrutura de diretórios e arquivos para '{layout_name}'...")

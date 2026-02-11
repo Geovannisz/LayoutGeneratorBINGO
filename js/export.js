@@ -271,8 +271,8 @@ class OskarLayoutExporter {
     updateBingoPositionField() {
         const textarea = document.getElementById('export-position');
         if (!textarea) return;
-        // Formato: latitude,longitude,altitude
-        textarea.value = `${BINGO_CENTRAL_LATITUDE.toFixed(7)},${BINGO_CENTRAL_LONGITUDE.toFixed(7)},${BINGO_CENTRAL_ALTITUDE.toFixed(1)}`;
+        // Formato OSKAR position.txt: longitude,latitude,altitude
+        textarea.value = `${BINGO_CENTRAL_LONGITUDE.toFixed(7)},${BINGO_CENTRAL_LATITUDE.toFixed(7)},${BINGO_CENTRAL_ALTITUDE.toFixed(1)}`;
     }
 
     /**
