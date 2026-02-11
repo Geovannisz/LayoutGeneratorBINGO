@@ -1279,7 +1279,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
     border-radius: 4px;
     background-color: var(--plot-bg-color);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
     overflow: hidden;
     position: relative;
@@ -1288,6 +1288,13 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 .uv-plot-container .plot-container {
     width: 100% !important;
     max-width: 100%;
+}
+.uv-plot-container .js-plotly-plot .plotly {
+    width: 100% !important;
+    height: 100% !important;
+}
+.uv-plot-container .svg-container {
+    width: 100% !important;
 }
 .uv-plot-container .plot-placeholder {
     font-style: italic;

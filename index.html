@@ -497,6 +497,28 @@
                     </div>
                 </div>
             </section>
+
+            <!-- === BLOCO 2: OSKAR IMAGER (.ini) === -->
+            <section class="ini-generator-section" style="margin-top: 30px;">
+                <h2><i class="fas fa-image"></i> Gerador de Arquivo do Imager (.ini)</h2>
+                <p class="section-description">Monte o arquivo <code>.ini</code> de configuração do <strong>oskar_imager</strong>. Configura a geração de imagens a partir dos dados de visibilidade simulados.</p>
+                <div class="ini-layout">
+                    <div class="ini-params-area">
+                        <div id="imager-params-container" class="ini-params-container">
+                            <p class="placeholder-text">Carregando parâmetros do imager...</p>
+                        </div>
+                        <div id="imager-validation-messages" class="validation-messages"></div>
+                    </div>
+                    <div class="ini-preview-area">
+                        <h3>Preview do arquivo oskar_imager.ini</h3>
+                        <textarea id="imager-preview" readonly placeholder="O conteúdo do arquivo .ini do imager aparecerá aqui..."></textarea>
+                        <div class="ini-actions">
+                            <button id="imager-copy-btn" class="secondary small-btn"><i class="fas fa-copy"></i> Copiar</button>
+                            <button id="imager-download-btn" class="primary small-btn"><i class="fas fa-download"></i> Baixar oskar_imager.ini</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
         </div><!-- Fim #tab-oskar-config -->
 
         <!-- === ABA 3: MODELO DE CÉU === -->

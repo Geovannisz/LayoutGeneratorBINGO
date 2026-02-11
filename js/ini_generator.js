@@ -987,15 +987,16 @@ class OskarIniGenerator {
             const browseBtn = document.createElement('button');
             browseBtn.type = 'button';
             browseBtn.className = 'ini-browse-btn';
-            browseBtn.title = 'Selecionar arquivo do computador';
+            browseBtn.title = param.isDirectory
+                ? 'Selecionar pasta do computador'
+                : 'Selecionar arquivo do computador';
             browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
 
+            // Para diretórios, usa um input de arquivo regular (sem webkitdirectory)
+            // para evitar popup de confirmação do navegador e obter caminho completo
             const hiddenFileInput = document.createElement('input');
             hiddenFileInput.type = 'file';
             hiddenFileInput.style.display = 'none';
-            if (param.isDirectory) {
-                hiddenFileInput.setAttribute('webkitdirectory', '');
-            }
             if (param.fileAccept) {
                 hiddenFileInput.accept = param.fileAccept;
             }
@@ -1007,15 +1008,15 @@ class OskarIniGenerator {
 
             hiddenFileInput.addEventListener('change', (ev) => {
                 if (ev.target.files && ev.target.files.length > 0) {
-                    // Usa webkitRelativePath se disponível (diretório), senão name
                     const file = ev.target.files[0];
-                    const path = file.webkitRelativePath || file.name;
-                    // Para diretório, usa o primeiro segmento do caminho
-                    if (param.isDirectory && file.webkitRelativePath) {
-                        input.value = file.webkitRelativePath.split('/')[0];
-                    } else {
-                        input.value = path;
+                    // Tenta extrair o caminho completo via webkitRelativePath
+                    // Navegadores limitam acesso ao caminho completo por segurança
+                    // Usamos o nome do arquivo e o caminho relativo quando disponível
+                    let filePath = file.name;
+                    if (file.webkitRelativePath) {
+                        filePath = file.webkitRelativePath;
                     }
+                    input.value = filePath;
                     input.dispatchEvent(new Event('input'));
                 }
             });
@@ -1036,10 +1037,22 @@ class OskarIniGenerator {
     // =========================================================================
 
     /**
+     * Detecta se o sistema operacional é Windows para usar CRLF.
+     * @private
+     * @returns {string} Quebra de linha adequada ('\r\n' para Windows, '\n' para outros).
+     */
+    _getLineEnding() {
+        const isWindows = (typeof navigator !== 'undefined') &&
+            (navigator.platform?.indexOf('Win') >= 0 || /Windows/i.test(navigator.userAgent || ''));
+        return isWindows ? '\r\n' : '\n';
+    }
+
+    /**
      * Gera o conteúdo completo do arquivo .ini a partir dos valores atuais.
      * @returns {string} Conteúdo formatado do arquivo .ini.
      */
     generateIni() {
+        const eol = this._getLineEnding();
         const sections = {};
 
         OSKAR_INI_PARAMS.forEach(param => {
@@ -1079,7 +1092,7 @@ class OskarIniGenerator {
             lines.push(''); // linha em branco entre seções
         });
 
-        return lines.join('\n');
+        return lines.join(eol);
     }
 
     // =========================================================================
@@ -1382,6 +1395,759 @@ class OskarIniGenerator {
 }
 
 // =============================================================================
+// OSKAR Imager - Parâmetros e Gerador
+// =============================================================================
+
+/**
+ * Definição dos parâmetros do oskar_imager.
+ * @constant {Array<Object>}
+ */
+const OSKAR_IMAGER_PARAMS = Object.freeze([
+    // =========================================================================
+    // [image] - Configuração geral
+    // =========================================================================
+    {
+        key: 'double_precision',
+        section: 'image',
+        label: 'Precisão dupla',
+        tooltip: 'Ativa cálculos em precisão dupla (64 bits).',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'use_gpus',
+        section: 'image',
+        label: 'Usar GPUs',
+        tooltip: 'Se habilitado, usa dispositivos GPU disponíveis.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'cuda_device_ids',
+        section: 'image',
+        label: 'IDs de dispositivos CUDA',
+        tooltip: 'Lista separada por vírgulas de IDs de GPUs, ou "all" para usar todos.',
+        type: 'text',
+        defaultValue: 'all',
+        category: 'advanced'
+    },
+    {
+        key: 'num_devices',
+        section: 'image',
+        label: 'Número de dispositivos',
+        tooltip: 'Número de dispositivos de computação (CPU cores ou GPUs). "auto" detecta.',
+        type: 'text',
+        defaultValue: 'auto',
+        category: 'advanced'
+    },
+    {
+        key: 'specify_cellsize',
+        section: 'image',
+        label: 'Especificar tamanho de célula',
+        tooltip: 'Se habilitado, especifica o tamanho da célula em arcsec; caso contrário, usa FOV.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim (cellsize)' },
+            { value: 'false', label: 'Não (FOV)' }
+        ]
+    },
+    {
+        key: 'fov_deg',
+        section: 'image',
+        label: 'Campo de visão (°)',
+        tooltip: 'Campo de visão total da imagem em graus.',
+        type: 'number',
+        defaultValue: 2.0,
+        category: 'essential',
+        required: true
+    },
+    {
+        key: 'cellsize_arcsec',
+        section: 'image',
+        label: 'Tamanho da célula (arcsec)',
+        tooltip: 'Tamanho do pixel em segundos de arco. Usado se specify_cellsize = true.',
+        type: 'number',
+        defaultValue: 1.0,
+        category: 'recommended'
+    },
+    {
+        key: 'size',
+        section: 'image',
+        label: 'Tamanho da imagem (pixels)',
+        tooltip: 'Largura da imagem em pixels (deve ser par). Ex: 256 gera imagem 256×256.',
+        type: 'number',
+        defaultValue: 256,
+        category: 'essential',
+        required: true
+    },
+    {
+        key: 'image_type',
+        section: 'image',
+        label: 'Tipo de imagem',
+        tooltip: 'Tipo de imagem a gerar. I, Q, U, V são parâmetros de Stokes. PSF gera a função de espalhamento pontual.',
+        type: 'select',
+        defaultValue: 'I',
+        category: 'essential',
+        required: true,
+        options: [
+            { value: 'I', label: 'Stokes I' },
+            { value: 'Q', label: 'Stokes Q' },
+            { value: 'U', label: 'Stokes U' },
+            { value: 'V', label: 'Stokes V' },
+            { value: 'PSF', label: 'PSF' },
+            { value: 'LINEAR', label: 'Linear (XX, XY, YX, YY)' }
+        ]
+    },
+    {
+        key: 'channel_snapshots',
+        section: 'image',
+        label: 'Snapshots por canal',
+        tooltip: 'Se true, produz cubo de imagens com snapshot por canal. Se false, usa síntese de frequência.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'recommended',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não (síntese)' }
+        ]
+    },
+    {
+        key: 'freq_min_hz',
+        section: 'image',
+        label: 'Frequência mínima (Hz)',
+        tooltip: 'Frequência mínima a incluir na imagem, em Hz. 0.0 = sem filtro.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'freq_max_hz',
+        section: 'image',
+        label: 'Frequência máxima (Hz)',
+        tooltip: 'Frequência máxima a incluir na imagem. "max" = sem limite superior.',
+        type: 'text',
+        defaultValue: 'max',
+        category: 'advanced'
+    },
+    {
+        key: 'time_min_utc',
+        section: 'image',
+        label: 'Tempo mínimo (UTC)',
+        tooltip: 'Tempo mínimo dos dados de visibilidade a incluir. Formato MJD ou dd-MM-yyyy HH:mm:ss.SSS.',
+        type: 'text',
+        defaultValue: '0.0',
+        category: 'advanced'
+    },
+    {
+        key: 'time_max_utc',
+        section: 'image',
+        label: 'Tempo máximo (UTC)',
+        tooltip: 'Tempo máximo dos dados de visibilidade a incluir. Formato MJD ou dd-MM-yyyy HH:mm:ss.SSS.',
+        type: 'text',
+        defaultValue: '0.0',
+        category: 'advanced'
+    },
+    {
+        key: 'uv_filter_min',
+        section: 'image',
+        label: 'Filtro UV mínimo (λ)',
+        tooltip: 'Comprimento mínimo de baseline UV a imagear, em comprimentos de onda.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'uv_filter_max',
+        section: 'image',
+        label: 'Filtro UV máximo (λ)',
+        tooltip: 'Comprimento máximo de baseline UV a imagear. "max" = sem limite.',
+        type: 'text',
+        defaultValue: 'max',
+        category: 'advanced'
+    },
+    {
+        key: 'algorithm',
+        section: 'image',
+        label: 'Algoritmo de transformada',
+        tooltip: 'Tipo de transformada para gerar a imagem.',
+        type: 'select',
+        defaultValue: 'FFT',
+        category: 'recommended',
+        options: [
+            { value: 'FFT', label: 'FFT' },
+            { value: 'DFT 2D', label: 'DFT 2D' },
+            { value: 'DFT 3D', label: 'DFT 3D' },
+            { value: 'W-projection', label: 'W-projection' }
+        ]
+    },
+    {
+        key: 'weighting',
+        section: 'image',
+        label: 'Ponderação (weighting)',
+        tooltip: 'Esquema de ponderação das visibilidades.',
+        type: 'select',
+        defaultValue: 'Natural',
+        category: 'recommended',
+        options: [
+            { value: 'Natural', label: 'Natural' },
+            { value: 'Uniform', label: 'Uniform' },
+            { value: 'Radial', label: 'Radial' }
+        ]
+    },
+    {
+        key: 'weight_taper/u_wavelengths',
+        section: 'image',
+        label: 'Taper em U (λ)',
+        tooltip: 'Escala de tapering em U para pesos, em comprimentos de onda. 0 = desativado.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+    {
+        key: 'weight_taper/v_wavelengths',
+        section: 'image',
+        label: 'Taper em V (λ)',
+        tooltip: 'Escala de tapering em V para pesos, em comprimentos de onda. 0 = desativado.',
+        type: 'number',
+        defaultValue: 0.0,
+        category: 'advanced'
+    },
+
+    // =========================================================================
+    // [image/fft] - Configuração FFT
+    // =========================================================================
+    {
+        key: 'fft/use_gpu',
+        section: 'image',
+        label: 'FFT na GPU',
+        tooltip: 'Se true, usa a GPU para executar a FFT.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'fft/grid_on_gpu',
+        section: 'image',
+        label: 'Gridding na GPU',
+        tooltip: 'Se true, usa a GPU para o gridding das visibilidades.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'fft/kernel_type',
+        section: 'image',
+        label: 'Tipo de kernel de gridding',
+        tooltip: 'Tipo de kernel usado para gridding.',
+        type: 'select',
+        defaultValue: 'Spheroidal',
+        category: 'advanced',
+        options: [
+            { value: 'Spheroidal', label: 'Spheroidal' },
+            { value: 'Pillbox', label: 'Pillbox' }
+        ]
+    },
+    {
+        key: 'fft/support',
+        section: 'image',
+        label: 'Suporte do kernel',
+        tooltip: 'Tamanho do suporte do kernel de gridding.',
+        type: 'number',
+        defaultValue: 3,
+        category: 'advanced'
+    },
+    {
+        key: 'fft/oversample',
+        section: 'image',
+        label: 'Fator de oversampling',
+        tooltip: 'Fator de oversampling do kernel de gridding.',
+        type: 'number',
+        defaultValue: 100,
+        category: 'advanced'
+    },
+
+    // =========================================================================
+    // [image/wproj] - W-projection
+    // =========================================================================
+    {
+        key: 'wproj/generate_w_kernels_on_gpu',
+        section: 'image',
+        label: 'W-kernels na GPU',
+        tooltip: 'Se true, gera os W-kernels na GPU.',
+        type: 'select',
+        defaultValue: 'true',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'wproj/num_w_planes',
+        section: 'image',
+        label: 'Número de W-planes',
+        tooltip: 'Número de planos W. Valores < 1 significam "automático".',
+        type: 'number',
+        defaultValue: 0,
+        category: 'advanced'
+    },
+
+    // =========================================================================
+    // [image/direction] - Direção da imagem
+    // =========================================================================
+    {
+        key: 'direction',
+        section: 'image',
+        label: 'Direção do centro de fase',
+        tooltip: '"Obs" usa a direção da observação. "RA, Dec." usa valores customizados.',
+        type: 'select',
+        defaultValue: 'Obs',
+        category: 'recommended',
+        options: [
+            { value: 'Obs', label: 'Observação (Obs)' },
+            { value: 'RA, Dec.', label: 'RA, Dec. (customizado)' }
+        ]
+    },
+    {
+        key: 'direction/ra_deg',
+        section: 'image',
+        label: 'RA do centro de fase (°)',
+        tooltip: 'Ascensão reta do centro de fase da imagem, em graus.',
+        type: 'number',
+        defaultValue: 0,
+        category: 'recommended'
+    },
+    {
+        key: 'direction/dec_deg',
+        section: 'image',
+        label: 'Dec do centro de fase (°)',
+        tooltip: 'Declinação do centro de fase da imagem, em graus.',
+        type: 'number',
+        defaultValue: 0,
+        category: 'recommended'
+    },
+
+    // =========================================================================
+    // [image] - Entrada/Saída
+    // =========================================================================
+    {
+        key: 'input_vis_data',
+        section: 'image',
+        label: 'Arquivo de visibilidades de entrada',
+        tooltip: 'Caminho para o arquivo de visibilidades OSKAR (.vis) ou Measurement Set (.ms).',
+        type: 'text',
+        defaultValue: '',
+        category: 'essential',
+        required: true,
+        isFilePath: true,
+        fileAccept: '.vis,.ms'
+    },
+    {
+        key: 'scale_norm_with_num_input_files',
+        section: 'image',
+        label: 'Escalar normalização pelo nº de arquivos',
+        tooltip: 'Se true, escala a normalização pelo número de arquivos de entrada. Use true se arquivos representam múltiplos modelos de céu com mesma config de telescópio.',
+        type: 'select',
+        defaultValue: 'false',
+        category: 'advanced',
+        options: [
+            { value: 'true', label: 'Sim' },
+            { value: 'false', label: 'Não' }
+        ]
+    },
+    {
+        key: 'ms_column',
+        section: 'image',
+        label: 'Coluna do MS',
+        tooltip: 'Nome da coluna no Measurement Set para usar (se aplicável).',
+        type: 'text',
+        defaultValue: 'DATA',
+        category: 'advanced'
+    },
+    {
+        key: 'root_path',
+        section: 'image',
+        label: 'Caminho raiz de saída',
+        tooltip: 'Nome base do arquivo FITS de saída. Sufixo será adicionado automaticamente (_I.fits, etc.).',
+        type: 'text',
+        defaultValue: '',
+        category: 'essential',
+        required: true,
+        isFilePath: true
+    }
+]);
+
+/**
+ * Rótulos de seções para o oskar_imager.
+ * @constant {Object<string, string>}
+ */
+const IMAGER_SECTION_LABELS = Object.freeze({
+    image: 'Imagem'
+});
+
+/**
+ * Classe geradora do arquivo .ini do oskar_imager.
+ * Reutiliza a mesma lógica de UI/validação, mas com parâmetros e [General] diferentes.
+ */
+class OskarImagerGenerator {
+    constructor() {
+        /** @type {Object<string, HTMLElement>} */
+        this.inputElements = {};
+
+        this.paramsContainer = document.getElementById('imager-params-container');
+        this.previewTextarea = document.getElementById('imager-preview');
+        this.validationContainer = document.getElementById('imager-validation-messages');
+
+        this._bindButtons();
+        this.renderParameters();
+        this.updatePreview();
+
+        console.log('OskarImagerGenerator inicializado com sucesso.');
+    }
+
+    _bindButtons() {
+        const copyBtn = document.getElementById('imager-copy-btn');
+        const downloadBtn = document.getElementById('imager-download-btn');
+
+        if (copyBtn) copyBtn.addEventListener('click', (e) => { e.preventDefault(); this.copyIni(); });
+        if (downloadBtn) downloadBtn.addEventListener('click', (e) => { e.preventDefault(); this.downloadIni(); });
+    }
+
+    /**
+     * Detecta se o sistema operacional é Windows para usar CRLF.
+     * @private
+     */
+    _getLineEnding() {
+        const isWindows = (typeof navigator !== 'undefined') &&
+            (navigator.platform?.indexOf('Win') >= 0 || /Windows/i.test(navigator.userAgent || ''));
+        return isWindows ? '\r\n' : '\n';
+    }
+
+    /**
+     * Renderiza os inputs de parâmetros agrupados por categoria.
+     */
+    renderParameters() {
+        if (!this.paramsContainer) {
+            console.warn('Container imager-params-container não encontrado no DOM.');
+            return;
+        }
+        this.paramsContainer.innerHTML = '';
+        this.inputElements = {};
+
+        INI_CATEGORIES.forEach(cat => {
+            const params = OSKAR_IMAGER_PARAMS.filter(p => p.category === cat.id);
+            if (params.length === 0) return;
+
+            const catWrapper = document.createElement('div');
+            catWrapper.className = `ini-category ini-category--${cat.id}`;
+
+            const catHeader = document.createElement('div');
+            catHeader.className = 'ini-category__header';
+            catHeader.innerHTML = `<i class="fas ${cat.icon}"></i> <span>${cat.label}</span>`;
+
+            const catBody = document.createElement('div');
+            catBody.className = 'ini-category__body';
+
+            if (cat.collapsible) {
+                catBody.style.display = 'none';
+                const toggleIcon = document.createElement('i');
+                toggleIcon.className = 'fas fa-chevron-down ini-category__toggle';
+                catHeader.appendChild(toggleIcon);
+                catHeader.style.cursor = 'pointer';
+                catHeader.addEventListener('click', () => {
+                    const isHidden = catBody.style.display === 'none';
+                    catBody.style.display = isHidden ? '' : 'none';
+                    toggleIcon.classList.toggle('fa-chevron-down', !isHidden);
+                    toggleIcon.classList.toggle('fa-chevron-up', isHidden);
+                });
+            }
+
+            // Agrupa por seção
+            const grouped = {};
+            params.forEach(p => {
+                if (!grouped[p.section]) grouped[p.section] = [];
+                grouped[p.section].push(p);
+            });
+
+            ['image'].forEach(sec => {
+                if (!grouped[sec]) return;
+                const sectionDiv = document.createElement('fieldset');
+                sectionDiv.className = 'ini-section';
+                const legend = document.createElement('legend');
+                legend.textContent = IMAGER_SECTION_LABELS[sec] || sec;
+                sectionDiv.appendChild(legend);
+
+                grouped[sec].forEach(param => {
+                    sectionDiv.appendChild(this._createParamRow(param));
+                });
+
+                catBody.appendChild(sectionDiv);
+            });
+
+            catWrapper.appendChild(catHeader);
+            catWrapper.appendChild(catBody);
+            this.paramsContainer.appendChild(catWrapper);
+        });
+    }
+
+    /**
+     * Cria a linha de input para um parâmetro (reutiliza lógica do interferometer).
+     * @private
+     */
+    _createParamRow(param) {
+        const row = document.createElement('div');
+        row.className = 'ini-param-row';
+        if (param.required) row.classList.add('ini-param-row--required');
+
+        const label = document.createElement('label');
+        const inputId = `imager-input-${param.section}-${param.key.replace(/[/.]/g, '_')}`;
+        label.setAttribute('for', inputId);
+        label.textContent = param.label;
+        if (param.required) {
+            const req = document.createElement('span');
+            req.className = 'ini-required-mark';
+            req.textContent = ' *';
+            label.appendChild(req);
+        }
+
+        const tooltipIcon = document.createElement('i');
+        tooltipIcon.className = 'fas fa-question-circle ini-tooltip-icon';
+        tooltipIcon.title = param.tooltip;
+        label.appendChild(tooltipIcon);
+
+        let input;
+        if (param.type === 'select' && param.options) {
+            input = document.createElement('select');
+            param.options.forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.value;
+                option.textContent = opt.label;
+                if (String(opt.value) === String(param.defaultValue)) option.selected = true;
+                input.appendChild(option);
+            });
+        } else if (param.type === 'checkbox') {
+            input = document.createElement('input');
+            input.type = 'checkbox';
+            input.checked = !!param.defaultValue;
+        } else {
+            input = document.createElement('input');
+            input.type = param.type === 'number' ? 'number' : 'text';
+            if (param.type === 'number') input.step = 'any';
+            input.value = param.defaultValue !== undefined ? param.defaultValue : '';
+        }
+
+        input.id = inputId;
+        input.className = 'ini-param-input';
+        input.dataset.iniKey = param.key;
+        input.dataset.iniSection = param.section;
+
+        input.addEventListener('change', () => this.updatePreview());
+        input.addEventListener('input', () => this.updatePreview());
+
+        const errorSpan = document.createElement('span');
+        errorSpan.className = 'ini-field-error';
+
+        const compositeKey = `${param.section}.${param.key}`;
+        this.inputElements[compositeKey] = input;
+
+        row.appendChild(label);
+
+        if (param.isFilePath) {
+            const inputWrapper = document.createElement('div');
+            inputWrapper.className = 'ini-file-input-wrapper';
+            inputWrapper.appendChild(input);
+
+            const browseBtn = document.createElement('button');
+            browseBtn.type = 'button';
+            browseBtn.className = 'ini-browse-btn';
+            browseBtn.title = 'Selecionar arquivo do computador';
+            browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
+
+            const hiddenFileInput = document.createElement('input');
+            hiddenFileInput.type = 'file';
+            hiddenFileInput.style.display = 'none';
+            if (param.fileAccept) hiddenFileInput.accept = param.fileAccept;
+
+            browseBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                hiddenFileInput.click();
+            });
+
+            hiddenFileInput.addEventListener('change', (ev) => {
+                if (ev.target.files && ev.target.files.length > 0) {
+                    const file = ev.target.files[0];
+                    input.value = file.webkitRelativePath || file.name;
+                    input.dispatchEvent(new Event('input'));
+                }
+            });
+
+            inputWrapper.appendChild(browseBtn);
+            inputWrapper.appendChild(hiddenFileInput);
+            row.appendChild(inputWrapper);
+        } else {
+            row.appendChild(input);
+        }
+
+        row.appendChild(errorSpan);
+        return row;
+    }
+
+    /**
+     * Gera o conteúdo do arquivo .ini do imager.
+     */
+    generateIni() {
+        const eol = this._getLineEnding();
+        const sections = {};
+
+        OSKAR_IMAGER_PARAMS.forEach(param => {
+            const compositeKey = `${param.section}.${param.key}`;
+            const input = this.inputElements[compositeKey];
+            if (!input) return;
+
+            let value;
+            if (param.type === 'checkbox') {
+                value = input.checked ? 'true' : 'false';
+            } else {
+                value = input.value;
+            }
+
+            if (value === '' && !param.required) return;
+
+            if (!sections[param.section]) sections[param.section] = [];
+            sections[param.section].push({ key: param.key, value });
+        });
+
+        const lines = [];
+        lines.push('[General]');
+        lines.push('app=oskar_imager');
+        lines.push('');
+
+        ['image'].forEach(sec => {
+            if (!sections[sec] || sections[sec].length === 0) return;
+            lines.push(`[${sec}]`);
+            sections[sec].forEach(entry => {
+                lines.push(`${entry.key}=${entry.value}`);
+            });
+            lines.push('');
+        });
+
+        return lines.join(eol);
+    }
+
+    updatePreview() {
+        if (!this.previewTextarea) return;
+        this.previewTextarea.value = this.generateIni();
+    }
+
+    validateFields() {
+        let allValid = true;
+        OSKAR_IMAGER_PARAMS.forEach(param => {
+            const compositeKey = `${param.section}.${param.key}`;
+            const input = this.inputElements[compositeKey];
+            if (!input) return;
+
+            const row = input.closest('.ini-param-row');
+            const errorSpan = row ? row.querySelector('.ini-field-error') : null;
+            let errorMsg = '';
+
+            const value = (param.type === 'checkbox') ? input.checked : input.value;
+            if (param.required && (value === '' || value === null || value === undefined)) {
+                errorMsg = 'Campo obrigatório.';
+            }
+            if (!errorMsg && param.type === 'number' && value !== '') {
+                if (isNaN(Number(value))) errorMsg = 'Valor numérico inválido.';
+            }
+
+            if (errorMsg) {
+                allValid = false;
+                if (input.classList) input.classList.add('ini-input--error');
+            } else {
+                if (input.classList) input.classList.remove('ini-input--error');
+            }
+            if (errorSpan) errorSpan.textContent = errorMsg;
+        });
+
+        if (this.validationContainer) {
+            this.validationContainer.innerHTML = allValid
+                ? '<span class="ini-validation-ok"><i class="fas fa-check-circle"></i> Todos os campos estão válidos.</span>'
+                : '<span class="ini-validation-error"><i class="fas fa-exclamation-triangle"></i> Campos com erros.</span>';
+        }
+        return allValid;
+    }
+
+    downloadIni() {
+        if (!this.validateFields()) {
+            console.warn('Download cancelado: campos com erro.');
+            return;
+        }
+        const content = this.generateIni();
+        const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'oskar_imager.ini';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        console.log('Arquivo oskar_imager.ini baixado com sucesso.');
+    }
+
+    copyIni() {
+        const content = this.generateIni();
+        const copyBtn = document.getElementById('imager-copy-btn');
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(content).then(() => {
+                this._showCopyFeedback(copyBtn, true);
+            }).catch(() => {
+                this._showCopyFeedback(copyBtn, false);
+            });
+        } else if (this.previewTextarea) {
+            this.previewTextarea.select();
+            document.execCommand('copy');
+            this._showCopyFeedback(copyBtn, true);
+        }
+    }
+
+    _showCopyFeedback(button, success) {
+        if (!button) return;
+        const icon = button.querySelector('i');
+        if (!icon) return;
+        const orig = 'fa-copy';
+        const feedback = success ? 'fa-check' : 'fa-times';
+        icon.classList.remove(orig);
+        icon.classList.add(feedback);
+        button.style.color = success ? 'var(--success-color)' : 'var(--secondary-color)';
+        setTimeout(() => {
+            icon.classList.remove(feedback);
+            icon.classList.add(orig);
+            button.style.color = '';
+        }, 1500);
+    }
+}
+
+// =============================================================================
 // Inicialização
 // =============================================================================
 
@@ -1395,5 +2161,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } else {
         window.oskarIniGenerator.updatePreview();
+    }
+
+    if (!window.oskarImagerGenerator) {
+        try {
+            window.oskarImagerGenerator = new OskarImagerGenerator();
+            console.log('Instância de OskarImagerGenerator criada e configurada.');
+        } catch (error) {
+            console.error('Erro ao instanciar OskarImagerGenerator:', error);
+        }
+    } else {
+        window.oskarImagerGenerator.updatePreview();
     }
 });
