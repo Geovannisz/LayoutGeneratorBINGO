@@ -1818,11 +1818,11 @@ class OskarImagerGenerator {
     _bindButtons() {
         const copyBtn = document.getElementById('imager-copy-btn');
         const downloadBtn = document.getElementById('imager-download-btn');
-        const useInterfBtn = document.getElementById('imager-use-interf-output-btn');
+        const useInterferometerBtn = document.getElementById('imager-use-interf-output-btn');
 
         if (copyBtn) copyBtn.addEventListener('click', (e) => { e.preventDefault(); this.copyIni(); });
         if (downloadBtn) downloadBtn.addEventListener('click', (e) => { e.preventDefault(); this.downloadIni(); });
-        if (useInterfBtn) useInterfBtn.addEventListener('click', (e) => { e.preventDefault(); this.useInterferometerOutput(); });
+        if (useInterferometerBtn) useInterferometerBtn.addEventListener('click', (e) => { e.preventDefault(); this.useInterferometerOutput(); });
     }
 
     /**
@@ -3066,7 +3066,7 @@ class OskarBeamPatternGenerator {
         if (param.required) row.classList.add('ini-param-row--required');
 
         const label = document.createElement('label');
-        const inputId = `bp-input-${param.section}-${param.key.replace(/[/.]/g, '_')}`;
+        const inputId = `beam-pattern-input-${param.section}-${param.key.replace(/[/.]/g, '_')}`;
         label.setAttribute('for', inputId);
         label.textContent = param.label;
         if (param.required) {
