@@ -130,7 +130,7 @@ def format_layout_content_xy(layout_array: np.ndarray) -> str:
     return content
 
 def format_layout_content_wgs84(wgs84_coords_list: List[List[float]]) -> str:
-    """Formata uma lista de coordenadas WGS84 [lat, lon, alt] para string no formato OSKAR: lon,lat,alt."""
+    """Formata uma lista de coordenadas WGS84 com elementos [lat, lon, alt] para string no formato OSKAR: lon,lat,alt."""
     content = ""
     lat_lon_precision = 7
     alt_precision = 1
