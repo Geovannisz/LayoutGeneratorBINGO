@@ -674,8 +674,8 @@ class SkyModelGenerator {
             const col = this._sortColumn;
             const asc = this._sortAsc;
             sortedIndices.sort((a, b) => {
-                const va = this.sources[a][col];
-                const vb = this.sources[b][col];
+                const va = this.sources[a][col] ?? 0;
+                const vb = this.sources[b][col] ?? 0;
                 return asc ? (va - vb) : (vb - va);
             });
         }
