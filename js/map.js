@@ -110,8 +110,12 @@ class InteractiveMap {
         const osmMaxZoom = 19;
 
         this.map = L.map('map', {
-            maxZoom: maxZoomLevel 
+            maxZoom: maxZoomLevel,
+            scrollWheelZoom: false  // Desabilitado por padrão, requer Ctrl+scroll
         }).setView([BINGO_LATITUDE, BINGO_LONGITUDE], 10);
+
+        // Ctrl+Scroll zoom: habilita scroll zoom apenas com Ctrl pressionado
+        this._setupCtrlScrollZoom();
 
         const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -228,6 +232,50 @@ class InteractiveMap {
         });
 
         console.log("Mapa Leaflet inicializado.");
+    }
+
+    /**
+     * Configura o comportamento Ctrl+Scroll para zoom no mapa.
+     * Scroll sem Ctrl apenas rola a página normalmente.
+     * Exibe mensagem de orientação quando o usuário tenta dar scroll sem Ctrl.
+     */
+    _setupCtrlScrollZoom() {
+        const mapContainer = this.map.getContainer();
+
+        // Cria overlay de mensagem
+        const overlay = document.createElement('div');
+        overlay.className = 'map-scroll-overlay';
+        overlay.textContent = 'Use Ctrl + scroll para dar zoom no mapa';
+        overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'background:rgba(0,0,0,0.5);color:#fff;font-size:16px;font-weight:600;' +
+            'z-index:1000;pointer-events:none;opacity:0;transition:opacity 0.3s;' +
+            'text-shadow:0 1px 3px rgba(0,0,0,0.8);border-radius:8px;';
+        mapContainer.style.position = 'relative';
+        mapContainer.appendChild(overlay);
+
+        let overlayTimeout = null;
+
+        const showOverlay = () => {
+            overlay.style.opacity = '1';
+            if (overlayTimeout) clearTimeout(overlayTimeout);
+            overlayTimeout = setTimeout(() => { overlay.style.opacity = '0'; }, 1500);
+        };
+
+        // Intercepta eventos de wheel no container do mapa
+        mapContainer.addEventListener('wheel', (e) => {
+            if (e.ctrlKey || e.metaKey) {
+                // Ctrl pressionado: habilita zoom e previne scroll da página
+                e.preventDefault();
+                // Aplica zoom manualmente
+                const delta = e.deltaY > 0 ? -1 : 1;
+                const currentZoom = this.map.getZoom();
+                this.map.setZoom(currentZoom + delta, { animate: true });
+            } else {
+                // Sem Ctrl: mostra mensagem de orientação (a página rola normalmente)
+                showOverlay();
+            }
+        }, { passive: false });
     }
 
     // initControls() - sem alterações na lógica interna

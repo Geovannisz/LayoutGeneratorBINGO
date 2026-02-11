@@ -53,10 +53,39 @@ class UVCoverageSimulator {
         // Dados UV armazenados
         this.uvData = null;
 
+        // WebGPU: tenta inicializar se disponível
+        this.gpuDevice = null;
+        this.gpuAvailable = false;
+        this._initWebGPU();
+
         this._initUI();
         this._bindEvents();
 
         console.log("UVCoverageSimulator: Módulo de cobertura UV inicializado.");
+    }
+
+    /**
+     * Tenta inicializar WebGPU para aceleração de hardware.
+     * Se não disponível, usa CPU como fallback silencioso.
+     * @private
+     */
+    async _initWebGPU() {
+        try {
+            if (!navigator.gpu) {
+                console.log("UVCoverageSimulator: WebGPU não disponível, usando CPU.");
+                return;
+            }
+            const adapter = await navigator.gpu.requestAdapter();
+            if (!adapter) {
+                console.log("UVCoverageSimulator: WebGPU adapter não encontrado, usando CPU.");
+                return;
+            }
+            this.gpuDevice = await adapter.requestDevice();
+            this.gpuAvailable = true;
+            console.log("UVCoverageSimulator: WebGPU inicializado com sucesso — aceleração de hardware ativa.");
+        } catch (err) {
+            console.log("UVCoverageSimulator: WebGPU falhou, usando CPU:", err.message);
+        }
     }
 
     /**
@@ -133,7 +162,7 @@ class UVCoverageSimulator {
 
     /**
      * Calcula a cobertura UV para todos os pares de estações e passos de tempo.
-     * Para cada baseline, calcula u,v como função do ângulo horário.
+     * Tenta usar WebGPU se disponível para aceleração; caso contrário, usa CPU.
      *
      * u = Bx*sin(H) + By*cos(H)
      * v = -Bx*sin(dec)*cos(H) + By*sin(dec)*sin(H) + Bz*cos(dec)
@@ -141,7 +170,7 @@ class UVCoverageSimulator {
      * Bx, By são componentes do baseline no plano local (Bz = 0 para estações coplanares).
      * Coordenadas em comprimentos de onda: u_λ = u/λ, v_λ = v/λ.
      */
-    generateUVCoverage() {
+    async generateUVCoverage() {
         const stations = this.getStationPositions();
         if (!stations || stations.length < 2) {
             this.updateStatus("Erro: São necessárias pelo menos 2 estações para calcular a cobertura UV.");
@@ -153,37 +182,61 @@ class UVCoverageSimulator {
 
         const params = this._readParams();
         const decRad = params.dec * BingoConstants.DEG_TO_RAD;
-        const latRad = params.latitude * BingoConstants.DEG_TO_RAD;
         const lambda = BingoConstants.SPEED_OF_LIGHT / params.freqHz;
-
         const sinDec = Math.sin(decRad);
         const cosDec = Math.cos(decRad);
-        const sinLat = Math.sin(latRad);
-        const cosLat = Math.cos(latRad);
 
         // Ângulos horários: centrados em 0, de -duration/2 a +duration/2
         const halfDuration = params.duration / 2;
         const hourAngles = [];
         for (let i = 0; i < params.timesteps; i++) {
             const hHours = params.timesteps === 1 ? 0 : -halfDuration + (params.duration * i) / (params.timesteps - 1);
-            // Converter horas para radianos (1h = 15°)
             hourAngles.push(hHours * 15 * BingoConstants.DEG_TO_RAD);
         }
 
+        let uvResult;
+
+        // Tenta usar WebGPU para cálculos massivos
+        if (this.gpuAvailable && this.gpuDevice && stations.length >= 10) {
+            try {
+                this.updateStatus("Calculando cobertura UV (WebGPU)...");
+                uvResult = await this._computeUVonGPU(stations, hourAngles, sinDec, cosDec, lambda);
+                this.updateStatus(`Cobertura UV gerada via GPU: ${uvResult.nBaselines} baselines, ${uvResult.uPoints.length} pontos.`);
+            } catch (gpuErr) {
+                console.warn("UVCoverageSimulator: WebGPU falhou, usando CPU:", gpuErr.message);
+                uvResult = this._computeUVonCPU(stations, hourAngles, sinDec, cosDec, lambda);
+            }
+        } else {
+            uvResult = this._computeUVonCPU(stations, hourAngles, sinDec, cosDec, lambda);
+        }
+
+        this.uvData = { ...uvResult, lambda, params };
+
+        const accel = (this.gpuAvailable && stations.length >= 10) ? 'GPU' : 'CPU';
+        console.log(`UVCoverageSimulator [${accel}]: ${uvResult.nBaselines} baselines, ${uvResult.uPoints.length} pontos UV.`);
+
+        this.plotUVCoverage(this.uvData);
+        this.calculateResolution();
+        if (!this.uvData._statusSet) {
+            this.updateStatus(`Cobertura UV gerada (${accel}): ${uvResult.nBaselines} baselines, ${uvResult.uPoints.length} pontos.`);
+        }
+    }
+
+    /**
+     * Calcula UV coverage na CPU (fallback padrão).
+     * @private
+     */
+    _computeUVonCPU(stations, hourAngles, sinDec, cosDec, lambda) {
         const uPoints = [];
         const vPoints = [];
         const baselineLengths = [];
         let maxBaseline = 0;
-
         const nStations = stations.length;
 
         for (let i = 0; i < nStations; i++) {
             for (let j = i + 1; j < nStations; j++) {
-                // Componentes do baseline no plano local (ENU: East, North, Up)
-                const Bx = stations[j].x - stations[i].x; // East
-                const By = stations[j].y - stations[i].y; // North
-                const Bz = 0; // Estações coplanares
-
+                const Bx = stations[j].x - stations[i].x;
+                const By = stations[j].y - stations[i].y;
                 const bLen = Math.sqrt(Bx * Bx + By * By);
                 if (bLen > maxBaseline) maxBaseline = bLen;
 
@@ -193,17 +246,15 @@ class UVCoverageSimulator {
                     const cosH = Math.cos(H);
 
                     const u = Bx * sinH + By * cosH;
-                    const v = -Bx * sinDec * cosH + By * sinDec * sinH + Bz * cosDec;
+                    const v = -Bx * sinDec * cosH + By * sinDec * sinH;
 
                     const uLambda = u / lambda;
                     const vLambda = v / lambda;
 
-                    // Ponto original
                     uPoints.push(uLambda);
                     vPoints.push(vLambda);
                     baselineLengths.push(bLen);
 
-                    // Ponto conjugado (-u, -v)
                     uPoints.push(-uLambda);
                     vPoints.push(-vLambda);
                     baselineLengths.push(bLen);
@@ -211,14 +262,187 @@ class UVCoverageSimulator {
             }
         }
 
-        this.uvData = { uPoints, vPoints, baselineLengths, maxBaseline, lambda, params };
-
         const nBaselines = (nStations * (nStations - 1)) / 2;
-        console.log(`UVCoverageSimulator: ${nBaselines} baselines calculadas, ${uPoints.length} pontos UV gerados.`);
+        return { uPoints, vPoints, baselineLengths, maxBaseline, nBaselines };
+    }
 
-        this.plotUVCoverage(this.uvData);
-        this.calculateResolution();
-        this.updateStatus(`Cobertura UV gerada: ${nBaselines} baselines, ${uPoints.length} pontos.`);
+    /**
+     * Calcula UV coverage usando WebGPU compute shader.
+     * @private
+     */
+    async _computeUVonGPU(stations, hourAngles, sinDec, cosDec, lambda) {
+        const device = this.gpuDevice;
+        const nStations = stations.length;
+        const nBaselines = (nStations * (nStations - 1)) / 2;
+        const nTimesteps = hourAngles.length;
+        const nOutputPoints = nBaselines * nTimesteps * 2; // ×2 for conjugate
+
+        // Prepare baseline pairs and hour angles
+        const baselinePairs = new Float32Array(nBaselines * 2); // Bx, By per pair
+        let bIdx = 0;
+        for (let i = 0; i < nStations; i++) {
+            for (let j = i + 1; j < nStations; j++) {
+                baselinePairs[bIdx++] = stations[j].x - stations[i].x;
+                baselinePairs[bIdx++] = stations[j].y - stations[i].y;
+            }
+        }
+
+        const hourAngleArray = new Float32Array(hourAngles);
+
+        // Uniform data: sinDec, cosDec, lambda, nTimesteps, nBaselines
+        const uniformData = new Float32Array([sinDec, cosDec, lambda, nTimesteps, nBaselines]);
+
+        // Create GPU buffers
+        const baselinesBuffer = device.createBuffer({
+            size: baselinePairs.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(baselinesBuffer, 0, baselinePairs);
+
+        const hourAnglesBuffer = device.createBuffer({
+            size: hourAngleArray.byteLength,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(hourAnglesBuffer, 0, hourAngleArray);
+
+        const uniformBuffer = device.createBuffer({
+            size: uniformData.byteLength,
+            usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+        });
+        device.queue.writeBuffer(uniformBuffer, 0, uniformData);
+
+        // Output: u, v, baselineLength per point (×2 for conjugate)
+        const outputSize = nOutputPoints * 3 * 4; // 3 floats × 4 bytes each
+        const outputBuffer = device.createBuffer({
+            size: outputSize,
+            usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC
+        });
+
+        const readBuffer = device.createBuffer({
+            size: outputSize,
+            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST
+        });
+
+        // WGSL shader
+        const shaderCode = `
+            struct Uniforms {
+                sinDec: f32,
+                cosDec: f32,
+                lambda: f32,
+                nTimesteps: f32,
+                nBaselines: f32,
+            };
+
+            @group(0) @binding(0) var<storage, read> baselines: array<f32>;
+            @group(0) @binding(1) var<storage, read> hourAngles: array<f32>;
+            @group(0) @binding(2) var<uniform> uniforms: Uniforms;
+            @group(0) @binding(3) var<storage, read_write> output: array<f32>;
+
+            @compute @workgroup_size(64)
+            fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
+                let nTimesteps = u32(uniforms.nTimesteps);
+                let nBaselines = u32(uniforms.nBaselines);
+                let totalWork = nBaselines * nTimesteps;
+                let idx = gid.x;
+                if (idx >= totalWork) { return; }
+
+                let bIdx = idx / nTimesteps;
+                let tIdx = idx % nTimesteps;
+
+                let Bx = baselines[bIdx * 2u];
+                let By = baselines[bIdx * 2u + 1u];
+                let bLen = sqrt(Bx * Bx + By * By);
+
+                let H = hourAngles[tIdx];
+                let sinH = sin(H);
+                let cosH = cos(H);
+
+                let u = Bx * sinH + By * cosH;
+                let v = -Bx * uniforms.sinDec * cosH + By * uniforms.sinDec * sinH;
+
+                let uLam = u / uniforms.lambda;
+                let vLam = v / uniforms.lambda;
+
+                // Original point
+                let outIdx = idx * 6u; // 2 points × 3 values
+                output[outIdx] = uLam;
+                output[outIdx + 1u] = vLam;
+                output[outIdx + 2u] = bLen;
+
+                // Conjugate point
+                output[outIdx + 3u] = -uLam;
+                output[outIdx + 4u] = -vLam;
+                output[outIdx + 5u] = bLen;
+            }
+        `;
+
+        const shaderModule = device.createShaderModule({ code: shaderCode });
+
+        const bindGroupLayout = device.createBindGroupLayout({
+            entries: [
+                { binding: 0, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 1, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'read-only-storage' } },
+                { binding: 2, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
+                { binding: 3, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'storage' } }
+            ]
+        });
+
+        const pipeline = device.createComputePipeline({
+            layout: device.createPipelineLayout({ bindGroupLayouts: [bindGroupLayout] }),
+            compute: { module: shaderModule, entryPoint: 'main' }
+        });
+
+        const bindGroup = device.createBindGroup({
+            layout: bindGroupLayout,
+            entries: [
+                { binding: 0, resource: { buffer: baselinesBuffer } },
+                { binding: 1, resource: { buffer: hourAnglesBuffer } },
+                { binding: 2, resource: { buffer: uniformBuffer } },
+                { binding: 3, resource: { buffer: outputBuffer } }
+            ]
+        });
+
+        const totalWork = nBaselines * nTimesteps;
+        const workgroupSize = 64;
+        const numWorkgroups = Math.ceil(totalWork / workgroupSize);
+
+        const commandEncoder = device.createCommandEncoder();
+        const pass = commandEncoder.beginComputePass();
+        pass.setPipeline(pipeline);
+        pass.setBindGroup(0, bindGroup);
+        pass.dispatchWorkgroups(numWorkgroups);
+        pass.end();
+
+        commandEncoder.copyBufferToBuffer(outputBuffer, 0, readBuffer, 0, outputSize);
+        device.queue.submit([commandEncoder.finish()]);
+
+        await readBuffer.mapAsync(GPUMapMode.READ);
+        const resultData = new Float32Array(readBuffer.getMappedRange().slice(0));
+        readBuffer.unmap();
+
+        // Parse output
+        const uPoints = [];
+        const vPoints = [];
+        const baselineLengths = [];
+        let maxBaseline = 0;
+
+        for (let i = 0; i < nOutputPoints; i++) {
+            const offset = i * 3;
+            uPoints.push(resultData[offset]);
+            vPoints.push(resultData[offset + 1]);
+            const bLen = resultData[offset + 2];
+            baselineLengths.push(bLen);
+            if (bLen > maxBaseline) maxBaseline = bLen;
+        }
+
+        // Cleanup GPU buffers
+        baselinesBuffer.destroy();
+        hourAnglesBuffer.destroy();
+        uniformBuffer.destroy();
+        outputBuffer.destroy();
+        readBuffer.destroy();
+
+        return { uPoints, vPoints, baselineLengths, maxBaseline, nBaselines };
     }
 
     /**

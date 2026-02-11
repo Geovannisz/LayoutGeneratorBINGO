@@ -1223,7 +1223,7 @@ footer { text-align: center; padding: 20px 0; background-color: var(--header-bg-
 .source-table td {
     padding: 6px 10px;
     border-bottom: 1px solid var(--border-color);
-    text-align: right;
+    text-align: center;
 }
 .source-table th {
     background-color: var(--highlight-color);

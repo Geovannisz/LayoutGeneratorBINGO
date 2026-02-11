@@ -992,38 +992,40 @@ class OskarIniGenerator {
 
         row.appendChild(label);
 
-        // Para campos de arquivo/diretório, cria um wrapper com botão para digitar caminho
+        // Para campos de arquivo/diretório, cria um wrapper com botão para focar/colar caminho
         if (param.isFilePath) {
             const inputWrapper = document.createElement('div');
             inputWrapper.className = 'ini-file-input-wrapper';
             input.placeholder = param.isDirectory
-                ? 'Ex: /home/user/telescope'
-                : 'Ex: /home/user/data/output.vis';
+                ? 'Cole aqui o caminho: /home/user/telescope'
+                : 'Cole aqui o caminho: /home/user/data/output.vis';
+            input.title = 'Digite ou cole o caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
             inputWrapper.appendChild(input);
 
-            const browseBtn = document.createElement('button');
-            browseBtn.type = 'button';
-            browseBtn.className = 'ini-browse-btn';
-            browseBtn.title = 'Inserir caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
-            browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
+            const pasteBtn = document.createElement('button');
+            pasteBtn.type = 'button';
+            pasteBtn.className = 'ini-browse-btn';
+            pasteBtn.title = 'Colar caminho da área de transferência';
+            pasteBtn.innerHTML = '<i class="fas fa-paste"></i>';
 
-            // Navegadores não permitem acesso ao caminho completo por segurança.
-            // Abre um prompt para o usuário colar o caminho completo do seu sistema.
-            browseBtn.addEventListener('click', (e) => {
+            // Ao clicar, tenta colar da área de transferência diretamente no campo
+            pasteBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                const label = param.isDirectory ? 'diretório' : 'arquivo';
-                const currentVal = input.value || '';
-                const path = prompt(
-                    `Cole o caminho completo do ${label} no seu computador:`,
-                    currentVal
-                );
-                if (path !== null && path.trim() !== '') {
-                    input.value = path.trim();
-                    input.dispatchEvent(new Event('input'));
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text && text.trim()) {
+                        input.value = text.trim();
+                        input.dispatchEvent(new Event('input'));
+                        input.focus();
+                    }
+                } catch (_err) {
+                    // Fallback: foca e seleciona o campo para o usuário colar manualmente
+                    input.focus();
+                    input.select();
                 }
             });
 
-            inputWrapper.appendChild(browseBtn);
+            inputWrapper.appendChild(pasteBtn);
             row.appendChild(inputWrapper);
         } else {
             row.appendChild(input);
@@ -1979,31 +1981,33 @@ class OskarImagerGenerator {
             const inputWrapper = document.createElement('div');
             inputWrapper.className = 'ini-file-input-wrapper';
             input.placeholder = param.isDirectory
-                ? 'Ex: /home/user/telescope'
-                : 'Ex: /home/user/data/output.vis';
+                ? 'Cole aqui o caminho: /home/user/telescope'
+                : 'Cole aqui o caminho: /home/user/data/output.vis';
+            input.title = 'Digite ou cole o caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
             inputWrapper.appendChild(input);
 
-            const browseBtn = document.createElement('button');
-            browseBtn.type = 'button';
-            browseBtn.className = 'ini-browse-btn';
-            browseBtn.title = 'Inserir caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
-            browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
+            const pasteBtn = document.createElement('button');
+            pasteBtn.type = 'button';
+            pasteBtn.className = 'ini-browse-btn';
+            pasteBtn.title = 'Colar caminho da área de transferência';
+            pasteBtn.innerHTML = '<i class="fas fa-paste"></i>';
 
-            browseBtn.addEventListener('click', (e) => {
+            pasteBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                const label = param.isDirectory ? 'diretório' : 'arquivo';
-                const currentVal = input.value || '';
-                const path = prompt(
-                    `Cole o caminho completo do ${label} no seu computador:`,
-                    currentVal
-                );
-                if (path !== null && path.trim() !== '') {
-                    input.value = path.trim();
-                    input.dispatchEvent(new Event('input'));
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text && text.trim()) {
+                        input.value = text.trim();
+                        input.dispatchEvent(new Event('input'));
+                        input.focus();
+                    }
+                } catch (_err) {
+                    input.focus();
+                    input.select();
                 }
             });
 
-            inputWrapper.appendChild(browseBtn);
+            inputWrapper.appendChild(pasteBtn);
             row.appendChild(inputWrapper);
         } else {
             row.appendChild(input);
@@ -3122,31 +3126,33 @@ class OskarBeamPatternGenerator {
             const inputWrapper = document.createElement('div');
             inputWrapper.className = 'ini-file-input-wrapper';
             input.placeholder = param.isDirectory
-                ? 'Ex: /home/user/telescope'
-                : 'Ex: /home/user/data/beam_output';
+                ? 'Cole aqui o caminho: /home/user/telescope'
+                : 'Cole aqui o caminho: /home/user/data/beam_output';
+            input.title = 'Digite ou cole o caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
             inputWrapper.appendChild(input);
 
-            const browseBtn = document.createElement('button');
-            browseBtn.type = 'button';
-            browseBtn.className = 'ini-browse-btn';
-            browseBtn.title = 'Inserir caminho completo do ' + (param.isDirectory ? 'diretório' : 'arquivo');
-            browseBtn.innerHTML = '<i class="fas fa-folder-open"></i>';
+            const pasteBtn = document.createElement('button');
+            pasteBtn.type = 'button';
+            pasteBtn.className = 'ini-browse-btn';
+            pasteBtn.title = 'Colar caminho da área de transferência';
+            pasteBtn.innerHTML = '<i class="fas fa-paste"></i>';
 
-            browseBtn.addEventListener('click', (e) => {
+            pasteBtn.addEventListener('click', async (e) => {
                 e.preventDefault();
-                const lbl = param.isDirectory ? 'diretório' : 'arquivo';
-                const currentVal = input.value || '';
-                const path = prompt(
-                    `Cole o caminho completo do ${lbl} no seu computador:`,
-                    currentVal
-                );
-                if (path !== null && path.trim() !== '') {
-                    input.value = path.trim();
-                    input.dispatchEvent(new Event('input'));
+                try {
+                    const text = await navigator.clipboard.readText();
+                    if (text && text.trim()) {
+                        input.value = text.trim();
+                        input.dispatchEvent(new Event('input'));
+                        input.focus();
+                    }
+                } catch (_err) {
+                    input.focus();
+                    input.select();
                 }
             });
 
-            inputWrapper.appendChild(browseBtn);
+            inputWrapper.appendChild(pasteBtn);
             row.appendChild(inputWrapper);
         } else {
             row.appendChild(input);
