@@ -18,10 +18,25 @@ jobs:
       contents: write
 
     steps:
+      - name: Normalize tag input
+        id: normalize
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            INPUT_TAG="${{ github.event.inputs.tag }}"
+            # Strip leading 'v' if present to avoid double 'v' prefix
+            CLEAN_TAG="${INPUT_TAG#v}"
+            echo "TAG=v${CLEAN_TAG}" >> $GITHUB_OUTPUT
+            echo "VERSION=${CLEAN_TAG}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=${{ github.ref }}" >> $GITHUB_OUTPUT
+            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check out Git repository
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.inputs.tag && format('v{0}', github.event.inputs.tag) || github.ref }}
+          ref: ${{ steps.normalize.outputs.TAG }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
@@ -34,21 +49,11 @@ jobs:
       - name: Build application
         run: npm run dist
 
-      - name: Get version from tag
-        id: get_version
-        shell: bash
-        run: |
-          if [ -n "${{ github.event.inputs.tag }}" ]; then
-            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          fi
-
       - name: Rename installer to standard format
         shell: bash
         run: |
-          SOURCE_FILE="release/BINGO Layout Generator Setup ${{ steps.get_version.outputs.VERSION }}.exe"
-          TARGET_FILE="release/BINGO.Layout.Generator.Setup.${{ steps.get_version.outputs.VERSION }}.exe"
+          SOURCE_FILE="release/BINGO Layout Generator Setup ${{ steps.normalize.outputs.VERSION }}.exe"
+          TARGET_FILE="release/BINGO.Layout.Generator.Setup.${{ steps.normalize.outputs.VERSION }}.exe"
           if [ -f "$SOURCE_FILE" ]; then
             mv "$SOURCE_FILE" "$TARGET_FILE"
             echo "✅ Renamed installer to standard format"
@@ -62,15 +67,15 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          tag: v${{ steps.get_version.outputs.VERSION }}
-          artifacts: "release/BINGO.Layout.Generator.Setup.${{ steps.get_version.outputs.VERSION }}.exe"
+          tag: v${{ steps.normalize.outputs.VERSION }}
+          artifacts: "release/BINGO.Layout.Generator.Setup.${{ steps.normalize.outputs.VERSION }}.exe"
           artifactContentType: application/octet-stream
-          name: "v${{ steps.get_version.outputs.VERSION }}"
+          name: "v${{ steps.normalize.outputs.VERSION }}"
           body: |
-            ## 🚀 BINGO Layout Generator v${{ steps.get_version.outputs.VERSION }}
+            ## 🚀 BINGO Layout Generator v${{ steps.normalize.outputs.VERSION }}
 
             ### 📥 Download
-            Baixe o arquivo `BINGO.Layout.Generator.Setup.${{ steps.get_version.outputs.VERSION }}.exe` abaixo para instalar a aplicação no Windows.
+            Baixe o arquivo `BINGO.Layout.Generator.Setup.${{ steps.normalize.outputs.VERSION }}.exe` abaixo para instalar a aplicação no Windows.
 
             ### 📋 Notas de Instalação
             - Execute o instalador e siga as instruções na tela
@@ -78,7 +83,7 @@ jobs:
             - Para outros sistemas operacionais, consulte [BUILD.md](https://github.com/${{ github.repository }}/blob/main/BUILD.md)
 
             ---
-            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.0.2...v${{ steps.get_version.outputs.VERSION }}
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.0.2...v${{ steps.normalize.outputs.VERSION }}
           draft: false
           prerelease: false
           generateReleaseNotes: false
