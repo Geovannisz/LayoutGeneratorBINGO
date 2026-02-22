@@ -12,7 +12,7 @@
  * @requires BingoLayouts
  * @requires BingoConstants
  * @author Geovanni Fernandes Garcia
- * @version 1.0.2
+ * @version 1.0.3
  */
 
 'use strict';

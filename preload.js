@@ -6,7 +6,7 @@
  * Boas práticas de segurança do Electron recomendam ter este arquivo para expor APIs seguras.
  *
  * @author Geovanni Fernandes Garcia
- * @version 1.0.2
+ * @version 1.0.3
  */
 
 'use strict';

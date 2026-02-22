@@ -15,7 +15,7 @@ O script gera 16 configurações de layout pré-definidas (4 formas x 4 variante
 e pede confirmação visual para cada uma antes de gerar os arquivos.
 
 Author: Geovanni Fernandes Garcia
-Version: 1.0.2
+Version: 1.0.3
 """
 
 import csv

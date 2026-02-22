@@ -1,6 +1,6 @@
 {
   "name": "bingo-layout-generator",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Gerador de Layouts de Antenas BINGO - Ferramenta para design, simulação e análise de arranjos de antenas para o projeto BINGO (Baryon Acoustic Oscillations from Integrated Neutral Gas Observations)",
   "main": "main.js",
   "scripts": {
