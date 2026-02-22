@@ -2,7 +2,7 @@
 
 Este documento rastreia as tarefas concluídas durante o desenvolvimento do site Gerador de Layouts de Antenas BINGO e lista possíveis melhorias e adições futuras.
 
-**Versão Atual:** 1.0.2 | **Última Atualização:** Janeiro 2026
+**Versão Atual:** 1.0.3 | **Última Atualização:** Fevereiro 2026
 
 ## 🚀 Fase 1: Fundação e Configuração Inicial
 
@@ -227,6 +227,58 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
     *   [x] Executar code review e corrigir issues.
     *   [x] Executar CodeQL scan (0 vulnerabilidades).
 
+## 🚀 Fase 9: Módulos OSKAR, Estações, Sky Model e Cobertura UV (v1.0.3)
+
+*   [x] **Sistema de Abas e Navegação:**
+    *   [x] Implementar `TabManager` com botões `.tab-btn` e painéis `.tab-content`.
+    *   [x] Disparar evento customizado `tabChanged` ao trocar de aba.
+    *   [x] Adicionar acesso rápido às abas no `main.js`.
+*   [x] **Gerenciador de Estações (`stations.js`):**
+    *   [x] Implementar 10 tipos de layout: grid, circular, spiral, y_shape, cross, random, logarithmic, sunflower (Fibonacci), dual_ring, elliptical.
+    *   [x] Adicionar geração automática em tempo real com debounce (150ms) ao alterar parâmetros.
+    *   [x] Manter botões "Gerar" e "Randomizar" para controle explícito.
+    *   [x] Geração inicial no carregamento da página.
+    *   [x] Implementar parâmetros de espaçamento exponencial por tipo de layout.
+*   [x] **Gerador INI OSKAR (`ini_generator.js`):**
+    *   [x] Implementar `OskarIniGenerator` para `oskar_sim_interferometer` (73 parâmetros em 5 seções).
+    *   [x] Implementar `OskarImagerGenerator` para `oskar_imager` (34 parâmetros).
+    *   [x] Implementar `OskarBeamPatternGenerator` para `oskar_sim_beam_pattern` (42 parâmetros).
+    *   [x] Alinhar todos os geradores com TutorialOSKAR.tex (tooltips, defaults, parâmetros faltantes).
+    *   [x] Inputs de caminho de arquivo via clipboard paste (fa-paste) com fallback.
+    *   [x] Utilitário `getOsLineEnding()` para detectar terminação de linha do SO.
+    *   [x] Todos os geradores prepõem seção `[General] app=...`.
+*   [x] **Gerador de Sky Model (`sky_model.js`):**
+    *   [x] Implementar 4 modos de geração: single, grid, random, power_law.
+    *   [x] Suporte completo a 12 colunas OSKAR (RA, Dec, I, Q, U, V, refFreq, spix, RM, major, minor, pa).
+    *   [x] Helper `_buildGaussianFields(prefix)` para evitar duplicação.
+    *   [x] Validação de fontes: RA ∈ [0°, 360°), Dec ∈ [-90°, +90°], Flux ≥ 0.
+    *   [x] Tabela interativa com coluna "Tipo" (ponto vs Gaussiana) e ordenação por coluna.
+    *   [x] Exportação no formato OSKAR de 12 colunas.
+*   [x] **Cobertura UV (`uv_coverage.js`):**
+    *   [x] Implementar visualização de cobertura UV com Plotly.js.
+    *   [x] Aceleração WebGPU com shader WGSL (workgroup_size 64) para ≥10 estações.
+    *   [x] Fallback automático para CPU (`_computeUVonCPU`).
+    *   [x] Incluir componente Bz no cálculo de baselines 3D.
+*   [x] **Exportação e Coordenadas:**
+    *   [x] Corrigir ordem de coordenadas: `layout_wgs84.txt` e `position.txt` para lon,lat,alt.
+    *   [x] Implementar seletor de formato (WGS84/ECEF/ENU) com radio buttons e tooltips.
+    *   [x] Remover textarea WGS84 standalone; consolidar no seletor de rádio.
+    *   [x] ZIP export lê de `export-layout-wgs84-alt`.
+*   [x] **Mapa Interativo:**
+    *   [x] Implementar Ctrl+scroll zoom com overlay de mensagem (1.5s).
+    *   [x] Adicionar toggle de distância no mapa.
+    *   [x] Atualizar Leaflet CDN de 1.7.1 → 1.9.4.
+*   [x] **Correções de Bugs:**
+    *   [x] Corrigir race condition no heatmap (worker retorna `layoutHash` para validação).
+    *   [x] Corrigir cache de heatmap para evitar dados obsoletos.
+    *   [x] Adicionar tooltip de intensidade no mapa de calor.
+    *   [x] Melhorar sincronização de workers.
+*   [x] **Infraestrutura:**
+    *   [x] Atualizar BUILD.md com seções Linux e macOS.
+    *   [x] Python `telescope_gen.py`: substituir caminhos hardcoded por `os.path.dirname` + `argparse`.
+    *   [x] Adicionar campo de nome de arquivo de imagem customizável.
+    *   [x] Habilitar carregamento local de dados.
+
 ---
 
 ## 🔮 Futuras Melhorias e Adições
@@ -250,8 +302,8 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
 *   [ ] **Mais Algoritmos de Layout**:
     *   [ ] Implementar layouts otimizados para baixa redundância (algoritmo de minimização de sidelobes).
     *   [ ] Layouts baseados em otimização por algoritmos genéticos.
-    *   [ ] Layout Y-shaped (formato em Y) comum em radioastronomia.
-    *   [ ] Layout logarítmico-espiral.
+    *   [x] Layout Y-shaped (formato em Y) comum em radioastronomia. *(implementado em v1.0.3 no StationManager)*
+    *   [x] Layout logarítmico-espiral. *(implementado em v1.0.3 no StationManager)*
 *   [ ] **Editor de Layout Manual Avançado**:
     *   [ ] Ferramentas de alinhamento (alinhar à grade, alinhar horizontalmente/verticalmente).
     *   [ ] Ferramentas de distribuição (distribuir uniformemente).
@@ -271,9 +323,9 @@ Este documento rastreia as tarefas concluídas durante o desenvolvimento do site
     *   [ ] Identificação e listagem dos níveis dos lóbulos laterais mais altos.
     *   [ ] Visualização 2D/3D da própria PSF como superfície.
     *   [ ] Comparação lado-a-lado de PSFs de diferentes layouts.
-*   [ ] **Análise de Cobertura UV**:
-    *   [ ] Plotar a cobertura no plano UV para o arranjo gerado.
-    *   [ ] Simular cobertura UV ao longo de diferentes horas de observação (Earth rotation synthesis).
+*   [x] **Análise de Cobertura UV**: *(implementado em v1.0.3)*
+    *   [x] Plotar a cobertura no plano UV para o arranjo gerado.
+    *   [x] Simular cobertura UV ao longo de diferentes horas de observação (Earth rotation synthesis).
     *   [ ] Calcular métricas de cobertura UV (filling factor, gaps).
 *   [ ] **Simulação de Observação**:
     *   [ ] Simular imagem de fonte pontual com o beam pattern atual.

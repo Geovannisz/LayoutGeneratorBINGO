@@ -32,7 +32,7 @@ Convenções de Parâmetros:
 Todas as funções retornam: CoordList (List[List[float]])
 
 Author: Geovanni Fernandes Garcia
-Version: 1.0.2
+Version: 1.0.3
 """
 
 import numpy as np

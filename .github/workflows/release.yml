@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag version to release (e.g., 1.0.2)'
+        description: 'Tag version to release (e.g., 1.0.3)'
         required: true
         type: string
 
@@ -78,7 +78,7 @@ jobs:
             - Para outros sistemas operacionais, consulte [BUILD.md](https://github.com/${{ github.repository }}/blob/main/BUILD.md)
 
             ---
-            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.0.1...v${{ steps.get_version.outputs.VERSION }}
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/v1.0.2...v${{ steps.get_version.outputs.VERSION }}
           draft: false
           prerelease: false
           generateReleaseNotes: false

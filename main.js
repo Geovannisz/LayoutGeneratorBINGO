@@ -5,7 +5,7 @@
  * Gerencia a criação de janelas, ciclo de vida da aplicação e atualizações automáticas.
  *
  * @author Geovanni Fernandes Garcia
- * @version 1.0.2
+ * @version 1.0.3
  */
 
 'use strict';

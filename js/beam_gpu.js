@@ -8,7 +8,7 @@
  * Falls back to CPU calculation when WebGPU is not available.
  *
  * @author Geovanni Fernandes Garcia
- * @version 1.0.2
+ * @version 1.0.3
  */
 
 'use strict';

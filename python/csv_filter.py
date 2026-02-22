@@ -7,7 +7,7 @@ Script para filtrar e reduzir arquivos CSV de dados de E-field.
 Remove colunas desnecessárias e reduz a resolução de Theta.
 
 Author: Geovanni Fernandes Garcia
-Version: 1.0.2
+Version: 1.0.3
 """
 
 import os

@@ -7,7 +7,7 @@ Script para pré-processar arquivos CSV de E-field.
 Divide o arquivo CSV completo em arquivos individuais por valor de Phi.
 
 Author: Geovanni Fernandes Garcia
-Version: 1.0.2
+Version: 1.0.3
 """
 
 import os

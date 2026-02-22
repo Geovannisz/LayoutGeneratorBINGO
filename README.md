@@ -2,7 +2,7 @@
 
 **Acesse o site:** [https://geovannisz.github.io/LayoutGeneratorBINGO/](https://geovannisz.github.io/LayoutGeneratorBINGO/)
 
-**Versão:** 1.0.2 | **Autor:** Geovanni Fernandes Garcia | **Licença:** MIT
+**Versão:** 1.0.3 | **Autor:** Geovanni Fernandes Garcia | **Licença:** MIT
 
 ---
 
@@ -135,10 +135,15 @@ A seção final permite exportar os dados configurados em formatos compatíveis 
 *   **Estrutura JavaScript Modular**:
     *   `constants.js`: Constantes físicas, dimensões e configurações centralizadas.
     *   `main.js`: Ponto de entrada e orquestração.
+    *   `tabs.js`: Gerenciador de navegação por abas (TabManager).
     *   `bingo_layouts.js`: Algoritmos de geração de layouts.
     *   `generator.js`: UI e lógica do "Gerador de Layout".
+    *   `stations.js`: Gerenciador de estações com 10 tipos de layout.
     *   `map.js`: Funcionalidades do mapa interativo.
-    *   `export.js`: Exportação de dados OSKAR.
+    *   `export.js`: Exportação de dados OSKAR (WGS84, ECEF, ENU).
+    *   `ini_generator.js`: Geradores de arquivos INI OSKAR (Interferometer, Imager, Beam Pattern).
+    *   `sky_model.js`: Gerador de Sky Model OSKAR (12 colunas, 4 modos).
+    *   `uv_coverage.js`: Visualização de cobertura UV com aceleração WebGPU.
     *   `beam_pattern.js`: Simulação do padrão de feixe.
         *   `beam_worker.js` (2D), `beam_worker_3d.js` (3D), `beam_gpu.js` (WebGPU), `heatmap_worker.js` (Mapa de Calor).
     *   `psf_analyzer.js`: UI da Análise da PSF.
@@ -150,7 +155,37 @@ A seção final permite exportar os dados configurados em formatos compatíveis 
     *   `csv_filter.py`: Filtro de dados CSV.
     *   `telescope_gen.py`: Geração de configurações de telescópio (desenvolvimento).
 
-## 🔧 Melhorias Recentes (v1.0.2)
+## 🔧 Melhorias Recentes (v1.0.3)
+
+### 🆕 Novos Módulos
+
+*   **Sistema de Abas (TabManager)**: Navegação por abas com botões `.tab-btn` e painéis `.tab-content`, evento `tabChanged` customizado.
+*   **Gerenciador de Estações (`stations.js`)**: 10 tipos de layout de estação (grid, circular, spiral, y_shape, cross, random, logarithmic, sunflower, dual_ring, elliptical) com geração em tempo real (debounce 150ms) ao alterar parâmetros.
+*   **Gerador INI OSKAR (`ini_generator.js`)**: Três geradores — `oskar_sim_interferometer` (73 parâmetros), `oskar_imager` (34 parâmetros), `oskar_sim_beam_pattern` (42 parâmetros) — alinhados com TutorialOSKAR.tex. Inputs de caminho de arquivo usam colagem via clipboard (fa-paste).
+*   **Gerador de Sky Model (`sky_model.js`)**: 4 modos (single, grid, random, power_law) com suporte completo a 12 colunas OSKAR (RA, Dec, I, Q, U, V, refFreq, spectralIndex, RM, major, minor, pa). Validação de fontes e tabela interativa com ordenação por coluna.
+*   **Cobertura UV (`uv_coverage.js`)**: Visualização de cobertura UV com aceleração WebGPU (≥10 estações), shader WGSL (workgroup_size 64), fallback CPU automático. Componente Bz incluído no cálculo de baselines 3D.
+
+### 📐 Exportação e Coordenadas
+
+*   **Correção de ordem de coordenadas**: `layout_wgs84.txt` e `position.txt` agora usam lon,lat,alt conforme convenção OSKAR.
+*   **Seletor de formato de coordenadas**: Radio buttons para alternar entre WGS84 (padrão), ECEF e ENU na seção de exportação, com tooltips explicativos (ℹ️).
+*   **Consolidação WGS84**: Textarea standalone removida; dados WGS84 servidos exclusivamente via seletor de rádio.
+
+### 🗺️ Mapa e Interação
+
+*   **Ctrl+scroll zoom**: Zoom no mapa desabilitado por scroll simples; mensagem overlay "Use Ctrl + scroll para dar zoom" exibida por 1.5s.
+*   **Toggle de distância no mapa**: Exibição de linhas de distância entre estações.
+*   **Leaflet atualizado**: CDN de 1.7.1 → 1.9.4.
+
+### 🔧 Correções e Melhorias
+
+*   **Heatmap race condition**: Worker agora retorna `layoutHash` para validar resultados contra o layout atual, evitando resultados descartados incorretamente.
+*   **Heatmap tooltip**: Exibição de intensidade interpolada no tooltip do mapa de calor.
+*   **BUILD.md**: Seções adicionadas para Linux e macOS, detecção de LFS melhorada.
+*   **Python `telescope_gen.py`**: Caminhos hardcoded substituídos por `os.path.dirname` + `argparse` CLI.
+*   **Terminação de linha adaptativa**: `getOsLineEnding()` detecta Windows via `navigator.userAgentData.platform` com fallback para `navigator.platform`.
+
+### 🔧 Melhorias da v1.0.2
 
 ### Organização do Código
 *   Criado arquivo `js/constants.js` centralizando constantes físicas, CIDs IPFS e configurações compartilhadas
