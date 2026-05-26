@@ -66,10 +66,11 @@ const HEATMAP_RESOLUTION = 2048; // Fixed high resolution
 let cachedCalculationResult3D = null;
 let cachedCalculationParams3D = null;
 
-let latestPlotRequestParams = null;
-let currentlyProcessingRequestTimestamp = null;
-let processRequestTimeoutId = null;
-let layoutUpdateTimeout = null; // Debounce for layout updates
+// Layout version tracking - monotonically increasing counter for definitive staleness detection
+let layoutVersion = 0;                    // Increments on every layoutGenerated event
+let lastVisualizedLayoutVersion = -1;     // The layoutVersion that was last successfully visualized
+let calculationLayoutVersion = -1;        // The layoutVersion that the current/last worker calculation was started for
+let layoutUpdateTimeout = null;           // Debounce for layout updates
 
 // === DOM Element References ===
 let phiSlider, phiInput, scaleSelect;
@@ -193,7 +194,8 @@ function delay(ms) {
 
 function getLayoutHash(antennaCoords) {
     if (!antennaCoords) return "";
-    return JSON.stringify(antennaCoords.map(a => [Math.round(a[0] * 100), Math.round(a[1] * 100)]));
+    // Use micrometer precision (6 decimal places) to avoid false hash matches on small parameter changes
+    return JSON.stringify(antennaCoords.map(a => [Math.round(a[0] * 1000000), Math.round(a[1] * 1000000)]));
 }
 
 /**
@@ -1235,15 +1237,17 @@ function setupWorkers() {
                     // Worker result matches current layout - cache and display
                     cachedCalculationResult3D = e.data.data;
                     cachedCalculationParams3D = { layoutHash: currentLayoutHash };
-                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash corresponde ao layout atual).`);
+                    lastVisualizedLayoutVersion = calculationLayoutVersion;
+                    console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash corresponde ao layout atual, layoutVersion=${calculationLayoutVersion}).`);
                     try {
                         refreshVisualization();
                     } catch (err) {
                         console.error('Erro em refreshVisualization:', err);
                     }
                 } else if (!workerLayoutHash && cachedCalculationParams3D && cachedCalculationParams3D.layoutHash === currentLayoutHash) {
-                    // Fallback for older worker without layoutHash support - use cachedCalculationParams3D
+                    // Fallback for older worker without layoutHash support
                     cachedCalculationResult3D = e.data.data;
+                    lastVisualizedLayoutVersion = calculationLayoutVersion;
                     console.log(`Resultado 3D recebido e cacheado (ID ${e.data.id}, hash válido via cache params).`);
                     try {
                         refreshVisualization();
@@ -1253,7 +1257,6 @@ function setupWorkers() {
                 } else {
                     // Layout changed during calculation - discard
                     console.log(`Resultado 3D descartado - layout mudou (worker hash: ${workerLayoutHash?.slice(0,50) || 'N/A'}..., atual: ${currentLayoutHash?.slice(0,50)}...)`);
-                    // Don't clear cache here - let the next calculation populate it
                 }
                 
                 isProcessingPlot = false;
@@ -1262,6 +1265,9 @@ function setupWorkers() {
                     pendingRequestFn = null;
                     fn();
                 }
+                // Self-healing: if the heatmap is still stale after processing pending,
+                // schedule a new calculation to ensure the visualization catches up
+                scheduleRecalculationIfNeeded();
             } else if (e.data.type === 'error') {
                 if (statusDiv) statusDiv.textContent = e.data.error;
                 isProcessingPlot = false;
@@ -1270,6 +1276,8 @@ function setupWorkers() {
                     pendingRequestFn = null;
                     fn();
                 }
+                // Self-healing on error too
+                scheduleRecalculationIfNeeded();
             }
         };
 
@@ -1342,6 +1350,31 @@ function refreshVisualization() {
     }
 }
 
+/**
+ * Self-healing mechanism: checks if the currently displayed visualization
+ * corresponds to the latest layout version. If not, schedules a new calculation.
+ * This ensures the heatmap always catches up even if a race condition caused
+ * a missed update.
+ */
+function scheduleRecalculationIfNeeded() {
+    if (isProcessingPlot) return; // A calculation is already in progress
+    if (lastVisualizedLayoutVersion >= layoutVersion) return; // Already up to date
+    
+    console.log(`[Self-healing] Layout desatualizado (visualizado v${lastVisualizedLayoutVersion}, atual v${layoutVersion}). Agendando recálculo...`);
+    // Use a short delay to batch any remaining events
+    clearTimeout(layoutUpdateTimeout);
+    layoutUpdateTimeout = setTimeout(() => {
+        if (lastVisualizedLayoutVersion < layoutVersion && !isProcessingPlot) {
+            console.log(`[Self-healing] Executando recálculo para v${layoutVersion}`);
+            if (visualize2DBtn && visualize2DBtn.classList.contains('primary')) {
+                schedulePlotUpdate();
+            } else {
+                processFullDataPlotRequest();
+            }
+        }
+    }, 50); // Short delay to avoid flooding
+}
+
 async function processFullDataPlotRequest() {
     if (isProcessingPlot) {
         pendingRequestFn = processFullDataPlotRequest;
@@ -1362,6 +1395,7 @@ async function processFullDataPlotRequest() {
     
     if (cacheIsValid) {
         console.log("Usando cache 3D (hash válido).");
+        lastVisualizedLayoutVersion = layoutVersion; // Mark as visualized
         refreshVisualization();
         return;
     }
@@ -1375,24 +1409,38 @@ async function processFullDataPlotRequest() {
 
     isProcessingPlot = true;
     current3DCalculationId++;
+    calculationLayoutVersion = layoutVersion; // Track which version this calculation is for
     
     // Store the hash we're calculating for - this will be used to validate when worker returns
-    const calculationLayoutHash = layoutHash;
+    const currentCalcLayoutHash = layoutHash;
 
     // Load Data
     try {
         const fullData = await ensureFullEFieldData3DLoaded();
+        
+        // After await, verify we're still computing for the latest layout
+        // (another layoutGenerated may have fired during the await)
+        if (calculationLayoutVersion !== layoutVersion) {
+            console.log(`[processFullDataPlotRequest] Layout mudou durante carregamento de dados (v${calculationLayoutVersion} → v${layoutVersion}). Reiniciando...`);
+            isProcessingPlot = false;
+            // Restart with the current layout
+            scheduleRecalculationIfNeeded();
+            return;
+        }
+        
         beamCalculationWorker3D.postMessage({
             id: current3DCalculationId,
             antennaCoords: antennaCoords,
             elementFieldData3D: fullData,
             K_CONST: K,
-            layoutHash: calculationLayoutHash // Pass hash to worker for validation
+            layoutHash: currentCalcLayoutHash // Pass hash to worker for validation
         });
-        cachedCalculationParams3D = { layoutHash: calculationLayoutHash };
+        cachedCalculationParams3D = { layoutHash: currentCalcLayoutHash };
     } catch (e) {
         console.error(e);
         isProcessingPlot = false;
+        // Try to recover
+        scheduleRecalculationIfNeeded();
     }
 }
 
@@ -1494,14 +1542,16 @@ function initBeamPatternControls() {
 
     window.addEventListener('layoutGenerated', () => {
         clearTimeout(layoutUpdateTimeout);
+        // Increment layout version - this is the definitive staleness indicator
+        layoutVersion++;
         // Invalidate 3D cache when layout changes to force recalculation
-        console.log('BeamPattern: layoutGenerated recebido - invalidando cache 3D');
+        console.log(`BeamPattern: layoutGenerated recebido (v${layoutVersion}) - invalidando cache 3D`);
         cachedCalculationResult3D = null;
         cachedCalculationParams3D = null;
         
         layoutUpdateTimeout = setTimeout(() => {
             // Reverted auto-switch to 3D. Now just triggers update.
-            console.log('BeamPattern: Timeout expirado - iniciando atualização do plot');
+            console.log(`BeamPattern: Timeout expirado - iniciando atualização do plot (v${layoutVersion})`);
             if (visualize2DBtn.classList.contains('primary')) schedulePlotUpdate();
             else processFullDataPlotRequest();
         }, 200);
