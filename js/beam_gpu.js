@@ -156,20 +156,30 @@ class BeamCalculatorGPU {
         const numPoints = elementFieldData3D.length;
 
         // 1. Create or reuse Antenna Buffer (cached)
-        const antennaSignature = numAntennas + "_" + (antennaCoords[0] ? antennaCoords[0].join(',') : "empty");
+        // Build antenna data array first (needed for both signature and buffer creation)
+        const antennaData = new Float32Array(numAntennas * 2);
+        for (let i = 0; i < numAntennas; i++) {
+            antennaData[i * 2] = antennaCoords[i][0];
+            antennaData[i * 2 + 1] = antennaCoords[i][1];
+        }
+
+        // Compute a robust signature by hashing ALL antenna positions.
+        // The previous signature only checked numAntennas + first element, which caused
+        // the GPU to reuse stale data when parameters changed positions without changing
+        // the count or the first antenna's position (e.g., spacing factors with center tile).
+        let antennaHash = 0;
+        for (let i = 0; i < antennaData.length; i++) {
+            // Simple but effective hash: combine all float values
+            // Using FNV-like mixing to detect any position change
+            antennaHash = (antennaHash * 31 + (antennaData[i] * 1000000 | 0)) | 0;
+        }
+        const antennaSignature = numAntennas + "_" + antennaHash;
         let antennaBuffer;
 
         if (this.cachedAntennaBuffer && this.cachedAntennaSignature === antennaSignature) {
-            // Reuse cached buffer
+            // Reuse cached buffer - all positions match
             antennaBuffer = this.cachedAntennaBuffer;
         } else {
-            // Create new buffer
-            const antennaData = new Float32Array(numAntennas * 2);
-            for (let i = 0; i < numAntennas; i++) {
-                antennaData[i * 2] = antennaCoords[i][0];
-                antennaData[i * 2 + 1] = antennaCoords[i][1];
-            }
-
             // Destroy old buffer if exists
             if (this.cachedAntennaBuffer) {
                 this.cachedAntennaBuffer.destroy();
